@@ -1,7 +1,12 @@
-// data package contains main types and objects used for different data manipulations
-package data
+// records package contains main types and objects used for different data
+// manipulations. Record is a slice of bytes with unknown semantic. It means
+// that the package doesn't care about what the records are, but just describes
+// the main types the records selecting like records stores and iterators.
+package records
 
 type (
+	// Record is a slice of byte, which contains the record information.
+	Record []byte
 
 	// Iterator allows to iterate over a collection of records. The interface
 	// allows to select records in an order (either forward, backward or any
@@ -24,6 +29,6 @@ type (
 		//
 		// If error is nil, then the method returns slice of bytes, which is the
 		// current record. The slice could be nil as well, which is valid.
-		Get() ([]byte, error)
+		Get() (Record, error)
 	}
 )

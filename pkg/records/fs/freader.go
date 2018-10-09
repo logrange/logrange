@@ -1,4 +1,4 @@
-package chunk
+package jrnl
 
 import (
 	"fmt"
@@ -8,7 +8,7 @@ import (
 )
 
 type (
-	// fReader provides buffered file-read and some "smart" seeking a position
+	// fReader provides buffered file read functionality, and some "smart" seeking a position
 	// in the file.
 	fReader struct {
 		filename string

@@ -1,4 +1,4 @@
-package btsbuf
+package inmem
 
 import (
 	"fmt"
@@ -25,13 +25,6 @@ func TestNilBuf(t *testing.T) {
 	}
 }
 
-func TestNotOk(t *testing.T) {
-	testBufNotOk(t, []byte{0, 0, 0})
-	testBufNotOk(t, []byte{0, 0, 0, 1, 0, 1})
-	testBufNotOk(t, []byte{0, 0, 0, 1, 255, 255, 255, 255})
-	testBufNotOk(t, []byte{0, 0, 0, 3, 1, 2, 3, 255, 255, 255, 254, 1, 2})
-}
-
 func TestOk(t *testing.T) {
 	testBufOk(t, nil)
 	testBufOk(t, []byte{0, 0, 0, 0}, []byte{})
@@ -39,13 +32,6 @@ func TestOk(t *testing.T) {
 	testBufOk(t, []byte{0, 0, 0, 1, 123, 255, 255, 255, 255, 34}, []byte{123})
 	testBufOk(t, []byte{0, 0, 0, 3, 123, 1, 2}, []byte{123, 1, 2})
 	testBufOk(t, []byte{0, 0, 0, 2, 123, 1, 0, 0, 0, 0, 0, 0, 0, 1, 10}, []byte{123, 1}, []byte{}, []byte{10})
-}
-
-func testBufNotOk(t *testing.T, b []byte) {
-	_, err := check(b)
-	if err == nil {
-		t.Fatal("expecting an err but got nil")
-	}
 }
 
 func testBufOk(t *testing.T, b []byte, exp ...[]byte) {

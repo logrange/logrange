@@ -1,4 +1,4 @@
-package btsbuf
+package inmem
 
 import (
 	"encoding/binary"
@@ -6,7 +6,7 @@ import (
 )
 
 type (
-	// Writer allows to form bytes buffer structure on the buf slice.
+	// Writer allows to form Records structure in a slice of bytes.
 	Writer struct {
 		buf     []byte
 		clsdPos int
@@ -70,30 +70,22 @@ func (bbw *Writer) extend(ln int) bool {
 	return true
 }
 
-// Buf() returns the buffer underlying the writer
-func (bbw *Writer) Buf() []byte {
-	return bbw.buf
-}
-
 // Close puts EOF marker or completes the writing process. Consequentive
-// Allocate() calls will return errors. The Close() method returns slice of
-// bytes with allocated chunks (without the close marker). The method places the
-// close marker into the original slice of bytes for addressing the case
-// when it is not completely used so the original bbw.buf can be used for iteration
-// with no problems
-func (bbw *Writer) Close() ([]byte, error) {
+// Allocate() calls will return errors. The Close() method returns Records or
+// an error if any
+func (bbw *Writer) Close() (Records, error) {
 	if bbw.clsdPos >= 0 {
-		return bbw.buf[:bbw.clsdPos], nil
+		return Records(bbw.buf[:bbw.clsdPos]), nil
 	}
 
 	if len(bbw.buf)-bbw.offs < 4 {
 		bbw.clsdPos = bbw.offs
 		bbw.buf = bbw.buf[:bbw.clsdPos]
-		return bbw.buf, nil
+		return Records(bbw.buf), nil
 	}
 
 	binary.BigEndian.PutUint32(bbw.buf[bbw.offs:], cEofMarker)
 	bbw.clsdPos = bbw.offs
 	bbw.offs = len(bbw.buf)
-	return bbw.buf[:bbw.clsdPos], nil
+	return Records(bbw.buf[:bbw.clsdPos]), nil
 }

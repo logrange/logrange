@@ -1,12 +1,11 @@
-package chunk
+package jrnl
 
 import (
 	"fmt"
-
 	"sync"
 
-	"github.com/dspasibenko/kepler/data"
-	flock "github.com/theckman/go-flock"
+	"github.com/logrange/logrange/pkg/records"
+	//	flock "github.com/theckman/go-flock"
 )
 
 var (
@@ -14,8 +13,9 @@ var (
 	//	ErrUnableToWrite  = errors.New("The write is not possible")
 	ErrWrongOffset = fmt.Errorf("Error wrong offset while seeking")
 
-//	ErrUnableToRead   = errors.New("Chunk is closed or not ready for read")
-//	ErrWrongState     = errors.New("Wrong state, probably already closed.")
+	//	ErrUnableToRead   = errors.New("Chunk is closed or not ready for read")
+	ErrWrongState = fmt.Errorf("Wrong state, probably already closed.")
+
 //	ErrBufferTooSmall = errors.New("Too small buffer for read")
 //	ErrCorruptedData  = errors.New("Dat file has inconsistent data inside")
 //	ErrRecordTooBig   = errors.New("Record is too big. Unacceptable.")
@@ -36,52 +36,49 @@ type (
 
 	Chunk struct {
 		fileName string
-		fLock    *flock.Flock
-		lock     sync.Mutex
-		state    int
+		//		fLock    *flock.Flock
+		lock   sync.Mutex
+		frpool *frPool
+		closed bool
 	}
-)
-
-const (
-	cCS_CHECKING = iota
-	cCS_OK
-	cCS_ERROR
-	cCS_CLOSED
 )
 
 func New(cfg *Config) (*Chunk, error) {
-	fileLock := flock.NewFlock(cfg.FileName)
-	locked, err := fileLock.TryLock()
-	if err != nil {
-		return nil, err
-	}
+	//	fileLock := flock.NewFlock(cfg.FileName)
+	//	locked, err := fileLock.TryLock()
+	//	if err != nil {
+	//		return nil, err
+	//	}
 
-	if !locked {
-		return nil, fmt.Errorf("Could not obtain lock on file %s. Already locked.", cfg.FileName)
-	}
+	//	if !locked {
+	//		return nil, fmt.Errorf("Could not obtain lock on file %s. Already locked.", cfg.FileName)
+	//	}
 
-	c := new(Chunk)
-	c.fileName = cfg.FileName
-	c.fLock = fileLock
+	//	c := new(Chunk)
+	//	c.fileName = cfg.FileName
+	//	c.fLock = fileLock
 
+	return nil, nil
 }
 
-func (c *Chunk) Write(it data.Iterator) error {
+func (c *Chunk) Write(it records.Iterator) error {
 	return nil
 }
 
 func (c *Chunk) GetReader() (*ChunkReader, error) {
+	c.lock.Lock()
+
 	return nil, nil
 }
 
 func (c *Chunk) Close() error {
-	c.lock.Lock()
-	defer c.lock.Unlock()
+	//	c.lock.Lock()
+	//	defer c.lock.Unlock()
 
-	if c.state != cCS_CHECKING && c.state != cCS_OK {
-		return fmt.Errorf("Invalid state for closing expected %d or %d, but state=%d", cCS_CHECKING, cCS_OK, c.state)
-	}
+	//	if c.state != cCS_CHECKING && c.state != cCS_OK {
+	//		return fmt.Errorf("Invalid state for closing expected %d or %d, but state=%d", cCS_CHECKING, cCS_OK, c.state)
+	//	}
 
-	c.state = cCS_CLOSED
+	//	c.state = cCS_CLOSED
 	return nil
 }

@@ -1,4 +1,4 @@
-package btsbuf
+package inmem
 
 import (
 	"encoding/binary"
@@ -65,8 +65,8 @@ func TestWriterAllocateExt(t *testing.T) {
 			t.Fatal("Should be extendable err=", err)
 		}
 	}
-	if len(bbw.Buf()) < 400 {
-		t.Fatal("Expecting at least 400 bytes in length, but it is ", len(bbw.Buf()))
+	if len(bbw.buf) < 400 {
+		t.Fatal("Expecting at least 400 bytes in length, but it is ", len(bbw.buf))
 	}
 
 	bbw.Reset(nil, true)
@@ -76,8 +76,8 @@ func TestWriterAllocateExt(t *testing.T) {
 			t.Fatal("Should be extendable err=", err)
 		}
 	}
-	if len(bbw.Buf()) < 10400 {
-		t.Fatal("Expecting at least 10400 bytes in length, but it is ", len(bbw.Buf()))
+	if len(bbw.buf) < 10400 {
+		t.Fatal("Expecting at least 10400 bytes in length, but it is ", len(bbw.buf))
 	}
 }
 
@@ -147,16 +147,16 @@ func TestAllocateAndClosed(t *testing.T) {
 	bbw.Reset(buf[:], false)
 	bbw.Allocate(6, true)
 	bf, err := bbw.Close()
-	if len(bf) != 10 || len(bbw.Buf()) != 10 || err != nil {
+	if len(bf) != 10 || len(bbw.buf) != 10 || err != nil {
 		t.Fatal("Should be closed ok without marker! err=", err)
 	}
 
-	bbw.Reset(bbw.Buf(), false)
-	if len(bbw.Buf()) != 12 {
+	bbw.Reset(bbw.buf, false)
+	if len(bbw.buf) != 12 {
 		t.Fatal("Buf len must be set to capacity")
 	}
 	bf, err = bbw.Close()
-	if len(bf) != 0 || len(bbw.Buf()) != 12 || err != nil {
+	if len(bf) != 0 || len(bbw.buf) != 12 || err != nil {
 		t.Fatal("Should be closed ok without marker! err=", err)
 	}
 	_, err = bbw.Allocate(2, true)
@@ -227,7 +227,7 @@ func TestReader(t *testing.T) {
 	}
 
 	var bbi Reader
-	err = bbi.Reset(bbw.Buf())
+	err = bbi.Reset(bbw.buf)
 	if err != nil {
 		t.Fatal("Expecting no problems with the dst buf, but err=", err)
 	}
@@ -237,18 +237,18 @@ func TestReader(t *testing.T) {
 	}
 
 	offs := 0
-	bw, err = bbi.Get()
+	r, err := bbi.Get()
 	for err == nil {
 		sz = 20 + offs/10
-		if len(bw) != sz {
-			t.Fatal("Wrong buf size ", len(bw), ", but expected ", sz)
+		if len(r) != sz {
+			t.Fatal("Wrong buf size ", len(r), ", but expected ", sz)
 		}
-		if !reflect.DeepEqual(bw, src[offs:offs+sz]) {
+		if !reflect.DeepEqual([]byte(r), src[offs:offs+sz]) {
 			t.Fatal("wrong data read. Expected size sz=", sz, ", offs=", offs)
 		}
 		offs += sz
 		bbi.Next()
-		bw, err = bbi.Get()
+		r, err = bbi.Get()
 	}
 }
 
@@ -283,19 +283,20 @@ func TestReaderEven(t *testing.T) {
 
 	offs := 0
 	its := 0
-	bw, err = bbi.Get()
+	r, err := bbi.Get()
 	for err == nil {
 		its++
-		if len(bw) != 4 {
-			t.Fatal("Wrong buf size ", len(bw), ", but expected 4")
+		if len(r) != 4 {
+			t.Fatal("Wrong buf size ", len(r), ", but expected 4")
 		}
-		if !reflect.DeepEqual(bw, src[offs:offs+4]) {
+		if !reflect.DeepEqual([]byte(r), src[offs:offs+4]) {
 			t.Fatal("wrong data read. Expected size 4, offs=", offs)
 		}
 		offs += 4
 		bbi.Next()
-		bw, err = bbi.Get()
+		r, err = bbi.Get()
 	}
+
 	if its != 2 {
 		t.Fatal("should be iterate over 2 elems")
 	}
@@ -310,7 +311,7 @@ func TestBrokenReaderReset(t *testing.T) {
 	bbw.Close()
 
 	var bbr Reader
-	bbr.Reset(bbw.Buf())
+	bbr.Reset(bbw.buf)
 	if bbr.End() || bbr.Len() != 2 {
 		t.Fatal("the buffer must be reset ok")
 	}
