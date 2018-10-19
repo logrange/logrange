@@ -38,8 +38,8 @@ func TestIntegration(t *testing.T) {
 
 	_, d, _, _ := runtime.Caller(0)
 	cfg.ScanPaths = []string{
-		filepath.Dir(d) + "/testdata/logs/ubuntu/var/log/*.log",
-		filepath.Dir(d) + "/testdata/logs/ubuntu/var/log/*/*.log",
+		filepath.Dir(d) + "/testdata/tlogs/ubuntu/var/log/*.log",
+		filepath.Dir(d) + "/testdata/tlogs/ubuntu/var/log/*/*.log",
 	}
 
 	cfg.FileFormats = append(cfg.FileFormats, &FileFormat{
