@@ -1,4 +1,4 @@
-package jrnl
+package fs
 
 import (
 	"fmt"
@@ -19,6 +19,9 @@ type (
 		buf []byte
 		r   int // buf read position
 		w   int // buf write position
+
+		// pool control state
+		plState int32
 	}
 )
 

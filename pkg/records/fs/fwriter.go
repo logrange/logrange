@@ -1,4 +1,4 @@
-package jrnl
+package fs
 
 import (
 	"bufio"
@@ -33,12 +33,13 @@ func newWriter(file string, bufSize int) (*fWriter, error) {
 	}, nil
 }
 
-func (w *fWriter) close() {
+func (w *fWriter) Close() error {
 	w.bw.Flush()
 	w.fd.Sync()
-	w.fd.Close()
+	err := w.fd.Close()
 	w.bw = nil
 	w.fd = nil
+	return err
 }
 
 func (w *fWriter) size() int64 {

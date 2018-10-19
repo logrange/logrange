@@ -1,4 +1,4 @@
-package jrnl
+package fs
 
 import (
 	"io/ioutil"

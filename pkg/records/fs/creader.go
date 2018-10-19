@@ -1,4 +1,4 @@
-package jrnl
+package fs
 
 import (
 	"github.com/logrange/logrange/pkg/records"
