@@ -67,11 +67,11 @@ func NewFdPool(maxSize int) *FdPool {
 	return fdp
 }
 
-// Acquire - allows to acquire fReader for the specified name. It expects the file
+// acquire - allows to acquire fReader for the specified name. It expects the file
 // name and a desired offset, where the read operation will start from. It also
 // receives a context in case of the pool reaches maximum capacity and the call
 // will be blocking invoking go-routine until a fReader is released.
-func (fdp *FdPool) Acquire(ctx context.Context, name string, offset int64) (*fReader, error) {
+func (fdp *FdPool) acquire(ctx context.Context, name string, offset int64) (*fReader, error) {
 	fdp.lock.Lock()
 	if atomic.LoadInt32(&fdp.closed) != 0 {
 		fdp.lock.Unlock()
@@ -106,8 +106,8 @@ func (fdp *FdPool) Acquire(ctx context.Context, name string, offset int64) (*fRe
 	}
 }
 
-// Release - releases a fReader, which was acquired before
-func (fdp *FdPool) Release(fr *fReader) {
+// release - releases a fReader, which was acquired before
+func (fdp *FdPool) release(fr *fReader) {
 	atomic.StoreInt32(&fr.plState, cFrsFree)
 	if atomic.LoadInt32(&fdp.curSize) >= fdp.maxSize {
 		fdp.lock.Lock()
