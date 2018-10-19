@@ -3,6 +3,8 @@ package atmosphere
 import (
 	"context"
 	"fmt"
+	"github.com/logrange/logrange/pkg/dstruct"
+	"github.com/logrange/logrange/pkg/util"
 	"io"
 	"math"
 	"strconv"
@@ -10,8 +12,6 @@ import (
 	"time"
 
 	"github.com/jrivets/log4g"
-	"github.com/logrange/logrange/pkg/collection"
-	"github.com/logrange/logrange/pkg/util/hash"
 )
 
 type (
@@ -21,7 +21,7 @@ type (
 		scfg      ServerConfig
 		ctx       context.Context
 		ctxCancel context.CancelFunc
-		clients   *collection.Lru
+		clients   *dstruct.Lru
 		sessions  map[int]string
 		idCnt     int
 		logger    log4g.Logger
@@ -55,7 +55,7 @@ func newServer(scfg *ServerConfig) *server {
 
 	// configuring connection timeout
 	clnupTimeout := time.Duration(scfg.SessTimeoutMs) * time.Millisecond
-	s.clients = collection.NewLru(math.MaxInt64, clnupTimeout, s.onDeleteFromCache)
+	s.clients = dstruct.NewLru(math.MaxInt64, clnupTimeout, s.onDeleteFromCache)
 	if clnupTimeout <= 0 {
 		clnupTimeout = time.Duration(math.MaxInt64)
 	}
@@ -144,7 +144,7 @@ func (s *server) authenticate(sc *serverClient, ar *AuthReq) string {
 		s.logger.Warn("Rejecting ", sc, " unknown session, or authentication request ", ar)
 		return ""
 	}
-	sid = hash.NewSession(48)
+	sid = util.NewSessionId(48)
 	s.sessions[sc.id] = sid
 	return sid
 }

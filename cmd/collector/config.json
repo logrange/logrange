@@ -1,0 +1,31 @@
+{
+  "ingestor": {
+    "server": "127.0.0.1:9966",
+	"retrySec": 5,
+    "heartBeatMs": 15000,
+    "packetMaxRecords": 1000,
+    "accessKey": "",
+    "secretKey": "",
+    "schemas": [{
+      "pathMatcher":"/*(?:.+/)*(?P<file>.+\\..+)",
+      "sourceId":"{file}",
+      "tags": {
+        "file": "{file}"
+      }
+    }]
+  },
+  "scanner": {
+    "scanPaths": ["/var/log/*.log", "/var/log/*/*.log"],
+    "scanPathsIntervalSec": 60,
+    "stateFlushIntervalSec": 10,
+    "eventMaxRecords": 1000,
+    "eventSendIntervalMs": 200,
+    "recordMaxSizeBytes": 16384,
+    "fileFormats": [{
+      "pathMatcher": ".*",
+      "timeFormats": ["DD/MMM/YYYY:HH:mm:ss ZZZZ"]
+    }]
+  },
+  "statusFile": "/opt/logrange/collector/status",
+  "stateFile": "/opt/logrange/collector/state"
+}
