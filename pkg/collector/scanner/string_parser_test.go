@@ -15,8 +15,8 @@ func TestStringParser(t *testing.T) {
 	logger := log4g.GetLogger("TestStringParser")
 	_, d, _, _ := runtime.Caller(0)
 	fTmps := []string{
-		filepath.Dir(d) + "/testdata/logs/ubuntu/var/log/wifi*.log",
-		filepath.Dir(d)+ "/testdata/logs/ubuntu/var/log/*/*.log",
+		filepath.Dir(d) + "/testdata/tlogs/ubuntu/var/log/wifi*.log",
+		filepath.Dir(d)+ "/testdata/tlogs/ubuntu/var/log/*/*.log",
 	}
 
 	files := getFilePaths(fTmps)

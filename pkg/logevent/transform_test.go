@@ -48,7 +48,7 @@ func TestStrSliceToSSlice(t *testing.T) {
 		t.Fatal("cannot cast s=", s)
 	}
 
-	if reflect.TypeOf(s[0]).String() != "model.WeakString" {
+	if reflect.TypeOf(s[0]).String() != "logevent.WeakString" {
 		t.Fatal("oops, some wrong underlying type ", reflect.TypeOf(s[0]))
 	}
 }
