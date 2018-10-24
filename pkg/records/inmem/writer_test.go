@@ -102,6 +102,24 @@ func TestWriterAllocateExt2(t *testing.T) {
 	}
 }
 
+func TestWriterAllocateExtByDefault(t *testing.T) {
+	var bbw Writer
+	for i := 0; i < 100; i++ {
+		_, err := bbw.Allocate(0, true)
+		if err != nil {
+			t.Fatal("Should be extendable err=", err)
+		}
+	}
+	if len(bbw.buf) < 400 {
+		t.Fatal("Expecting at least 400 bytes in length, but it is ", len(bbw.buf))
+	}
+}
+
+func TestWriterCloseDefault(t *testing.T) {
+	var bbw Writer
+	bbw.Close()
+}
+
 func TestInsufficientAllocate(t *testing.T) {
 	var bbw Writer
 	var buf [12]byte
@@ -141,6 +159,29 @@ func TestInsufficientAllocate(t *testing.T) {
 	}
 }
 
+func TestFreeLastAllocation(t *testing.T) {
+	var bbw Writer
+	var buf [120]byte
+	bbw.Reset(buf[:], false)
+	bf, _ := bbw.Allocate(13, true)
+
+	bfr := bbw.offs
+	if bbw.FreeLastAllocation(len(bf)-1) == nil {
+		t.Fatal("Expecting error - wrong last allocation size ")
+	}
+	if bbw.offs != bfr {
+		t.Fatal("bbw.offs must not be changed")
+	}
+
+	if err := bbw.FreeLastAllocation(len(bf)); err != nil {
+		t.Fatal("Expecting no error, but got", err, " for releasing ", len(bf))
+	}
+	if bbw.offs == bfr || bbw.offs != 0 {
+		t.Fatal("bbw.offs must be changed to 0")
+	}
+
+}
+
 func TestAllocateAndClosed(t *testing.T) {
 	var bbw Writer
 	var buf [12]byte
@@ -168,38 +209,38 @@ func TestAllocateAndClosed(t *testing.T) {
 func TestResetReader(t *testing.T) {
 	var bbi Reader
 	var buf [20]byte
-	err := bbi.Reset(buf[:4])
+	err := bbi.Reset(buf[:4], true)
 	if err != nil {
 		t.Fatal("should not be problem with empty reset, err=", err)
 	}
-	err = bbi.Reset(buf[:])
+	err = bbi.Reset(buf[:], true)
 	if err != nil {
 		t.Fatal("should not be problem with empty reset(2), err=", err)
 	}
 
-	err = bbi.Reset(buf[:8])
+	err = bbi.Reset(buf[:8], true)
 	if err != nil {
 		t.Fatal("should not be problem with empty reset(3), err=", err)
 	}
 
-	err = bbi.Reset(buf[:7])
+	err = bbi.Reset(buf[:7], true)
 	if err == nil {
 		t.Fatal("should be problem with empty reset, but it is not")
 	}
-	err = bbi.Reset(buf[:2])
+	err = bbi.Reset(buf[:2], true)
 	if err == nil {
 		t.Fatal("should be problem with empty reset, but it is not")
 	}
 
 	binary.BigEndian.PutUint32(buf[:], 3)
 	binary.BigEndian.PutUint32(buf[7:], 0xFFFFFFFF)
-	err = bbi.Reset(buf[:])
+	err = bbi.Reset(buf[:], true)
 	if err != nil {
 		t.Fatal("should not be problem with empty reset(4), err=", err)
 	}
 
 	binary.BigEndian.PutUint32(buf[7:], 0x12FFFFFF)
-	err = bbi.Reset(buf[:])
+	err = bbi.Reset(buf[:], true)
 	if err == nil {
 		t.Fatal("should be problem with empty reset, but it is not (2)")
 	}
@@ -227,7 +268,7 @@ func TestReader(t *testing.T) {
 	}
 
 	var bbi Reader
-	err = bbi.Reset(bbw.buf)
+	err = bbi.Reset(bbw.buf, true)
 	if err != nil {
 		t.Fatal("Expecting no problems with the dst buf, but err=", err)
 	}
@@ -273,7 +314,7 @@ func TestReaderEven(t *testing.T) {
 	}
 
 	var bbi Reader
-	err = bbi.Reset(dst[:])
+	err = bbi.Reset(dst[:], true)
 	if err != nil {
 		t.Fatal("Expecting no problems with the dst buf, but err=", err)
 	}
@@ -311,13 +352,13 @@ func TestBrokenReaderReset(t *testing.T) {
 	bbw.Close()
 
 	var bbr Reader
-	bbr.Reset(bbw.buf)
+	bbr.Reset(bbw.buf, true)
 	if bbr.End() || bbr.Len() != 2 {
 		t.Fatal("the buffer must be reset ok")
 	}
 
 	buf[1] = 0xFF
-	err := bbr.Reset(buf[:])
+	err := bbr.Reset(buf[:], true)
 	if err == nil || !bbr.End() || bbr.Len() != 0 {
 		t.Fatal("the buffer must not be reset, but err=", err, " bbr.End()=", bbr.End(), ", bbr.Len()=", bbr.Len())
 	}

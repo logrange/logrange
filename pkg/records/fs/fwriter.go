@@ -14,7 +14,7 @@ type (
 	}
 )
 
-func newWriter(file string, bufSize int) (*fWriter, error) {
+func newFWriter(file string, bufSize int) (*fWriter, error) {
 	f, err := os.OpenFile(file, os.O_CREATE|os.O_RDWR, 0640)
 	if err != nil {
 		return nil, err
@@ -59,4 +59,9 @@ func (w *fWriter) write(data []byte) (int64, error) {
 
 func (w *fWriter) flush() {
 	w.bw.Flush()
+}
+
+// buffered returns number of bytes in the buffer
+func (w *fWriter) buffered() int {
+	return w.bw.Buffered()
 }

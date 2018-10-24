@@ -11,7 +11,7 @@ type (
 		buf     []byte
 		clsdPos int
 		offs    int
-		ext     bool
+		noExt   bool
 	}
 )
 
@@ -24,8 +24,13 @@ func (bbw *Writer) Reset(buf []byte, extendable bool) {
 		bbw.buf = bbw.buf[:cap(bbw.buf)]
 	}
 	bbw.offs = 0
-	bbw.clsdPos = -1
-	bbw.ext = extendable
+	bbw.clsdPos = 0
+	bbw.noExt = !extendable
+}
+
+// String - returns the string for the writer value
+func (bbw *Writer) String() string {
+	return fmt.Sprintf("{len(buf)=%d, clsdPos=%d, offs=%d, noExt=%t}", len(bbw.buf), bbw.clsdPos, bbw.offs, bbw.noExt)
 }
 
 // Allocate reserves ln bytes for data and writes its size before the data.
@@ -38,7 +43,7 @@ func (bbw *Writer) Reset(buf []byte, extendable bool) {
 // If the buffer is extendable, it will try to re-allocate the buffer only if the
 // extend == true
 func (bbw *Writer) Allocate(ln int, extend bool) ([]byte, error) {
-	if bbw.clsdPos >= 0 {
+	if bbw.clsdPos > 0 {
 		return nil, fmt.Errorf("the writer already closed")
 	}
 
@@ -52,10 +57,22 @@ func (bbw *Writer) Allocate(ln int, extend bool) ([]byte, error) {
 	return bbw.buf[bbw.offs-ln : bbw.offs], nil
 }
 
+// FreeLastAllocation releases the last allocation. The ln contains last allocation
+// size. Will return error if the last allocation was not the pprovided size
+func (bbw *Writer) FreeLastAllocation(ln int) error {
+	pos := bbw.offs - ln - 4
+	if pos < 0 || binary.BigEndian.Uint32(bbw.buf[pos:pos+4]) != uint32(ln) {
+		return fmt.Errorf("Wrong last allocation size=%d bbw=%s", ln, bbw)
+	}
+
+	bbw.offs = pos
+	return nil
+}
+
 // extend tries to extend the buffer if it is possbile to be able store at least
 // ln bytes (including its size)
 func (bbw *Writer) extend(ln int) bool {
-	if !bbw.ext {
+	if bbw.noExt {
 		return false
 	}
 
@@ -74,18 +91,20 @@ func (bbw *Writer) extend(ln int) bool {
 // Allocate() calls will return errors. The Close() method returns Records or
 // an error if any
 func (bbw *Writer) Close() (Records, error) {
-	if bbw.clsdPos >= 0 {
-		return Records(bbw.buf[:bbw.clsdPos]), nil
+	if bbw.clsdPos > 0 {
+		return Records(bbw.buf[:bbw.clsdPos-1]), nil
 	}
 
 	if len(bbw.buf)-bbw.offs < 4 {
-		bbw.clsdPos = bbw.offs
-		bbw.buf = bbw.buf[:bbw.clsdPos]
+		bbw.clsdPos = bbw.offs + 1
+		if bbw.buf != nil {
+			bbw.buf = bbw.buf[:bbw.offs]
+		}
 		return Records(bbw.buf), nil
 	}
 
 	binary.BigEndian.PutUint32(bbw.buf[bbw.offs:], cEofMarker)
-	bbw.clsdPos = bbw.offs
+	bbw.clsdPos = bbw.offs + 1
 	bbw.offs = len(bbw.buf)
-	return Records(bbw.buf[:bbw.clsdPos]), nil
+	return Records(bbw.buf[:bbw.clsdPos-1]), nil
 }

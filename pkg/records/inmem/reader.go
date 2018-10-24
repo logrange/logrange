@@ -1,6 +1,7 @@
 package inmem
 
 import (
+	"context"
 	"encoding/binary"
 	"io"
 
@@ -18,11 +19,20 @@ type (
 	}
 )
 
-// Reset initializes Reader and checks whether the provided buf
-// is properly organized. Returns an error if the structure is incorrect.
-// If the method returns an error, buffer will be reset to an empty value
-func (bbi *Reader) Reset(buf []byte) error {
-	_, cnt, err := Check(buf)
+// Reset initializes Reader. Two params are expected - the buffer (buf) and
+// whether the buffer must be checked for consistency (check).
+//
+// It returns an error if the structure is incorrect.
+// If the function returns an error, buffer will be reset to an empty value
+//
+// If the check is not performed (check == false), the function always returns
+// nil (no errors)
+func (bbi *Reader) Reset(buf []byte, check bool) error {
+	cnt := -1
+	var err error
+	if check {
+		_, cnt, err = Check(buf)
+	}
 	bbi.buf = nil
 	bbi.cur = nil
 	bbi.offs = 0
@@ -59,6 +69,18 @@ func (bbi *Reader) Get() (records.Record, error) {
 	return records.Record(bbi.cur), nil
 }
 
+// GetCtx returns current element, but checks the context before.
+// In case of provided ctx == nil, the value will be ignored and result will
+// be the same as calling Get()
+func (bbi *Reader) GetCtx(ctx context.Context) (records.Record, error) {
+	if ctx != nil {
+		if err := ctx.Err(); err != nil {
+			return nil, err
+		}
+	}
+	return bbi.Get()
+}
+
 // Next switches to the next element. Data() allows to access to the current one.
 // Has no effect if the end is reached
 func (bbi *Reader) Next() {
@@ -78,5 +100,8 @@ func (bbi *Reader) End() bool {
 
 // Len returns number of records found in the buf
 func (bbi *Reader) Len() int {
+	if bbi.cnt == -1 {
+		_, bbi.cnt, _ = Check(bbi.buf)
+	}
 	return bbi.cnt
 }

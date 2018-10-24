@@ -32,8 +32,6 @@ type (
 const (
 	cFrsInUse = 1
 	cFrsFree  = 0
-
-	cFrBufSize = 32 * 1024
 )
 
 // NewFdPool creats new FdPool object with maxSize maximum fReader(s) capacity
@@ -156,7 +154,7 @@ func (fdp *FdPool) freeSem(cnt int) {
 }
 
 func (fdp *FdPool) createAndUseFreader(name string) (*fReader, error) {
-	fr := newFReader(name, cFrBufSize)
+	fr := newFReader(name, ChnkReaderBufSize)
 	err := fr.open()
 	if err != nil {
 		return nil, err

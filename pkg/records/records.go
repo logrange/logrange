@@ -4,6 +4,10 @@
 // the main types the records selecting like records stores and iterators.
 package records
 
+import (
+	"context"
+)
+
 type (
 	// Record is a slice of byte, which contains the record information.
 	Record []byte
@@ -30,5 +34,12 @@ type (
 		// If error is nil, then the method returns slice of bytes, which is the
 		// current record. The slice could be nil as well, which is valid.
 		Get() (Record, error)
+
+		// GetCtx works the same way like Get does, but it allows to invoke the
+		// call in the context provided. If the ctx is closed the function can
+		// return value nil together with error code from the ctx.Err() immediately.
+		// provided ctx could be nil, this case the call will be equal as to calling
+		// Get()
+		GetCtx(ctx context.Context) (Record, error)
 	}
 )
