@@ -1,55 +1,49 @@
 package fs
 
 import (
-	"encoding/binary"
+	"context"
 	"fmt"
-	"io"
 	"sync"
-	"sync/atomic"
 	"time"
 
-	"github.com/logrange/logrange/pkg/records/inmem"
+	"github.com/jrivets/log4g"
+	"github.com/logrange/logrange/pkg/records"
 )
 
 var (
-	//	ErrMaxSizeReached = errors.New("Maximum size of the object is reached.")
-	//	ErrUnableToWrite  = errors.New("The write is not possible")
-	ErrWrongOffset = fmt.Errorf("Error wrong offset while seeking")
-
-	//	ErrUnableToRead   = errors.New("Chunk is closed or not ready for read")
-	ErrWrongState = fmt.Errorf("Wrong state, probably already closed.")
-
+	ErrWrongOffset    = fmt.Errorf("Error wrong offset while seeking")
+	ErrWrongState     = fmt.Errorf("Wrong state, probably already closed.")
 	ErrBufferTooSmall = fmt.Errorf("Too small buffer for read")
 	ErrCorruptedData  = fmt.Errorf("Chunk data has an inconsistency in the data inside")
-
-//	ErrRecordTooBig   = errors.New("Record is too big. Unacceptable.")
-//	ErrCancelled      = errors.New("Operation is cancelled")
-
-//	MinRecordId = RecordId{}
-//	MaxRecordId = RecordId{ChunkId: math.MaxUint32, Offset: math.MaxInt64}
-
-//	glock sync.Mutex
-//	// chunk read descriptor closer keeps counting on opened desriptors
-//	chnk_rd_clsr *chunkRdCloser
 )
 
 type (
-	Config struct {
-		FileName string
+	ChunkConfig struct {
+		FileName       string
+		ChnkCheckFlags int
+		WriteIdleSec   int
+		WriteFlushMs   int
+		MaxChunkSize   int64
 	}
 
+	// Chunk struct allows to control read and write operations over the underlying
+	// data file
 	Chunk struct {
 		fileName string
-		// last synced record offset
-		lro int64
 
 		lock   sync.Mutex
-		frpool *frPool
+		fdPool *FdPool
 		closed bool
+		logger log4g.Logger
 
 		// writing part
-		w    *fWriter
-		wlro int64
+		w *cWrtier
+	}
+
+	// ChunkIterator struct provides records.Iterator interface for accessing
+	// to the chunk data in an ascending order. It must be used from only one
+	// go-routine at a time (not thread safe)
+	ChunkIterator struct {
 	}
 )
 
@@ -61,89 +55,69 @@ const (
 
 	ChnkWriterBufSize = 4 * 4096
 	ChnkReaderBufSize = 2 * 4096
+
+	// ChnkChckTruncateOk means that chunk data can be truncated to good size
+	ChnkChckTruncateOk = 1
+
+	// ChnkChckFullScan means that full scan to find last record must be performed
+	ChnkChckFullScan = 2
 )
 
-func New(cfg *Config) (*Chunk, error) {
-	return nil, nil
-}
-
-// readForward reads records in ascending order.
-// It will write to bbw for arranging payloads of the read records. The bbw size should
-// be big enough to hold at least one record, otherwise ErrBufferTooSmall is reported
-//
-// First record for the read can be found by offset, the next records
-// will be read in forward, ascending order. The method will try to read records
-// until the bbw is full, or maxRecs records if the buffer is extendable
-// or too big. It will return number of records it actually read, offset for
-// the next record, and an error if any.
-//
-// offset < 0 will start from beginning. Offset behind the last record will cause io.EOF error
-// if at least one record is read error will be nil.
-func (c *Chunk) readForward(fr *fReader, offset int64, maxRecs int, bbw *inmem.Writer) (int, int64, error) {
-	if offset < 0 {
-		offset = 0
-	}
-
-	if c.isOffsetBehindLast(offset) {
-		return 0, offset, io.EOF
-	}
-
-	err := fr.seek(offset)
+// NewChunk returns new chunk using the following params:
+// ctx - is used to control the creation of the chunk process. If the underlying
+// 		chunk file is not empty, a checker, which will use fReader will be involved
+//		the checker can take significant time due to lack of read descriptors or
+// 		by the process itself
+// cfg - contains configuration settings for the chunk
+// fdPool - file descriptors pool, which is used for holding fdReader objects.
+func NewChunk(ctx context.Context, cfg *ChunkConfig, fdPool *FdPool) (*Chunk, error) {
+	// run the checker
+	lid := "{" + cfg.FileName + "}"
+	chkr := &cChecker{fileName: cfg.FileName, fdPool: fdPool, logger: log4g.GetLogger("chunk.checker").WithId(lid).(log4g.Logger)}
+	err := chkr.checkFileConsistency(ctx, cfg.ChnkCheckFlags)
 	if err != nil {
-		return 0, offset, err
+		return nil, err
 	}
 
-	var szBuf [ChnkDataHeaderSize]byte
-	rdSlice := szBuf[:]
-	for i := 0; i < maxRecs; i++ {
-		if c.isOffsetBehindLast(offset) {
-			return i, offset, nil
-		}
-
-		// top size
-		_, err = fr.read(rdSlice)
-		if err != nil {
-			return i, offset, err
-		}
-
-		sz := int(binary.BigEndian.Uint32(rdSlice))
-		var rb []byte
-		rb, err = bbw.Allocate(sz, i == 0)
-		if err != nil {
-			if i == 0 {
-				return i, offset, ErrBufferTooSmall
-			}
-			return i, offset, nil
-		}
-
-		// the record payload
-		_, err = fr.read(rb)
-		if err != nil {
-			bbw.FreeLastAllocation(sz)
-			return i, offset, err
-		}
-
-		// bottom size
-		_, err = fr.read(rdSlice)
-		if err != nil {
-			bbw.FreeLastAllocation(sz)
-			return i, offset, err
-		}
-
-		bsz := int(binary.BigEndian.Uint32(rdSlice))
-		if sz != bsz {
-			return i, offset, ErrCorruptedData
-		}
-		offset += int64(sz) + ChnkDataRecMetaSize
+	// try the file writer
+	w := newCWriter(cfg.FileName, chkr.lro, chkr.tSize, cfg.MaxChunkSize)
+	if cfg.WriteFlushMs > 0 {
+		w.flushTO = time.Duration(cfg.WriteFlushMs) * time.Millisecond
 	}
 
-	return maxRecs, offset, nil
+	if cfg.WriteIdleSec > 0 {
+		w.idleTO = time.Duration(cfg.WriteIdleSec) * time.Second
+	}
+
+	c := new(Chunk)
+	c.fileName = cfg.FileName
+	c.fdPool = fdPool
+	c.w = w
+	c.logger = log4g.GetLogger("chunk").WithId(lid).(log4g.Logger)
+	c.logger.Info("New chunk: ", c, ", checker: ", chkr)
+	return c, nil
 }
 
-func (c *Chunk) isOffsetBehindLast(offset int64) bool {
-	return offset > atomic.LoadInt64(&c.lro)
+// Write allows to write records to the chunk.
+func (c *Chunk) Write(ctx context.Context, it records.Iterator) (int, int64, error) {
+	return c.w.write(ctx, it)
 }
 
 func (c *Chunk) Close() error {
+	c.lock.Lock()
+	defer c.lock.Unlock()
+
+	if c.closed {
+		c.logger.Error("An attempt to close already closed chunk")
+		return ErrWrongState
+	}
+	c.logger.Info("Closing the chunk: ")
+	c.closed = true
+
+	c.fdPool.releaseAllByName(c.fileName)
 	return nil
+}
+
+func (c *Chunk) String() string {
+	return fmt.Sprintf("{file: %s, writer: %s, closed:%t}", c.fileName, c.w, c.closed)
 }

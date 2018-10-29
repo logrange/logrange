@@ -17,34 +17,19 @@ func TestReaderOpen(t *testing.T) {
 
 	fn := path.Join(dir, "123.dat")
 	t.Log(fn)
-	r := newFReader(fn, 100)
-	err = r.open()
+	_, err = newFReader(fn, 100)
 	if err == nil {
 		t.Fatal("expected not to open the file, err=", err)
 	}
 
-	f, _ := openOrCreateFile(fn)
+	f, _ := os.OpenFile(fn, os.O_CREATE|os.O_RDWR, 0640)
 	f.Close()
-	r.r = 100
-	r.w = 300
-	err = r.open()
+
+	_, err = newFReader(fn, 100)
 	if err != nil {
-		t.Fatal("expected to be opened, err=", err)
-	}
-	if r.r != 0 || r.w != 0 {
-		t.Fatal("buffer must be reset")
+		t.Fatal("expected file to be opened ok, but err=", err)
 	}
 
-	r.Close()
-	if r.fd != nil {
-		t.Fatal("expected to be closed")
-	}
-
-	err = r.open()
-	if err != nil {
-		t.Fatal("expected to be opened ok, err=", err)
-	}
-	r.Close()
 }
 
 func TestReaderSeek(t *testing.T) {
@@ -60,8 +45,7 @@ func TestReaderSeek(t *testing.T) {
 	f.Write(buf[:])
 	f.Close()
 
-	r := newFReader(fn, 100)
-	err = r.open()
+	r, err := newFReader(fn, 100)
 	if err != nil {
 		t.Fatal("expected to be opened, err=", err)
 	}
@@ -132,8 +116,7 @@ func TestSmartSeek(t *testing.T) {
 	f.Write(buf[:])
 	f.Close()
 
-	r := newFReader(fn, 100)
-	err = r.open()
+	r, err := newFReader(fn, 100)
 	if err != nil {
 		t.Fatal("expected to be opened, err=", err)
 	}
@@ -184,8 +167,7 @@ func TestFillBuffer(t *testing.T) {
 	f.Write(buf[:])
 	f.Close()
 
-	r := newFReader(fn, 100)
-	r.open()
+	r, _ := newFReader(fn, 100)
 	defer r.Close()
 
 	r.fillBuff(-10)
@@ -205,7 +187,17 @@ func TestFillBuffer(t *testing.T) {
 }
 
 func TestDistance(t *testing.T) {
-	r := newFReader("11", 100)
+	dir, err := ioutil.TempDir("", "writerTestFillBuffer")
+	if err != nil {
+		t.Fatal("Could not create new dir err=", err)
+	}
+	defer os.RemoveAll(dir) // clean up
+
+	fn := path.Join(dir, "123.dat")
+	f, err := openOrCreateFile(fn)
+	f.Close()
+
+	r, _ := newFReader(fn, 100)
 	r.pos = 200
 	r.w = 100
 	if r.distance(100) != 0 || r.distance(150) != 0 || r.distance(199) != 0 {

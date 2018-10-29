@@ -18,11 +18,11 @@ func TestCReaderReadWhatIsWritten(t *testing.T) {
 	defer os.RemoveAll(dir) // clean up
 
 	fn := path.Join(dir, "tst")
-	cw := newCWriter(fn, 0)
+	cw := newCWriter(fn, 0, 0, 1000)
 	defer cw.Close()
 
 	si := inmem.SrtingsIterator("aa", "b", "c")
-	_, _, err = cw.write(si)
+	_, _, err = cw.write(nil, si)
 	if err != nil {
 		t.Fatal("could not write data to file ", fn, ", err=", err)
 	}
@@ -31,8 +31,7 @@ func TestCReaderReadWhatIsWritten(t *testing.T) {
 	var w inmem.Writer
 	buf := make([]byte, 100)
 	w.Reset(buf, false)
-	fr := newFReader(fn, 1024)
-	fr.open()
+	fr, _ := newFReader(fn, 1024)
 	defer fr.Close()
 
 	cr := cReader{fr, &cw.lro}
@@ -114,11 +113,11 @@ func TestCReaderReadWhatIsWrittenBack(t *testing.T) {
 	defer os.RemoveAll(dir) // clean up
 
 	fn := path.Join(dir, "tst")
-	cw := newCWriter(fn, 0)
+	cw := newCWriter(fn, 0, 0, 1000)
 	defer cw.Close()
 
 	si := inmem.SrtingsIterator("aa", "b", "c")
-	_, _, err = cw.write(si)
+	_, _, err = cw.write(nil, si)
 	if err != nil {
 		t.Fatal("could not write data to file ", fn, ", err=", err)
 	}
@@ -127,8 +126,7 @@ func TestCReaderReadWhatIsWrittenBack(t *testing.T) {
 	var w inmem.Writer
 	buf := make([]byte, 100)
 	w.Reset(buf, false)
-	fr := newFReader(fn, 1024)
-	fr.open()
+	fr, _ := newFReader(fn, 1024)
 	defer fr.Close()
 
 	cr := cReader{fr, &cw.lro}

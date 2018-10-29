@@ -31,6 +31,10 @@ func (li *lazyIt) Get() (records.Record, error) {
 	return li.buf, nil
 }
 
+func (li *lazyIt) GetCtx(ctx context.Context) (records.Record, error) {
+	return li.Get()
+}
+
 func TestCWriterWrite(t *testing.T) {
 	dir, err := ioutil.TempDir("", "cwriterWriteTest")
 	if err != nil {
@@ -38,7 +42,7 @@ func TestCWriterWrite(t *testing.T) {
 	}
 	defer os.RemoveAll(dir) // clean up
 
-	cw := newCWriter(path.Join(dir, "tst"), 0)
+	cw := newCWriter(path.Join(dir, "tst"), 0, 0, 1000)
 	defer cw.Close()
 
 	cw.flushTO = 50 * time.Millisecond
@@ -52,13 +56,13 @@ func TestCWriterWrite(t *testing.T) {
 		t.Fatal("Expecting n=1, offs=0, err=nil, but n=", n, ", offs=", offs, ", err=", err)
 	}
 	w := cw.w
-	cw.closeFWriter()
+	cw.closeFWriterUnsafe()
 	if cw.lro != cw.lroCfrmd || cw.lro != 0 {
 		t.Fatal("expecting lro=0, but it is ", cw.lro)
 	}
 
 	si = inmem.SrtingsIterator("a", "b", "c")
-	n, offs, err = cw.write(si)
+	n, offs, err = cw.write(nil, si)
 	if !cw.isFlushNeeded() {
 		t.Fatal("expecting flush is needed")
 	}
@@ -82,7 +86,7 @@ func TestCWriterIdleTimeout(t *testing.T) {
 	}
 	defer os.RemoveAll(dir) // clean up
 
-	cw := newCWriter(path.Join(dir, "tst"), 0)
+	cw := newCWriter(path.Join(dir, "tst"), 0, 0, 1000)
 	defer cw.Close()
 
 	cw.idleTO = 50
@@ -107,7 +111,7 @@ func TestCWriterCloseWhileLazyIterator(t *testing.T) {
 	}
 	defer os.RemoveAll(dir) // clean up
 
-	cw := newCWriter(path.Join(dir, "tst"), 0)
+	cw := newCWriter(path.Join(dir, "tst"), 0, 0, 1000)
 	defer cw.Close()
 
 	go func() {
@@ -118,5 +122,28 @@ func TestCWriterCloseWhileLazyIterator(t *testing.T) {
 	n, _, err := cw.write(nil, &lazyIt{records.Record([]byte{65}), 20 * time.Millisecond, 100})
 	if n < 1 || n > 4 || err != ErrWrongState {
 		t.Fatal("expecting low n < 4 and err== ErrWrongState, but n=", n, " and the err=", err)
+	}
+}
+
+func TestCWriterMaxSize(t *testing.T) {
+	dir, err := ioutil.TempDir("", "cwriterMaxSize")
+	if err != nil {
+		t.Fatal("Could not create new dir err=", err)
+	}
+	defer os.RemoveAll(dir) // clean up
+
+	cw := newCWriter(path.Join(dir, "tst"), 0, 0, 1)
+	defer cw.Close()
+
+	si := inmem.SrtingsIterator("a", "b", "c")
+	n, offs, err := cw.write(nil, si)
+	if n != 3 || offs != 18 || err != nil {
+		t.Fatal("Expecting n=3, offs=27, err=nil, but n=", n, ", offs=", offs, ", err=", err)
+	}
+
+	si = inmem.SrtingsIterator("a", "b", "c")
+	_, _, err = cw.write(nil, si)
+	if err != records.ErrMaxSizeReached {
+		t.Fatal("Must report ErrMaxSizeReached")
 	}
 }

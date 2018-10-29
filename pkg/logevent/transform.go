@@ -4,14 +4,15 @@ import (
 	"encoding/binary"
 	"errors"
 	"fmt"
-	"reflect"
 	"unsafe"
+
+	"github.com/logrange/logrange/pkg/records/inmem"
 )
 
 type (
 	SSlice []WeakString
 
-	// WeakString is a string is a sting which probably points to a byte slice,
+	// WeakString is a string which probably points to a byte slice,
 	// which context can be changed. The WeakString can be easily created without
 	// memory allocation, but has to be used with an extra care, must not be
 	// stored in a long-live collections or passed through a channel etc.
@@ -20,7 +21,7 @@ type (
 
 // String turns the WeakString to it's safe immutable version. Just copy context
 func (ws WeakString) String() string {
-	return string(StringToByteArray(string(ws)))
+	return string(inmem.StringToByteArray(string(ws)))
 }
 
 func StrSliceToSSlice(ss []string) SSlice {
@@ -149,19 +150,6 @@ func MarshalString(v string, buf []byte) (int, error) {
 	return ln + 4, nil
 }
 
-func StringToByteArray(v string) []byte {
-	var slcHdr reflect.SliceHeader
-	sh := *(*reflect.StringHeader)(unsafe.Pointer(&v))
-	slcHdr.Data = sh.Data
-	slcHdr.Cap = sh.Len
-	slcHdr.Len = sh.Len
-	return *(*[]byte)(unsafe.Pointer(&slcHdr))
-}
-
-func ByteArrayToString(buf []byte) WeakString {
-	return *(*WeakString)(unsafe.Pointer(&buf))
-}
-
 // UnmarshalString fastest, but not completely safe version of unmarshalling
 // the byte buffer to string. Please use with care and keep in mind that buf must not
 // be updated so as it will affect the string context then.
@@ -182,12 +170,12 @@ func MarshalStringBuf(v string, buf []byte) (int, error) {
 	if len(v) > len(buf) {
 		return 0, fmt.Errorf("could not MarshalStringBuf() - not enough space. Required %d bytes, but the buffer sized is %d", len(v), len(buf))
 	}
-	ba := StringToByteArray(v)
+	ba := inmem.StringToByteArray(v)
 	return copy(buf, ba), nil
 }
 
 func UnmarshalStringBuf(buf []byte) WeakString {
-	return ByteArrayToString(buf)
+	return WeakString(inmem.ByteArrayToString(buf))
 }
 
 func noBufErr(src string, ln, req int) error {

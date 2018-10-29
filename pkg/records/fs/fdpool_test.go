@@ -24,8 +24,13 @@ func TestFdPoolClose(t *testing.T) {
 	}
 	fdp.Close()
 	time.Sleep(10 * time.Millisecond)
+	if len(fdp.frs) != 0 || fdp.curSize != 0 || fr.fd == nil {
+		t.Fatal("the fr is closed, must be not!")
+	}
+
+	fdp.release(fr)
 	if len(fdp.frs) != 0 || fdp.curSize != 0 || fr.fd != nil {
-		t.Fatal("the fr is still open :( ")
+		t.Fatal("the fr must be closed for now!")
 	}
 
 	_, err = fdp.acquire(context.Background(), fn, 0)
@@ -34,7 +39,7 @@ func TestFdPoolClose(t *testing.T) {
 	}
 }
 
-func TestFdPoolrelease(t *testing.T) {
+func TestFdPoolRelease(t *testing.T) {
 	fn1 := createTmpDirAndFile(t, "t1")
 	defer removeTmpFileAndDir(fn1)
 
@@ -56,12 +61,12 @@ func TestFdPoolrelease(t *testing.T) {
 	}
 
 	fdp.release(fr2)
-	if fr2.plState != cFrsFree || len(fdp.frs[fn1].rdrs) != 1 {
+	if fr2.plState != frStateClosed || len(fdp.frs[fn1].rdrs) != 1 {
 		t.Fatal("Must be cleaned up because of hitting limits ")
 	}
 
 	fdp.release(fr1)
-	if fr1.plState != cFrsFree || len(fdp.frs[fn1].rdrs) != 1 {
+	if !fr1.isFree() || len(fdp.frs[fn1].rdrs) != 1 {
 		t.Fatal("fr1 must stay in the pool ")
 	}
 }
@@ -168,7 +173,19 @@ func TestFdPoolacquireClosedCtx(t *testing.T) {
 	if err == nil || err != ctx.Err() || time.Now().Sub(start) < time.Duration(50*time.Microsecond) {
 		t.Fatal("Must be error=", ctx.Err())
 	}
+}
 
+func TestFdPoolWrongFile(t *testing.T) {
+	fn1 := createTmpDirAndFile(t, "t1")
+	removeTmpFileAndDir(fn1)
+
+	fdp := NewFdPool(1)
+	defer fdp.Close()
+
+	_, err := fdp.acquire(context.Background(), fn1, 201)
+	if err == nil || len(fdp.frs) > 0 {
+		t.Fatal("Must be error! frp=", fdp)
+	}
 }
 
 func removeTmpFileAndDir(fn string) {

@@ -5,6 +5,8 @@ import (
 	"io"
 	"math"
 	"os"
+
+	"sync/atomic"
 )
 
 type (
@@ -20,37 +22,39 @@ type (
 		r   int // buf read position
 		w   int // buf write position
 
-		// pool control state
+		// pool control state, it can be set only by one goroutine at a time,
+		// but it can be read by many go-routines
 		plState int32
 	}
 )
 
+const (
+	frStateFree    = 0
+	frStateBusy    = 1
+	frStateClosing = 2
+	frStateClosed  = 3
+)
+
 // newFReader constructs new fReader instance
-func newFReader(filename string, bufSize int) *fReader {
+func newFReader(filename string, bufSize int) (*fReader, error) {
 	r := new(fReader)
 	r.filename = filename
 	r.buf = make([]byte, bufSize, bufSize)
-	return r
+
+	var err error
+	r.fd, err = os.OpenFile(r.filename, os.O_RDONLY, 0640)
+	if err != nil {
+		return nil, err
+	}
+	r.resetBuf()
+	r.plState = frStateFree
+
+	return r, nil
 }
 
 func (r *fReader) String() string {
 	return fmt.Sprint("reader:{", r.filename, ", pos=", r.pos,
 		", bufLen=", len(r.buf), ", r=", r.r, ", w=", r.w)
-}
-
-func (r *fReader) open() error {
-	if r.fd != nil {
-		return nil
-	}
-
-	var err error
-	r.fd, err = os.OpenFile(r.filename, os.O_RDONLY, 0640)
-	if err != nil {
-		return err
-	}
-
-	r.resetBuf()
-	return nil
 }
 
 // resetBuf drops the buffer - makes it empty.
@@ -187,13 +191,36 @@ func (r *fReader) distance(pos int64) uint64 {
 	return uint64(r.pos-pos) + math.MaxInt64
 }
 
+func (r *fReader) isFree() bool {
+	return atomic.LoadInt32(&r.plState) == frStateFree
+}
+
+func (r *fReader) makeBusy() bool {
+	return atomic.CompareAndSwapInt32(&r.plState, frStateFree, frStateBusy)
+}
+
+func (r *fReader) makeFree() bool {
+	return atomic.CompareAndSwapInt32(&r.plState, frStateBusy, frStateFree)
+}
+
 func (r *fReader) Close() error {
+	if atomic.CompareAndSwapInt32(&r.plState, frStateFree, frStateClosed) {
+		return r.close()
+	}
+
+	atomic.CompareAndSwapInt32(&r.plState, frStateBusy, frStateClosing)
+	return nil
+}
+
+func (r *fReader) close() error {
 	var err error
 	if r.fd != nil {
 		err = r.fd.Close()
 		r.resetBuf()
 		r.fd = nil
 		r.pos = 0
+		r.plState = frStateClosed
 	}
 	return err
+
 }

@@ -1,4 +1,4 @@
-// inmem contains functions and structures for working with records (slices of bytes)
+// inmem package contains functions and structures for working with records (slices of bytes)
 // stored in the memory in a Records type variable.
 package inmem
 

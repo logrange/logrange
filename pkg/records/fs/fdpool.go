@@ -29,11 +29,6 @@ type (
 	}
 )
 
-const (
-	cFrsInUse = 1
-	cFrsFree  = 0
-)
-
 // NewFdPool creats new FdPool object with maxSize maximum fReader(s) capacity
 func NewFdPool(maxSize int) *FdPool {
 	if maxSize <= 0 {
@@ -106,15 +101,30 @@ func (fdp *FdPool) acquire(ctx context.Context, name string, offset int64) (*fRe
 
 // release - releases a fReader, which was acquired before
 func (fdp *FdPool) release(fr *fReader) {
-	atomic.StoreInt32(&fr.plState, cFrsFree)
+	if !fr.makeFree() {
+		// ok, it was either closing or closed state or it was Free, what is wrong anyway
+		fdp.lock.Lock()
+		fr.close()
+		fdp.lock.Unlock()
+		return
+	}
+
 	if atomic.LoadInt32(&fdp.curSize) >= fdp.maxSize {
 		fdp.lock.Lock()
 		fdp.clean(false)
 		fdp.lock.Unlock()
 	}
+}
 
-	if atomic.LoadInt32(&fdp.closed) != 0 {
-		fr.Close()
+func (fdp *FdPool) releaseAllByName(name string) {
+	fdp.lock.Lock()
+	defer fdp.lock.Unlock()
+
+	frp, ok := fdp.frs[name]
+	if ok {
+		cnt := frp.cleanUp(true)
+		fdp.curSize -= int32(cnt)
+		fdp.freeSem(cnt)
 	}
 }
 
@@ -128,6 +138,7 @@ func (fdp *FdPool) Close() error {
 	defer fdp.lock.Unlock()
 
 	atomic.StoreInt32(&fdp.closed, 1)
+	fdp.clean(true)
 	close(fdp.cchan)
 	close(fdp.sem)
 	return nil
@@ -154,12 +165,10 @@ func (fdp *FdPool) freeSem(cnt int) {
 }
 
 func (fdp *FdPool) createAndUseFreader(name string) (*fReader, error) {
-	fr := newFReader(name, ChnkReaderBufSize)
-	err := fr.open()
+	fr, err := newFReader(name, ChnkReaderBufSize)
 	if err != nil {
 		return nil, err
 	}
-	fr.plState = cFrsInUse
 
 	fdp.lock.Lock()
 	frp, ok := fdp.frs[name]
@@ -169,6 +178,7 @@ func (fdp *FdPool) createAndUseFreader(name string) (*fReader, error) {
 	}
 
 	frp.rdrs = append(frp.rdrs, fr)
+	fr.makeBusy()
 	fdp.lock.Unlock()
 	return fr, nil
 }
@@ -184,7 +194,7 @@ func (frp *frPool) getFree(offset int64) *fReader {
 	ridx := -1
 	var dist uint64 = math.MaxUint64
 	for idx, fr := range frp.rdrs {
-		if atomic.LoadInt32(&fr.plState) == cFrsFree {
+		if fr.isFree() {
 			if ridx < 0 {
 				ridx = idx
 				dist = fr.distance(offset)
@@ -203,7 +213,7 @@ func (frp *frPool) getFree(offset int64) *fReader {
 	}
 
 	fr := frp.rdrs[ridx]
-	atomic.StoreInt32(&fr.plState, cFrsInUse)
+	fr.makeBusy()
 	return fr
 }
 
@@ -211,10 +221,11 @@ func (frp *frPool) cleanUp(all bool) int {
 	cnt := 0
 	for i := 0; i < len(frp.rdrs); i++ {
 		fr := frp.rdrs[i]
-		if !all && atomic.LoadInt32(&fr.plState) == cFrsInUse {
+		if !all && !fr.isFree() {
 			continue
 		}
 		frp.rdrs[i] = frp.rdrs[len(frp.rdrs)-1]
+		frp.rdrs[len(frp.rdrs)-1] = nil
 		frp.rdrs = frp.rdrs[:len(frp.rdrs)-1]
 		i--
 		fr.Close()
