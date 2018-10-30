@@ -18,7 +18,7 @@ func TestCReaderReadWhatIsWritten(t *testing.T) {
 	defer os.RemoveAll(dir) // clean up
 
 	fn := path.Join(dir, "tst")
-	cw := newCWriter(fn, 0, 0, 1000)
+	cw := newCWriter(fn, -1, 0, 1000)
 	defer cw.Close()
 
 	si := inmem.SrtingsIterator("aa", "b", "c")
@@ -34,7 +34,7 @@ func TestCReaderReadWhatIsWritten(t *testing.T) {
 	fr, _ := newFReader(fn, 1024)
 	defer fr.Close()
 
-	cr := cReader{fr, &cw.lro}
+	cr := cReader{fr: fr, lro: &cw.lro}
 
 	// forward, read all
 	n, offs, err := cr.readForward(0, 1000, &w)
@@ -105,6 +105,51 @@ func TestCReaderReadWhatIsWritten(t *testing.T) {
 	}
 }
 
+func TestCReaderReadByRecords(t *testing.T) {
+	dir, err := ioutil.TempDir("", "creaderReadByRecordsTest")
+	if err != nil {
+		t.Fatal("Could not create new dir err=", err)
+	}
+	defer os.RemoveAll(dir) // clean up
+
+	fn := path.Join(dir, "tst")
+	cw := newCWriter(fn, -1, 0, 1000)
+	defer cw.Close()
+
+	si := inmem.SrtingsIterator("aa", "b")
+	_, _, err = cw.write(nil, si)
+	if err != nil {
+		t.Fatal("could not write data to file ", fn, ", err=", err)
+	}
+	cw.flush()
+
+	fr, _ := newFReader(fn, 1024)
+	defer fr.Close()
+	cr := cReader{fr: fr, lro: &cw.lro}
+	buf := make([]byte, 2)
+	_, err = cr.readRecord(buf[:1])
+	if err != ErrBufferTooSmall {
+		t.Fatal("Expecting ErrBufferTooSmall, but err=", err)
+	}
+
+	fr.seek(0)
+	res, err := cr.readRecord(buf)
+	if err != nil || inmem.ByteArrayToString(res) != "aa" {
+		t.Fatal("Expecting nil, but err=", err, " res=", inmem.ByteArrayToString(res))
+	}
+
+	res, err = cr.readRecord(buf)
+	if err != nil || inmem.ByteArrayToString(res) != "b" {
+		t.Fatal("Expecting nil, but err=", err, " res=", inmem.ByteArrayToString(res))
+	}
+
+	_, err = cr.readRecord(buf)
+	_, err = cr.readRecord(buf)
+	if err != io.EOF {
+		t.Fatal("Expecting io.EOF, but err=", err)
+	}
+}
+
 func TestCReaderReadWhatIsWrittenBack(t *testing.T) {
 	dir, err := ioutil.TempDir("", "creaderWhatIsWrittenTest")
 	if err != nil {
@@ -113,7 +158,7 @@ func TestCReaderReadWhatIsWrittenBack(t *testing.T) {
 	defer os.RemoveAll(dir) // clean up
 
 	fn := path.Join(dir, "tst")
-	cw := newCWriter(fn, 0, 0, 1000)
+	cw := newCWriter(fn, -1, 0, 1000)
 	defer cw.Close()
 
 	si := inmem.SrtingsIterator("aa", "b", "c")
@@ -129,7 +174,7 @@ func TestCReaderReadWhatIsWrittenBack(t *testing.T) {
 	fr, _ := newFReader(fn, 1024)
 	defer fr.Close()
 
-	cr := cReader{fr, &cw.lro}
+	cr := cReader{fr: fr, lro: &cw.lro}
 
 	//small buf
 	w.Reset(make([]byte, 1), false)

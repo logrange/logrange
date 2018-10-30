@@ -2,8 +2,11 @@ package records
 
 import (
 	"context"
-	"fmt"
 	"io"
+	"sync/atomic"
+	"time"
+
+	"github.com/logrange/logrange/pkg/util"
 )
 
 type (
@@ -34,6 +37,10 @@ type (
 
 		// Size returns the size of the chunk
 		Size() int64
+
+		// Returns Last record offset. The value could be negative, what means
+		// no records available in the chunk yet.
+		GetLastRecordOffset() int64
 	}
 
 	// ChunkIterator is an Iterator (see) extension, which allows to read records
@@ -58,8 +65,29 @@ type (
 		// SetPos sets the current position within the chunk
 		SetPos(pos int64)
 	}
+
+	// ChunkListener an interface which can be used for receiving some chunk
+	// events (like LRO changes)
+	ChunkListener interface {
+
+		// OnLROChange is called when the LRO is changed
+		OnLROChange(c Chunk)
+	}
 )
 
-var (
-	ErrMaxSizeReached = fmt.Errorf("Could not perform the write operation. The maximum size of the chunk is reached.")
-)
+var lastCid uint64
+
+// NewChunkId generates new the host unique chunk id. The chunk IDs are sortable,
+// lately created chunks have greater ID values than older ones.
+func NewChunkId() uint64 {
+	for {
+		cid := (uint64(time.Now().UnixNano()) & 0xFFFFFFFFFFFF0000) | uint64(util.HostId16&0xFFFF)
+		lcid := atomic.LoadUint64(&lastCid)
+		if lcid >= cid {
+			cid = lcid + 0x10000
+		}
+		if atomic.CompareAndSwapUint64(&lastCid, lcid, cid) {
+			return cid
+		}
+	}
+}

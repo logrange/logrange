@@ -4,15 +4,16 @@ import (
 	"context"
 	"fmt"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/jrivets/log4g"
 	"github.com/logrange/logrange/pkg/records"
+	"github.com/logrange/logrange/pkg/util"
 )
 
 var (
 	ErrWrongOffset    = fmt.Errorf("Error wrong offset while seeking")
-	ErrWrongState     = fmt.Errorf("Wrong state, probably already closed.")
 	ErrBufferTooSmall = fmt.Errorf("Too small buffer for read")
 	ErrCorruptedData  = fmt.Errorf("Chunk data has an inconsistency in the data inside")
 )
@@ -24,11 +25,15 @@ type (
 		WriteIdleSec   int
 		WriteFlushMs   int
 		MaxChunkSize   int64
+		MaxRecordSize  int64
+		ChkListener    records.ChunkListener
+		Id             uint64
 	}
 
 	// Chunk struct allows to control read and write operations over the underlying
 	// data file
 	Chunk struct {
+		id       uint64
 		fileName string
 
 		lock   sync.Mutex
@@ -38,6 +43,11 @@ type (
 
 		// writing part
 		w *cWrtier
+		// the chunk listener
+		lstnr records.ChunkListener
+
+		// Max Record Size
+		maxRecSize int64
 	}
 
 	// ChunkIterator struct provides records.Iterator interface for accessing
@@ -55,6 +65,7 @@ const (
 
 	ChnkWriterBufSize = 4 * 4096
 	ChnkReaderBufSize = 2 * 4096
+	ChnkMaxRecordSize = ChnkWriterBufSize
 
 	// ChnkChckTruncateOk means that chunk data can be truncated to good size
 	ChnkChckTruncateOk = 1
@@ -93,14 +104,41 @@ func NewChunk(ctx context.Context, cfg *ChunkConfig, fdPool *FdPool) (*Chunk, er
 	c.fileName = cfg.FileName
 	c.fdPool = fdPool
 	c.w = w
+	c.id = cfg.Id
+	c.maxRecSize = cfg.MaxRecordSize
+	if c.maxRecSize <= 0 {
+		c.maxRecSize = ChnkMaxRecordSize
+	}
 	c.logger = log4g.GetLogger("chunk").WithId(lid).(log4g.Logger)
 	c.logger.Info("New chunk: ", c, ", checker: ", chkr)
 	return c, nil
 }
 
+// Id returns the chunk Id
+func (c *Chunk) Id() uint64 {
+	return c.id
+}
+
+// Iterator returns the chunk iterator which could be used for reading the chunk data
+func (c *Chunk) Iterator() (records.ChunkIterator, error) {
+	buf := make([]byte, c.maxRecSize)
+	ci := newCIterator(c.fileName, c.fdPool, &c.w.lroCfrmd, buf)
+	return ci, nil
+}
+
 // Write allows to write records to the chunk.
 func (c *Chunk) Write(ctx context.Context, it records.Iterator) (int, int64, error) {
 	return c.w.write(ctx, it)
+}
+
+// Size returns the size (unconfirmed) of the chunk
+func (c *Chunk) Size() int64 {
+	return atomic.LoadInt64(&c.w.size)
+}
+
+// GetLastRecordOffset returns synced last record offset (read guarantee)
+func (c *Chunk) GetLastRecordOffset() int64 {
+	return atomic.LoadInt64(&c.w.lroCfrmd)
 }
 
 func (c *Chunk) Close() error {
@@ -109,7 +147,7 @@ func (c *Chunk) Close() error {
 
 	if c.closed {
 		c.logger.Error("An attempt to close already closed chunk")
-		return ErrWrongState
+		return util.ErrWrongState
 	}
 	c.logger.Info("Closing the chunk: ")
 	c.closed = true
@@ -119,5 +157,11 @@ func (c *Chunk) Close() error {
 }
 
 func (c *Chunk) String() string {
-	return fmt.Sprintf("{file: %s, writer: %s, closed:%t}", c.fileName, c.w, c.closed)
+	return fmt.Sprintf("{file=%s, writer=%s, closed=%t, maxRecSize=%d}", c.fileName, c.w, c.closed, c.maxRecSize)
+}
+
+func (c *Chunk) onWriterFlush() {
+	if c.lstnr != nil {
+		c.lstnr.OnLROChange(c)
+	}
 }

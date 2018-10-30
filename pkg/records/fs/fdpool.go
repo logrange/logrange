@@ -7,6 +7,8 @@ import (
 	"sync"
 	"sync/atomic"
 	"time"
+
+	"github.com/logrange/logrange/pkg/util"
 )
 
 type (
@@ -68,7 +70,7 @@ func (fdp *FdPool) acquire(ctx context.Context, name string, offset int64) (*fRe
 	fdp.lock.Lock()
 	if atomic.LoadInt32(&fdp.closed) != 0 {
 		fdp.lock.Unlock()
-		return nil, ErrWrongState
+		return nil, util.ErrWrongState
 	}
 
 	if frp, ok := fdp.frs[name]; ok {
@@ -93,7 +95,7 @@ func (fdp *FdPool) acquire(ctx context.Context, name string, offset int64) (*fRe
 		// we have the ticket
 		if !ok {
 			atomic.AddInt32(&fdp.curSize, -1)
-			return nil, ErrWrongState
+			return nil, util.ErrWrongState
 		}
 		return fdp.createAndUseFreader(name)
 	}
@@ -131,7 +133,7 @@ func (fdp *FdPool) releaseAllByName(name string) {
 // Close - closes the FdPool
 func (fdp *FdPool) Close() error {
 	if atomic.LoadInt32(&fdp.closed) != 0 {
-		return ErrWrongState
+		return util.ErrWrongState
 	}
 
 	fdp.lock.Lock()

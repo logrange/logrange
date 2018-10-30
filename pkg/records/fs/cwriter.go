@@ -11,6 +11,7 @@ import (
 
 	"github.com/jrivets/log4g"
 	"github.com/logrange/logrange/pkg/records"
+	"github.com/logrange/logrange/pkg/util"
 )
 
 type (
@@ -33,7 +34,7 @@ type (
 		lroCfrmd int64
 		// last raw record offset: unconfirmed(not flushed) record
 		lro int64
-		// confirmed file size
+		// unconfirmed file size
 		size int64
 
 		fileName  string
@@ -54,10 +55,20 @@ type (
 		flushTO time.Duration
 		// the maximum chunk size
 		maxSize int64
+
+		// flush callback
+		onFlushF func()
 	}
 )
 
 func newCWriter(fileName string, lro, size, maxSize int64) *cWrtier {
+	if size < 0 {
+		panic("size must be 0 or positive")
+	}
+
+	if lro >= 0 && lro >= size-2*ChnkDataHeaderSize {
+		panic(fmt.Sprintf("lro=%d must be less than the file size=%d", lro, size))
+	}
 	cw := new(cWrtier)
 	cw.fileName = fileName
 	cw.lro = lro
@@ -73,7 +84,7 @@ func newCWriter(fileName string, lro, size, maxSize int64) *cWrtier {
 
 func (cw *cWrtier) ensureFWriter() error {
 	if atomic.LoadInt32(&cw.closed) != 0 {
-		return ErrWrongState
+		return util.ErrWrongState
 	}
 
 	var err error
@@ -150,7 +161,7 @@ func (cw *cWrtier) write(ctx context.Context, it records.Iterator) (int, int64, 
 	defer cw.lock.Unlock()
 
 	if cw.size >= cw.maxSize {
-		return 0, cw.lro, records.ErrMaxSizeReached
+		return 0, cw.lro, util.ErrMaxSizeReached
 	}
 
 	err := cw.ensureFWriter()
@@ -201,13 +212,14 @@ func (cw *cWrtier) write(ctx context.Context, it records.Iterator) (int, int64, 
 
 		// update last raw record
 		cw.lro = ro
+		cw.size = cw.w.fdPos
 		it.Next()
 		wrtn++
 
 	}
 
 	if atomic.LoadInt32(&cw.closed) != 0 {
-		err = ErrWrongState
+		err = util.ErrWrongState
 	} else if clsd {
 		cw.closeUnsafe()
 	} else if cw.w.buffered() == 0 {
@@ -223,24 +235,36 @@ func (cw *cWrtier) write(ctx context.Context, it records.Iterator) (int, int64, 
 }
 
 func (cw *cWrtier) flush() {
+	if cw.flushWriter() && cw.onFlushF != nil {
+		cw.onFlushF()
+	}
+}
+
+func (cw *cWrtier) flushWriter() bool {
 	cw.lock.Lock()
 	defer cw.lock.Unlock()
 
 	if cw.w != nil {
 		cw.w.flush()
-		cw.size = cw.w.fdPos
 	}
+	res := cw.lroCfrmd != cw.lro
 	cw.lroCfrmd = cw.lro
+	return res
 }
 
 func (cw *cWrtier) closeFWriterUnsafe() error {
 	var err error
 	if cw.w != nil {
 		err = cw.w.Close()
+		fl := cw.lroCfrmd != cw.lro
 		cw.lroCfrmd = cw.lro
 		cw.w = nil
 		close(cw.wSgnlChan)
 		cw.wSgnlChan = nil
+
+		if fl && cw.onFlushF != nil {
+			go cw.onFlushF()
+		}
 	}
 	return err
 }

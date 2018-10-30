@@ -13,8 +13,9 @@ type (
 	// fReader. The fReader doesn't have some states, but just use fReader to
 	// support the file structure
 	cReader struct {
-		fr  *fReader
-		lro *int64
+		fr    *fReader
+		lro   *int64
+		szBuf [ChnkDataHeaderSize]byte
 	}
 )
 
@@ -44,8 +45,7 @@ func (cr *cReader) readForward(offset int64, maxRecs int, bbw *inmem.Writer) (in
 		return 0, offset, err
 	}
 
-	var szBuf [ChnkDataHeaderSize]byte
-	rdSlice := szBuf[:]
+	rdSlice := cr.szBuf[:]
 	for i := 0; i < maxRecs; i++ {
 		if cr.isOffsetBehindLast(offset) {
 			return i, offset, nil
@@ -171,6 +171,49 @@ func (cr *cReader) readBack(offset int64, maxRecs int, bbw *inmem.Writer) (int, 
 	}
 
 	return maxRecs, offset, nil
+}
+
+// readRecord reads one record using the provided slice(buf) for storing the data.
+// if the buf size is not big enough for storing the record, it will return
+// ErrBufferTooSmall error. If the top size is not equal to bottom one, it will return
+// ErrCorruptedData. The method shifts current position to the next record to be
+// read
+func (cr *cReader) readRecord(buf []byte) ([]byte, error) {
+	rdSlice := cr.szBuf[:]
+
+	// top size
+	_, err := cr.fr.read(rdSlice)
+	if err != nil {
+		return nil, err
+	}
+
+	sz := int(binary.BigEndian.Uint32(rdSlice))
+	if len(buf) < sz {
+		return nil, ErrBufferTooSmall
+	}
+
+	// payload
+	_, err = cr.fr.read(buf[:sz])
+	if err != nil {
+		return nil, err
+	}
+
+	// bottom size
+	_, err = cr.fr.read(rdSlice)
+	if err != nil {
+		return nil, err
+	}
+
+	bsz := int(binary.BigEndian.Uint32(rdSlice))
+	if sz != bsz {
+		return nil, ErrCorruptedData
+	}
+
+	return buf[:sz], nil
+}
+
+func (cr *cReader) getPos() int64 {
+	return cr.fr.getNextReadPos()
 }
 
 func (cr *cReader) isOffsetBehindLast(offset int64) bool {

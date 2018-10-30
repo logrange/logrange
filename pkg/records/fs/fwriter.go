@@ -4,6 +4,8 @@ import (
 	"bufio"
 	"io"
 	"os"
+
+	"github.com/logrange/logrange/pkg/util"
 )
 
 type (
@@ -49,7 +51,7 @@ func (w *fWriter) size() int64 {
 // write - writes data into the buffer and returns position BEFORE the write
 func (w *fWriter) write(data []byte) (int64, error) {
 	if w.bw == nil {
-		return -1, ErrWrongState
+		return -1, util.ErrWrongState
 	}
 	offset := w.fdPos
 	nn, err := w.bw.Write(data)

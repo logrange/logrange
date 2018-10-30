@@ -3,8 +3,6 @@ package util
 import (
 	"bytes"
 	"crypto/rand"
-	"reflect"
-	"unsafe"
 )
 
 func GetRandomString(size int, abc string) string {
@@ -54,16 +52,6 @@ func Bytes2String(val []byte, abet string, bits int) string {
 		res = append(res, abet[(b&mask)%abl])
 	}
 	return string(res)
-}
-
-// StringToByteArray makes unsafe cast of a string to byte array
-func StringToByteArray(v string) []byte {
-	var slcHdr reflect.SliceHeader
-	sh := *(*reflect.StringHeader)(unsafe.Pointer(&v))
-	slcHdr.Data = sh.Data
-	slcHdr.Cap = sh.Len
-	slcHdr.Len = sh.Len
-	return *(*[]byte)(unsafe.Pointer(&slcHdr))
 }
 
 // RemoveDups returns a slice where every element from ss meets only once

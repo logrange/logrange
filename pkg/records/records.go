@@ -25,6 +25,11 @@ type (
 
 		// Next moves the iterator current position to the next record. Implementation
 		// must define the order and which record should be the next.
+		//
+		// For some implementations, calling the function makes the result, returned
+		// by previous call of Get() not relevant. It means, that NO Get() results
+		// must be used after the Next() call. In case of if the result is needed
+		// it must be copied to another record before calling the Next() function.
 		Next()
 
 		// Get returns the current record the iterator points to. If there is

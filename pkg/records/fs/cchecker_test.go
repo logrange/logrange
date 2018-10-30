@@ -139,7 +139,7 @@ func TestCCheckerCorruptedFile(t *testing.T) {
 }
 
 func testCCheckerTestFile(t *testing.T, fn string, data []string) int64 {
-	cw := newCWriter(fn, 0, 0, 1000)
+	cw := newCWriter(fn, -1, 0, 1000)
 	defer cw.Close()
 
 	si := inmem.SrtingsIterator(data...)

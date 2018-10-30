@@ -6,11 +6,13 @@ import (
 	"io/ioutil"
 	"os"
 	"path"
+	"sync/atomic"
 	"testing"
 	"time"
 
 	"github.com/logrange/logrange/pkg/records"
 	"github.com/logrange/logrange/pkg/records/inmem"
+	"github.com/logrange/logrange/pkg/util"
 )
 
 type lazyIt struct {
@@ -42,8 +44,13 @@ func TestCWriterWrite(t *testing.T) {
 	}
 	defer os.RemoveAll(dir) // clean up
 
-	cw := newCWriter(path.Join(dir, "tst"), 0, 0, 1000)
+	cw := newCWriter(path.Join(dir, "tst"), -1, 0, 1000)
 	defer cw.Close()
+
+	flushes := int32(0)
+	cw.onFlushF = func() {
+		atomic.AddInt32(&flushes, 1)
+	}
 
 	cw.flushTO = 50 * time.Millisecond
 	if cw.isFlushNeeded() {
@@ -52,13 +59,14 @@ func TestCWriterWrite(t *testing.T) {
 
 	si := inmem.SrtingsIterator("a")
 	n, offs, err := cw.write(nil, si)
-	if n != 1 || offs != 0 || err != nil {
+	if n != 1 || offs != 0 || err != nil || atomic.LoadInt32(&flushes) != 0 {
 		t.Fatal("Expecting n=1, offs=0, err=nil, but n=", n, ", offs=", offs, ", err=", err)
 	}
 	w := cw.w
 	cw.closeFWriterUnsafe()
-	if cw.lro != cw.lroCfrmd || cw.lro != 0 {
-		t.Fatal("expecting lro=0, but it is ", cw.lro)
+	time.Sleep(10 * time.Millisecond)
+	if cw.lro != cw.lroCfrmd || cw.lro != 0 || atomic.LoadInt32(&flushes) != 1 {
+		t.Fatal("expecting lro=0, but it is ", cw.lro, "flushes=", flushes)
 	}
 
 	si = inmem.SrtingsIterator("a", "b", "c")
@@ -74,7 +82,7 @@ func TestCWriterWrite(t *testing.T) {
 		t.Fatal("Must be new writer!")
 	}
 	time.Sleep(60 * time.Millisecond)
-	if cw.isFlushNeeded() {
+	if cw.isFlushNeeded() || atomic.LoadInt32(&flushes) != 2 {
 		t.Fatal("Must be flushed")
 	}
 }
@@ -86,7 +94,7 @@ func TestCWriterIdleTimeout(t *testing.T) {
 	}
 	defer os.RemoveAll(dir) // clean up
 
-	cw := newCWriter(path.Join(dir, "tst"), 0, 0, 1000)
+	cw := newCWriter(path.Join(dir, "tst"), -1, 0, 1000)
 	defer cw.Close()
 
 	cw.idleTO = 50
@@ -111,7 +119,7 @@ func TestCWriterCloseWhileLazyIterator(t *testing.T) {
 	}
 	defer os.RemoveAll(dir) // clean up
 
-	cw := newCWriter(path.Join(dir, "tst"), 0, 0, 1000)
+	cw := newCWriter(path.Join(dir, "tst"), -1, 0, 1000)
 	defer cw.Close()
 
 	go func() {
@@ -120,7 +128,7 @@ func TestCWriterCloseWhileLazyIterator(t *testing.T) {
 	}()
 
 	n, _, err := cw.write(nil, &lazyIt{records.Record([]byte{65}), 20 * time.Millisecond, 100})
-	if n < 1 || n > 4 || err != ErrWrongState {
+	if n < 1 || n > 4 || err != util.ErrWrongState {
 		t.Fatal("expecting low n < 4 and err== ErrWrongState, but n=", n, " and the err=", err)
 	}
 }
@@ -132,7 +140,7 @@ func TestCWriterMaxSize(t *testing.T) {
 	}
 	defer os.RemoveAll(dir) // clean up
 
-	cw := newCWriter(path.Join(dir, "tst"), 0, 0, 1)
+	cw := newCWriter(path.Join(dir, "tst"), -1, 0, 1)
 	defer cw.Close()
 
 	si := inmem.SrtingsIterator("a", "b", "c")
@@ -143,7 +151,7 @@ func TestCWriterMaxSize(t *testing.T) {
 
 	si = inmem.SrtingsIterator("a", "b", "c")
 	_, _, err = cw.write(nil, si)
-	if err != records.ErrMaxSizeReached {
+	if err != util.ErrMaxSizeReached {
 		t.Fatal("Must report ErrMaxSizeReached")
 	}
 }

@@ -15,6 +15,7 @@ import (
 	"github.com/jrivets/log4g"
 	"github.com/logrange/logrange/pkg/records"
 	"github.com/logrange/logrange/pkg/records/inmem"
+	"github.com/logrange/logrange/pkg/util"
 )
 
 type (
@@ -25,18 +26,20 @@ type (
 	Chunks          []records.Chunk
 	ChnksController interface {
 		// GetChunks returns known chunks for the journal sorted by their
-		// chunk IDs
+		// chunk IDs. The function returns non-nil Chunks slice, which
+		// always has at least one chunk. If the journal has just been
+		// created the ChnksController creates new chunk for it.
 		GetChunks(jid uint64) Chunks
 		NewChunk(ctx context.Context, jid uint64) (records.Chunk, error)
 	}
 
 	JPos struct {
-		jid   uint64
 		cid   uint64
 		roffs int64
 	}
 
 	Journal interface {
+		io.Closer
 		// Write - writes records received from the iterator to the journal.
 		// It returns number of records written, first record position and an error if any
 		Write(ctx context.Context, rit records.Iterator) (int, JPos, error)
@@ -59,8 +62,17 @@ type (
 		cc     ChnksController
 		logger log4g.Logger
 		lock   sync.Mutex
+		cond   *sync.Cond
 
+		// data waiters, the goroutines which waits till a new data appears
+		waiters int32
+		dwChnls []chan bool
+
+		// wsem is for creating new chunks while write
 		wsem chan bool
+
+		// closed the journal state flag
+		closed bool
 
 		// contains []records.Chunk in sorted order
 		chunks atomic.Value
@@ -83,6 +95,7 @@ func New(cc ChnksController, jname string) (Journal, error) {
 	j.id = JidFromName(jname)
 	j.name = jname
 	j.cc = cc
+	j.cond = sync.NewCond(&j.lock)
 	j.chunks.Store(cc.GetChunks(j.id))
 	j.wsem = make(chan bool, 1)
 	j.wsem <- true
@@ -103,10 +116,10 @@ func (j *journal) Write(ctx context.Context, rit records.Iterator) (int, JPos, e
 
 		n, offs, err := c.Write(ctx, rit)
 		if n > 0 {
-			return n, JPos{j.id, c.Id(), offs}, err
+			return n, JPos{c.Id(), offs}, err
 		}
 
-		if err == records.ErrMaxSizeReached {
+		if err == util.ErrMaxSizeReached {
 			continue
 		}
 		break
@@ -115,9 +128,40 @@ func (j *journal) Write(ctx context.Context, rit records.Iterator) (int, JPos, e
 	return 0, JPos{}, err
 }
 
+func (j *journal) Iterator() (JournalIterator, error) {
+	return nil, nil
+}
+
+func (j *journal) Size() int64 {
+	chunks := j.chunks.Load().(Chunks)
+	var sz int64
+	for _, c := range chunks {
+		sz += c.Size()
+	}
+	return sz
+}
+
+func (j *journal) Close() error {
+	j.lock.Lock()
+	defer j.lock.Unlock()
+
+	if j.closed {
+		j.logger.Warn("Journal is already closed, ignoring this Close() call ", j)
+		return nil
+	}
+
+	j.logger.Info("Closing the journal ", j)
+	j.closed = true
+
+	close(j.wsem)
+	j.chunks.Store(make(Chunks, 0, 0))
+
+	return nil
+}
+
 func (j *journal) String() string {
 	chnks := j.chunks.Load().(Chunks)
-	return fmt.Sprintf("{id=%X, name=%d, chunks=%d}", j.id, j.name, len(chnks))
+	return fmt.Sprintf("{id=%X, name=%d, chunks=%d, closed=%t}", j.id, j.name, len(chnks), j.closed)
 }
 
 func (j *journal) getLastChunk() records.Chunk {
@@ -130,7 +174,11 @@ func (j *journal) getLastChunk() records.Chunk {
 }
 
 func (j *journal) addNewChunk(c records.Chunk) {
-	// TODO add the chunk to the list
+	chnks := j.chunks.Load().(Chunks)
+	newChnks := make(Chunks, len(chnks)+1)
+	copy(newChnks, chnks)
+	newChnks[len(newChnks)-1] = c
+	j.chunks.Store(Chunks(newChnks))
 }
 
 func (j *journal) getWriterChunk(ctx context.Context, prevC records.Chunk) (records.Chunk, error) {
@@ -147,11 +195,11 @@ func (j *journal) getWriterChunk(ctx context.Context, prevC records.Chunk) (reco
 	case _, ok := <-j.wsem:
 		if !ok {
 			// the journal is closed
-			return nil, nil //TODO - err not nil!!
+			return nil, util.ErrWrongState
 		}
-
 	}
 
+	var err error
 	newChk := false
 	chk := j.getLastChunk()
 	if chk == nil || chk == prevC {
@@ -160,12 +208,101 @@ func (j *journal) getWriterChunk(ctx context.Context, prevC records.Chunk) (reco
 	}
 
 	j.lock.Lock()
-	// TODO chieck state here !!!
-	if newChk {
-		j.addNewChunk(chk)
-	}
+	if !j.closed {
+		if newChk {
+			j.logger.Debug("New chunk is created ", chk)
+			j.addNewChunk(chk)
+		}
 
-	j.wsem <- true
+		j.wsem <- true
+	} else if err == nil {
+		// if the chunk was created, but the journal is already closed
+		err = util.ErrWrongState
+	}
 	j.lock.Unlock()
 	return chk, err
+}
+
+// Called by chunk writer when synced
+func (j *journal) whenDataWritten() {
+	if atomic.LoadInt32(&j.waiters) <= 0 {
+		return
+	}
+
+	j.lock.Lock()
+	defer j.lock.Unlock()
+
+	for i, ch := range j.dwChnls {
+		close(ch)
+		j.dwChnls[i] = nil
+	}
+
+	if cap(j.dwChnls) > 10 {
+		j.dwChnls = nil
+	} else {
+		j.dwChnls = j.dwChnls[:0]
+	}
+}
+
+// waitData allows to wait a new data is written into the journal. The function
+// expects ctx context and curId a record Id to check the operation against to.
+// The call will block current go routine, if the curId lies behind the last
+// record in the journal. The case, the goroutine will be unblock until one of the
+// two events happen - ctx is closed or new records added to the journal.
+func (j *journal) waitData(ctx context.Context, curId JPos) error {
+	atomic.AddInt32(&j.waiters, 1)
+	defer atomic.AddInt32(&j.waiters, -1)
+
+	for {
+		j.lock.Lock()
+		if j.closed {
+			j.lock.Unlock()
+			return util.ErrWrongState
+		}
+
+		chk := j.getLastChunk()
+		lro := JPos{chk.Id(), chk.GetLastRecordOffset()}
+		if curId.CmpLE(lro) {
+			j.lock.Unlock()
+			return nil
+		}
+		curId = lro
+		curId.roffs++
+
+		ch := make(chan bool)
+		if j.dwChnls == nil {
+			j.dwChnls = make([]chan bool, 0, 10)
+		}
+		j.dwChnls = append(j.dwChnls, ch)
+		j.lock.Unlock()
+
+		select {
+		case <-ctx.Done():
+			j.lock.Lock()
+			ln := len(j.dwChnls)
+			for i, c := range j.dwChnls {
+				if c == ch {
+					j.dwChnls[i] = j.dwChnls[ln-1]
+					j.dwChnls[ln-1] = nil
+					j.dwChnls = j.dwChnls[:ln-1]
+					close(ch)
+					break
+				}
+			}
+			j.lock.Unlock()
+			return ctx.Err()
+		case <-ch:
+			// the select
+			break
+		}
+	}
+}
+
+// ------------------------------- JPos --------------------------------------
+func (jp JPos) String() string {
+	return fmt.Sprintf("{cid=%X, roffs=%d}", jp.cid, jp.roffs)
+}
+
+func (jp JPos) CmpLE(jp2 JPos) bool {
+	return jp.cid < jp2.cid || (jp.cid == jp2.cid && jp.roffs <= jp2.roffs)
 }

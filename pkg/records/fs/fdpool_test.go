@@ -7,6 +7,8 @@ import (
 	"path"
 	"testing"
 	"time"
+
+	"github.com/logrange/logrange/pkg/util"
 )
 
 func TestFdPoolClose(t *testing.T) {
@@ -34,7 +36,7 @@ func TestFdPoolClose(t *testing.T) {
 	}
 
 	_, err = fdp.acquire(context.Background(), fn, 0)
-	if err != ErrWrongState {
+	if err != util.ErrWrongState {
 		t.Fatal("expecting wrong state, but ", err)
 	}
 }

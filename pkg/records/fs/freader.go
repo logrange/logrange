@@ -33,6 +33,8 @@ const (
 	frStateBusy    = 1
 	frStateClosing = 2
 	frStateClosed  = 3
+
+	bufGranularity = 4096
 )
 
 // newFReader constructs new fReader instance
@@ -151,6 +153,10 @@ func (r *fReader) smartSeek(offset int64, bufBottom int) error {
 		return err
 	}
 	return r.seek(offset)
+}
+
+func (r *fReader) getNextReadPos() int64 {
+	return r.pos - int64(r.w-r.r)
 }
 
 func (r *fReader) fillBuff(offset int64) error {
