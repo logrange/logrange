@@ -1,4 +1,4 @@
-package inmem
+package records
 
 import (
 	"encoding/binary"

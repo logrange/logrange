@@ -1,17 +1,15 @@
-package inmem
+package records
 
 import (
 	"io"
 	"reflect"
 	"unsafe"
-
-	"github.com/logrange/logrange/pkg/records"
 )
 
 // SrtingsIterator receives strings and return an iterator over them. The
 // function is not fast, uses many allocations and should be used in test code
 // only.
-func SrtingsIterator(strs ...string) records.Iterator {
+func SrtingsIterator(strs ...string) Iterator {
 	var bbw Writer
 	for _, s := range strs {
 		bs := []byte(s)

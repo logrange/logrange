@@ -15,7 +15,7 @@ import (
 
 	"github.com/jrivets/log4g"
 	"github.com/logrange/logrange/pkg/records"
-	"github.com/logrange/logrange/pkg/records/inmem"
+	"github.com/logrange/logrange/pkg/records/chunk"
 	"github.com/logrange/logrange/pkg/util"
 )
 
@@ -24,40 +24,39 @@ type (
 		GetOrCreate(ctx context.Context, jname string) (Journal, error)
 	}
 
-	Chunks          []records.Chunk
 	ChnksController interface {
 		// GetChunks returns known chunks for the journal sorted by their
 		// chunk IDs. The function returns non-nil Chunks slice, which
 		// always has at least one chunk. If the journal has just been
 		// created the ChnksController creates new chunk for it.
-		GetChunks(jid uint64) Chunks
-		NewChunk(ctx context.Context, jid uint64) (records.Chunk, error)
+		GetChunks(jid uint64) chunk.Chunks
+		NewChunk(ctx context.Context, jid uint64) (chunk.Chunk, error)
 	}
 
-	JPos struct {
-		cid   uint64
-		roffs int64
+	Pos struct {
+		CId  uint64
+		Offs int64
 	}
 
 	Journal interface {
 		io.Closer
 		// Write - writes records received from the iterator to the journal.
 		// It returns number of records written, first record position and an error if any
-		Write(ctx context.Context, rit records.Iterator) (int, JPos, error)
+		Write(ctx context.Context, rit records.Iterator) (int, Pos, error)
 
 		// Size returns the summarized chunks size
 		Size() int64
 
 		// Iterator returns an iterator to walk through the journal records
-		Iterator() (JournalIterator, error)
+		Iterator() (Iterator, error)
 	}
 
-	JournalIterator interface {
+	Iterator interface {
 		io.Closer
 		records.Iterator
 
-		Pos() JPos
-		SetPos(pos JPos)
+		Pos() Pos
+		Reset(pos Pos, bkwd bool)
 	}
 
 	journal struct {
@@ -88,7 +87,7 @@ type (
 
 // JidFromName returns a journal id (jid) by its name
 func JidFromName(jname string) uint64 {
-	ra := sha1.Sum(inmem.StringToByteArray(jname))
+	ra := sha1.Sum(records.StringToByteArray(jname))
 	return (uint64(ra[7]) << 56) | (uint64(ra[6]) << 48) | (uint64(ra[5]) << 40) |
 		(uint64(ra[4]) << 32) | (uint64(ra[3]) << 24) | (uint64(ra[2]) << 16) |
 		(uint64(ra[1]) << 8) | uint64(ra[0])
@@ -109,18 +108,18 @@ func New(cc ChnksController, jname string) (Journal, error) {
 }
 
 // Write - writes records received from the iterator to the journal.
-func (j *journal) Write(ctx context.Context, rit records.Iterator) (int, JPos, error) {
+func (j *journal) Write(ctx context.Context, rit records.Iterator) (int, Pos, error) {
 	var err error
-	var c records.Chunk
-	for _, err = rit.GetCtx(ctx); err == nil; {
+	var c chunk.Chunk
+	for _, err = rit.Get(ctx); err == nil; {
 		c, err = j.getWriterChunk(ctx, c)
 		if err != nil {
-			return 0, JPos{}, err
+			return 0, Pos{}, err
 		}
 
 		n, offs, err := c.Write(ctx, rit)
 		if n > 0 {
-			return n, JPos{c.Id(), offs}, err
+			return n, Pos{c.Id(), offs}, err
 		}
 
 		if err == util.ErrMaxSizeReached {
@@ -129,15 +128,15 @@ func (j *journal) Write(ctx context.Context, rit records.Iterator) (int, JPos, e
 		break
 	}
 
-	return 0, JPos{}, err
+	return 0, Pos{}, err
 }
 
-func (j *journal) Iterator() (JournalIterator, error) {
+func (j *journal) Iterator() (Iterator, error) {
 	return nil, nil
 }
 
 func (j *journal) Size() int64 {
-	chunks := j.chunks.Load().(Chunks)
+	chunks := j.chunks.Load().(chunk.Chunks)
 	var sz int64
 	for _, c := range chunks {
 		sz += c.Size()
@@ -158,18 +157,18 @@ func (j *journal) Close() error {
 	j.closed = true
 
 	close(j.wsem)
-	j.chunks.Store(make(Chunks, 0, 0))
+	j.chunks.Store(make(chunk.Chunks, 0, 0))
 
 	return nil
 }
 
 func (j *journal) String() string {
-	chnks := j.chunks.Load().(Chunks)
+	chnks := j.chunks.Load().(chunk.Chunks)
 	return fmt.Sprintf("{id=%X, name=%d, chunks=%d, closed=%t}", j.id, j.name, len(chnks), j.closed)
 }
 
-func (j *journal) getLastChunk() records.Chunk {
-	chunks := j.chunks.Load().(Chunks)
+func (j *journal) getLastChunk() chunk.Chunk {
+	chunks := j.chunks.Load().(chunk.Chunks)
 	if len(chunks) == 0 {
 		j.logger.Debug("getLastChunk: chunks are empty")
 		return nil
@@ -177,15 +176,15 @@ func (j *journal) getLastChunk() records.Chunk {
 	return chunks[len(chunks)-1]
 }
 
-func (j *journal) addNewChunk(c records.Chunk) {
-	chnks := j.chunks.Load().(Chunks)
-	newChnks := make(Chunks, len(chnks)+1)
+func (j *journal) addNewChunk(c chunk.Chunk) {
+	chnks := j.chunks.Load().(chunk.Chunks)
+	newChnks := make(chunk.Chunks, len(chnks)+1)
 	copy(newChnks, chnks)
 	newChnks[len(newChnks)-1] = c
-	j.chunks.Store(Chunks(newChnks))
+	j.chunks.Store(chunk.Chunks(newChnks))
 }
 
-func (j *journal) getWriterChunk(ctx context.Context, prevC records.Chunk) (records.Chunk, error) {
+func (j *journal) getWriterChunk(ctx context.Context, prevC chunk.Chunk) (chunk.Chunk, error) {
 	if prevC == nil {
 		prevC = j.getLastChunk()
 		if prevC != nil {
@@ -253,7 +252,7 @@ func (j *journal) whenDataWritten() {
 // The call will block current go routine, if the curId lies behind the last
 // record in the journal. The case, the goroutine will be unblock until one of the
 // two events happen - ctx is closed or new records added to the journal.
-func (j *journal) waitData(ctx context.Context, curId JPos) error {
+func (j *journal) waitData(ctx context.Context, curId Pos) error {
 	atomic.AddInt32(&j.waiters, 1)
 	defer atomic.AddInt32(&j.waiters, -1)
 
@@ -265,13 +264,13 @@ func (j *journal) waitData(ctx context.Context, curId JPos) error {
 		}
 
 		chk := j.getLastChunk()
-		lro := JPos{chk.Id(), chk.GetLastRecordOffset()}
+		lro := Pos{chk.Id(), chk.GetLastRecordOffset()}
 		if curId.CmpLE(lro) {
 			j.lock.Unlock()
 			return nil
 		}
 		curId = lro
-		curId.roffs++
+		curId.Offs++
 
 		ch := make(chan bool)
 		if j.dwChnls == nil {
@@ -302,29 +301,34 @@ func (j *journal) waitData(ctx context.Context, curId JPos) error {
 	}
 }
 
-func (j *journal) getChunkById(cid uint64) records.Chunk {
-	chunks := j.chunks.Load().(Chunks)
+// getChunkById is looking for a chunk with cid. If there is no such chunk
+// in the list, it will return the chunk which is most left in case of bkwd=true
+// or most right otherwise. If there is no such chunks, so cid points is out
+// of the chunks range, then the method return nil
+func (j *journal) getChunkById(cid uint64, bkwd bool) chunk.Chunk {
+	chunks := j.chunks.Load().(chunk.Chunks)
 	n := len(chunks)
 	if n == 0 {
 		return nil
 	}
 
-	if chunks[0].Id() >= cid {
-		return chunks[0]
+	idx := sort.Search(len(chunks), func(i int) bool { return chunks[i].Id() >= cid })
+	// according to the condition idx is always in [0..n]
+	if bkwd && (idx == n || chunks[idx].Id() > cid) {
+		idx--
 	}
 
-	if chunks[n-1].Id() < cid {
-		return chunks[n-1]
+	if idx < 0 || idx >= n {
+		return nil
 	}
-
-	return chunks[sort.Search(len(chunks), func(i int) bool { return chunks[i].Id() >= cid })]
+	return chunks[idx]
 }
 
-// ------------------------------- JPos --------------------------------------
-func (jp JPos) String() string {
-	return fmt.Sprintf("{cid=%X, roffs=%d}", jp.cid, jp.roffs)
+// ---------------------------- JournalPos -----------------------------------
+func (jp Pos) String() string {
+	return fmt.Sprintf("{CId=%X, Offs=%d}", jp.CId, jp.Offs)
 }
 
-func (jp JPos) CmpLE(jp2 JPos) bool {
-	return jp.cid < jp2.cid || (jp.cid == jp2.cid && jp.roffs <= jp2.roffs)
+func (jp Pos) CmpLE(jp2 Pos) bool {
+	return jp.CId < jp2.CId || (jp.CId == jp2.CId && jp.Offs <= jp2.Offs)
 }

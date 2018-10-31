@@ -1,4 +1,4 @@
-package fs
+package chunkfs
 
 import (
 	"context"
@@ -12,7 +12,7 @@ import (
 type (
 	// cChecker is a helper structure which allows to check the chunk data consistency
 	// and which is used for finding last record offset in the chunk file
-	cChecker struct {
+	checker struct {
 		logger   log4g.Logger
 		fdPool   *FdPool
 		fileName string
@@ -35,7 +35,7 @@ type (
 // ChnkChckTruncateOk - indicates that file data can be truncated to the good state
 // ChnkChckFullScan - means that full data scan must be performed instead of quick
 // 					  check at the beginning.
-func (cc *cChecker) checkFileConsistency(ctx context.Context, flags int) error {
+func (cc *checker) checkFileConsistency(ctx context.Context, flags int) error {
 	cc.logger.Info("checkFileConsistency()")
 	f, err := os.OpenFile(cc.fileName, os.O_CREATE|os.O_RDWR, 0640)
 	if err != nil {
@@ -84,7 +84,7 @@ func (cc *cChecker) checkFileConsistency(ctx context.Context, flags int) error {
 // fillLastRec jumps to the end of chunk and checks the status of sizes for the last
 // record. The method doesn't give 100% guarantee of the file consisteny result, but
 // at least it checks sizes of the last record.
-func (cc *cChecker) fillLastRec(fr *fReader, size int64) error {
+func (cc *checker) fillLastRec(fr *fReader, size int64) error {
 	cc.logger.Info("fillLastRec: reading last record, file size=", size)
 	err := fr.seek(size - ChnkDataHeaderSize)
 	if err != nil {
@@ -131,7 +131,7 @@ func (cc *cChecker) fillLastRec(fr *fReader, size int64) error {
 // iterateUntilGoodLastRec() walks through the file and finds the last good record
 // offset (1st parameter). The second param contains the size to which the file
 // should be truncated if it contains wrong information.
-func (cc *cChecker) iterateUntilGoodLastRec(fr *fReader, size int64) (int64, int64) {
+func (cc *checker) iterateUntilGoodLastRec(fr *fReader, size int64) (int64, int64) {
 	cc.logger.Info("iterateUntilGoodLastRec: Looking for good last record. File size=", size)
 	lro := int64(0)
 	sz := int64(0)
@@ -185,6 +185,6 @@ func (cc *cChecker) iterateUntilGoodLastRec(fr *fReader, size int64) (int64, int
 	return lro, sz
 }
 
-func (cc *cChecker) String() string {
+func (cc *checker) String() string {
 	return fmt.Sprintf("{fileName=%s, lro=%d, iSize=%d, tSize=%d}", cc.fileName, cc.lro, cc.iSize, cc.tSize)
 }

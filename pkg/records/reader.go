@@ -1,11 +1,9 @@
-package inmem
+package records
 
 import (
 	"context"
 	"encoding/binary"
 	"io"
-
-	"github.com/logrange/logrange/pkg/records"
 )
 
 type (
@@ -63,11 +61,11 @@ func (bbi *Reader) fillCur() {
 
 // Get returns current element. It receives ctx, but ignores it, because
 // the function is not blocking here.
-func (bbi *Reader) Get(ctx context.Context) (records.Record, error) {
+func (bbi *Reader) Get(ctx context.Context) (Record, error) {
 	if bbi.End() {
 		return nil, io.EOF
 	}
-	return records.Record(bbi.cur), nil
+	return Record(bbi.cur), nil
 }
 
 // Next switches to the next element. Data() allows to access to the current one.

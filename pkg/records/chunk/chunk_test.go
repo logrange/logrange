@@ -1,23 +1,23 @@
-package records
+package chunk
 
 import (
 	"testing"
 	"time"
 )
 
-func TestNewCid(t *testing.T) {
+func TestNewCId(t *testing.T) {
 	lastCid = 0
-	cid := NewChunkId()
-	cid2 := NewChunkId()
+	cid := NewCId()
+	cid2 := NewCId()
 	diff := (cid2 - cid) >> 16
 	if cid == cid2 || cid2 < cid || diff > 1 {
 		t.Fatal("Ooops something wrong with cid generation cid=", cid, " cid2=", cid2, ", diff=", diff)
 	}
 
 	// some diff
-	cid = NewChunkId()
+	cid = NewCId()
 	time.Sleep(time.Millisecond)
-	cid2 = NewChunkId()
+	cid2 = NewCId()
 	diff = (cid2 - cid) >> 16
 	if cid == cid2 || cid2 < cid || diff > 10000 || cid2 != lastCid {
 		t.Fatal("Ooops something wrong with cid generation cid=", cid, " cid2=", cid2, ", diff=", diff)
@@ -26,8 +26,8 @@ func TestNewCid(t *testing.T) {
 	// now put far to the future
 	lastCid += uint64(time.Hour)
 	lcid := lastCid
-	cid = NewChunkId()
-	cid2 = NewChunkId()
+	cid = NewCId()
+	cid2 = NewCId()
 	diff = (cid - lcid) >> 16
 	diff2 := (cid2 - lcid) >> 16
 	if diff != 1 || diff2 != 2 {

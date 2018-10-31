@@ -1,11 +1,11 @@
-package fs
+package chunkfs
 
 import (
 	"encoding/binary"
 	"io"
 	"sync/atomic"
 
-	"github.com/logrange/logrange/pkg/records/inmem"
+	"github.com/logrange/logrange/pkg/records"
 )
 
 type (
@@ -31,7 +31,7 @@ type (
 //
 // offset < 0 will start from beginning. Offset behind the last record will cause io.EOF error
 // if at least one record is read error will be nil.
-func (cr *cReader) readForward(offset int64, maxRecs int, bbw *inmem.Writer) (int, int64, error) {
+func (cr *cReader) readForward(offset int64, maxRecs int, bbw *records.Writer) (int, int64, error) {
 	if offset < 0 {
 		offset = 0
 	}
@@ -104,7 +104,7 @@ func (cr *cReader) readForward(offset int64, maxRecs int, bbw *inmem.Writer) (in
 //
 // for negative offsets io.EOF is reported. Offset behind the last record will adjust
 // the read to last record. If the chunk is empty, io.EOF will be reported
-func (cr *cReader) readBack(offset int64, maxRecs int, bbw *inmem.Writer) (int, int64, error) {
+func (cr *cReader) readBack(offset int64, maxRecs int, bbw *records.Writer) (int, int64, error) {
 	// adjusting offset for first read
 	lro := atomic.LoadInt64(cr.lro)
 	if lro < offset {

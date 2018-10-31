@@ -1,4 +1,4 @@
-package fs
+package chunkfs
 
 import (
 	"context"
@@ -8,7 +8,7 @@ import (
 	"path"
 	"testing"
 
-	"github.com/logrange/logrange/pkg/records/inmem"
+	"github.com/logrange/logrange/pkg/records"
 )
 
 func TestCIteratorCommon(t *testing.T) {
@@ -40,7 +40,7 @@ func TestCIteratorCommon(t *testing.T) {
 	}
 	ci.Next(context.Background())
 
-	si := inmem.SrtingsIterator("aa")
+	si := records.SrtingsIterator("aa")
 	_, _, err = cw.write(nil, si)
 	if err != nil {
 		t.Fatal("could not write data to file ", fn, ", err=", err)
@@ -48,13 +48,13 @@ func TestCIteratorCommon(t *testing.T) {
 	cw.flush()
 
 	res, err := ci.Get(context.Background())
-	if inmem.ByteArrayToString(res) != "aa" || err != nil {
-		t.Fatal("expecting aa, but got ", inmem.ByteArrayToString(res), " and err=", err)
+	if records.ByteArrayToString(res) != "aa" || err != nil {
+		t.Fatal("expecting aa, but got ", records.ByteArrayToString(res), " and err=", err)
 	}
 
 	res, err = ci.Get(context.Background())
-	if inmem.ByteArrayToString(res) != "aa" || err != nil {
-		t.Fatal("expecting aa, but got ", inmem.ByteArrayToString(res), " and err=", err)
+	if records.ByteArrayToString(res) != "aa" || err != nil {
+		t.Fatal("expecting aa, but got ", records.ByteArrayToString(res), " and err=", err)
 	}
 
 	ci.Next(context.Background())
@@ -70,7 +70,7 @@ func TestCIteratorCommon(t *testing.T) {
 		t.Fatal("Expecting ErrCorruptedData, but got err=", err)
 	}
 
-	si = inmem.SrtingsIterator("bb")
+	si = records.SrtingsIterator("bb")
 	_, _, err = cw.write(nil, si)
 	if err != nil {
 		t.Fatal("could not write data to file ", fn, ", err=", err)
@@ -85,8 +85,8 @@ func TestCIteratorCommon(t *testing.T) {
 
 	ci.Next(context.Background())
 	res, err = ci.Get(context.Background())
-	if inmem.ByteArrayToString(res) != "bb" || err != nil {
-		t.Fatal("expecting bb, but got ", inmem.ByteArrayToString(res), " and err=", err)
+	if records.ByteArrayToString(res) != "bb" || err != nil {
+		t.Fatal("expecting bb, but got ", records.ByteArrayToString(res), " and err=", err)
 	}
 
 	ci.Next(context.Background())
@@ -105,8 +105,8 @@ func TestCIteratorCommon(t *testing.T) {
 	ci.SetPos(0)
 	ci.Next(context.Background())
 	res, err = ci.Get(context.Background())
-	if inmem.ByteArrayToString(res) != "bb" || err != nil {
-		t.Fatal("expecting bb, but got ", inmem.ByteArrayToString(res), " and err=", err)
+	if records.ByteArrayToString(res) != "bb" || err != nil {
+		t.Fatal("expecting bb, but got ", records.ByteArrayToString(res), " and err=", err)
 	}
 }
 
@@ -132,7 +132,7 @@ func TestCIteratorPos(t *testing.T) {
 	// test it now
 	ci := newCIterator(123, p, &cw.lroCfrmd, &cw.sizeCfrmd, buf)
 
-	si := inmem.SrtingsIterator("aa")
+	si := records.SrtingsIterator("aa")
 	_, _, err = cw.write(nil, si)
 	if err != nil {
 		t.Fatal("could not write data to file ", fn, ", err=", err)
@@ -163,7 +163,7 @@ func TestCIteratorPos(t *testing.T) {
 		t.Fatal("Expecting io.EOF, but got err=", err)
 	}
 
-	si = inmem.SrtingsIterator("bb")
+	si = records.SrtingsIterator("bb")
 	_, _, err = cw.write(nil, si)
 	if err != nil {
 		t.Fatal("could not write data to file ", fn, ", err=", err)
@@ -204,7 +204,7 @@ func TestCIteratorBackAndForth(t *testing.T) {
 	// test it now
 	ci := newCIterator(123, p, &cw.lroCfrmd, &cw.sizeCfrmd, buf)
 
-	si := inmem.SrtingsIterator("aa", "bb")
+	si := records.SrtingsIterator("aa", "bb")
 	_, _, err = cw.write(nil, si)
 	if err != nil {
 		t.Fatal("could not write data to file ", fn, ", err=", err)
@@ -231,11 +231,13 @@ func TestCIteratorBackAndForth(t *testing.T) {
 		if string(res) != "bb" || err != nil {
 			t.Fatal("expecting bb, but got ", string(res), " and err=", err)
 		}
+		ci.Release()
 		ci.Next(ctx)
 		res, err = ci.Get(ctx)
 		if string(res) != "aa" || err != nil {
 			t.Fatal("expecting aa, but got ", string(res), " and err=", err)
 		}
+		ci.Release()
 		ci.Next(ctx)
 		_, err = ci.Get(ctx)
 		if err != io.EOF {
@@ -243,4 +245,57 @@ func TestCIteratorBackAndForth(t *testing.T) {
 		}
 		ci.SetBackward(false)
 	}
+}
+
+func TestCIteratorEmpty(t *testing.T) {
+	// prepare the staff
+	dir, err := ioutil.TempDir("", "citeratorBackAndForthTest")
+	if err != nil {
+		t.Fatal("Could not create new dir err=", err)
+	}
+	defer os.RemoveAll(dir) // clean up
+
+	p := NewFdPool(2)
+	defer p.Close()
+
+	fn := path.Join(dir, "tst")
+	cw := newCWriter(fn, -1, 0, 1000)
+	cw.ensureFWriter() // to create the file
+	defer cw.Close()
+
+	p.register(123, fn)
+	buf := make([]byte, 10)
+
+	// test it now
+	ctx := context.Background()
+	ci := newCIterator(123, p, &cw.lroCfrmd, &cw.sizeCfrmd, buf)
+	_, err = ci.Get(ctx)
+	if err != io.EOF {
+		t.Fatal("Expecting io.EOF, but got err=", err)
+	}
+
+	ci.SetBackward(true)
+	_, err = ci.Get(ctx)
+	if err != io.EOF {
+		t.Fatal("Expecting io.EOF, but got err=", err)
+	}
+
+	si := records.SrtingsIterator("aa", "bb")
+	_, _, err = cw.write(nil, si)
+	if err != nil {
+		t.Fatal("could not write data to file ", fn, ", err=", err)
+	}
+	cw.flush()
+
+	_, err = ci.Get(ctx)
+	if err != io.EOF {
+		t.Fatal("Expecting io.EOF, but got err=", err)
+	}
+
+	ci.SetBackward(false)
+	res, err := ci.Get(ctx)
+	if string(res) != "aa" || err != nil {
+		t.Fatal("expecting aa, but got ", string(res), " and err=", err)
+	}
+	ci.Close()
 }

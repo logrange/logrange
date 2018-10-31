@@ -1,4 +1,4 @@
-package fs
+package chunkfs
 
 import (
 	"context"
@@ -9,6 +9,7 @@ import (
 
 	"github.com/jrivets/log4g"
 	"github.com/logrange/logrange/pkg/records"
+	"github.com/logrange/logrange/pkg/records/chunk"
 	"github.com/logrange/logrange/pkg/util"
 )
 
@@ -19,14 +20,14 @@ var (
 )
 
 type (
-	ChunkConfig struct {
+	Config struct {
 		FileName       string
 		ChnkCheckFlags int
 		WriteIdleSec   int
 		WriteFlushMs   int
 		MaxChunkSize   int64
 		MaxRecordSize  int64
-		ChkListener    records.ChunkListener
+		ChkListener    chunk.Listener
 		Id             uint64
 	}
 
@@ -44,7 +45,7 @@ type (
 		// writing part
 		w *cWrtier
 		// the chunk listener
-		lstnr records.ChunkListener
+		lstnr chunk.Listener
 
 		// Max Record Size
 		maxRecSize int64
@@ -81,10 +82,10 @@ const (
 // 		by the process itself
 // cfg - contains configuration settings for the chunk
 // fdPool - file descriptors pool, which is used for holding fdReader objects.
-func NewChunk(ctx context.Context, cfg *ChunkConfig, fdPool *FdPool) (*Chunk, error) {
+func New(ctx context.Context, cfg *Config, fdPool *FdPool) (*Chunk, error) {
 	// run the checker
 	lid := "{" + cfg.FileName + "}"
-	chkr := &cChecker{fileName: cfg.FileName, fdPool: fdPool, logger: log4g.GetLogger("chunk.checker").WithId(lid).(log4g.Logger), cid: cfg.Id}
+	chkr := &checker{fileName: cfg.FileName, fdPool: fdPool, logger: log4g.GetLogger("chunk.checker").WithId(lid).(log4g.Logger), cid: cfg.Id}
 	err := fdPool.register(cfg.Id, cfg.FileName)
 	if err != nil {
 		return nil, err
@@ -126,7 +127,7 @@ func (c *Chunk) Id() uint64 {
 }
 
 // Iterator returns the chunk iterator which could be used for reading the chunk data
-func (c *Chunk) Iterator() (records.ChunkIterator, error) {
+func (c *Chunk) Iterator() (chunk.Iterator, error) {
 	c.lock.Lock()
 	defer c.lock.Unlock()
 

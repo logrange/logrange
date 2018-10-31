@@ -1,4 +1,4 @@
-package fs
+package chunkfs
 
 import (
 	"io/ioutil"

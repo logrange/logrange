@@ -1,4 +1,4 @@
-package records
+package chunk
 
 import (
 	"context"
@@ -6,6 +6,7 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/logrange/logrange/pkg/records"
 	"github.com/logrange/logrange/pkg/util"
 )
 
@@ -30,10 +31,10 @@ type (
 		// 3. an error if any:
 		// 		ErrMaxSizeReached - when the write cannot be done because of
 		//				the size limits
-		Write(ctx context.Context, it Iterator) (int, int64, error)
+		Write(ctx context.Context, it records.Iterator) (int, int64, error)
 
-		// Iterator returns a ChunkIterator object to read records from the chunk
-		Iterator() (ChunkIterator, error)
+		// Iterator returns a chunk.Iterator object to read records from the chunk
+		Iterator() (Iterator, error)
 
 		// Size returns the size of the chunk
 		Size() int64
@@ -43,26 +44,28 @@ type (
 		GetLastRecordOffset() int64
 	}
 
-	// ChunkIterator is an Iterator extension, which allows to read records
+	Chunks []Chunk
+
+	// Iterator is a records.Iterator extension, which allows to read records
 	// from a Сhunk.
 	//
 	// Chunk suppposes that the records are resided in a storage. Each record
 	// has its offset or position. The position could be in the range [-1..Chunk.Size()]
 	// Current position contains position of the record which could be read by
-	// Get() function.  Poition could be changed via Next() function or via
+	// Get() function. Position could be changed via Next() function or via
 	// SetPos() function. Two corner values: -1 (record before first one),
 	// or Chunk.Size() (record which will come after last one) are allowed.
 	// All other values outside of the range above are prohibited. For position
 	// with value=-1, the Get() method always returns (nil, io.EOF), for position
 	// value set to Chunk.Size() the Get() function can either return (nil, io.EOF)
 	// or a new record, which could be added to the chunk after the position has been set.
-	ChunkIterator interface {
-		// ChunkIterator ihnerits io.Closer interfase. Being called the behavior
+	Iterator interface {
+		// The Iterator ihnerits io.Closer interfase. Being called the behavior
 		// of the iterator is unpredictable and it must not be used anymore
 		io.Closer
 
-		// ChunkIterator inherits Iterator interface
-		Iterator
+		// The Iterator inherits Iterator interface
+		records.Iterator
 
 		// Release is an implementation specific function which allows to
 		// release underlying resources. It can be called by the iterator using
@@ -75,10 +78,12 @@ type (
 		// SetBackward allows to specify direction of the iterator. Backward means
 		// LIFO, but forward means FIFO order.
 		//
-		// Changing direction can cause the Get() result if the iterator position
-		// was either -1, or Chunk.Size(). So if the iterator position was forward
+		// Changing direction can cause the Get() will return different result
+		// without shifting the position by Nest() or SetPos() calls. It could
+		// happen when  the iterator positio is either -1, or Chunk.Size(). So
+		// if the iterator position was forward
 		// and the end is reached (io.EOF is returned), changing the iterator
-		// position to backward with consequtieve Get() call will return the
+		// direction to backward with consequtieve Get() call will return the
 		// last record in the chunk. Same is true for backward. If the io.EOF
 		// was returned and the direction has been changed to forward after that
 		// the Get() function will return first record in the chunk.
@@ -110,9 +115,9 @@ type (
 		SetPos(pos int64) int64
 	}
 
-	// ChunkListener an interface which can be used for receiving some chunk
+	// Listener an interface which can be used for receiving some chunk
 	// events (like LRO changes)
-	ChunkListener interface {
+	Listener interface {
 
 		// OnLROChange is called when the LRO is changed
 		OnLROChange(c Chunk)
@@ -121,9 +126,9 @@ type (
 
 var lastCid uint64
 
-// NewChunkId generates new the host unique chunk id. The chunk IDs are sortable,
+// NewCId generates new the host unique chunk id. The chunk IDs are sortable,
 // lately created chunks have greater ID values than older ones.
-func NewChunkId() uint64 {
+func NewCId() uint64 {
 	for {
 		cid := (uint64(time.Now().UnixNano()) & 0xFFFFFFFFFFFF0000) | uint64(util.HostId16&0xFFFF)
 		lcid := atomic.LoadUint64(&lastCid)

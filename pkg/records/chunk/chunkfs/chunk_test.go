@@ -1,4 +1,4 @@
-package fs
+package chunkfs
 
 import (
 	"context"
@@ -10,7 +10,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/logrange/logrange/pkg/records/inmem"
+	"github.com/logrange/logrange/pkg/records"
 )
 
 func TestCheckNewChunkIsOk(t *testing.T) {
@@ -23,13 +23,13 @@ func TestCheckNewChunkIsOk(t *testing.T) {
 	p := NewFdPool(2)
 	defer p.Close()
 
-	cfg := &ChunkConfig{FileName: path.Join(dir, "test"), Id: 123, MaxChunkSize: 1024}
-	c, err := NewChunk(context.Background(), cfg, p)
+	cfg := &Config{FileName: path.Join(dir, "test"), Id: 123, MaxChunkSize: 1024}
+	c, err := New(context.Background(), cfg, p)
 	if err != nil {
 		t.Fatal("Must be able to create file")
 	}
 
-	_, err = NewChunk(context.Background(), cfg, p)
+	_, err = New(context.Background(), cfg, p)
 	if err == nil {
 		t.Fatal("Expecting unable to create the chunk, when one is already created")
 	}
@@ -41,7 +41,7 @@ func TestCheckNewChunkIsOk(t *testing.T) {
 		t.Fatal("Expecting io.EOF, but got err=", err)
 	}
 
-	si := inmem.SrtingsIterator("aaa", "bbb")
+	si := records.SrtingsIterator("aaa", "bbb")
 	n, offs, err := c.Write(context.Background(), si)
 	if n != 2 || offs != 11 || err != nil {
 		t.Fatal("expecting n=2, offs=11, err=nil, but n=", n, " offs=", offs, ", err=", err)
@@ -67,7 +67,7 @@ func TestCheckNewChunkIsOk(t *testing.T) {
 	}
 
 	// second approach
-	c, err = NewChunk(context.Background(), cfg, p)
+	c, err = New(context.Background(), cfg, p)
 	if err != nil {
 		t.Fatal("Must be able to create the chunk again")
 	}
@@ -93,16 +93,16 @@ func testCheckPerf(t *testing.T) {
 	p := NewFdPool(2)
 	defer p.Close()
 
-	cfg := &ChunkConfig{FileName: path.Join(dir, "test"), Id: 123, MaxChunkSize: 1024 * 1024 * 1024}
-	c, err := NewChunk(context.Background(), cfg, p)
+	cfg := &Config{FileName: path.Join(dir, "test"), Id: 123, MaxChunkSize: 1024 * 1024 * 1024}
+	c, err := New(context.Background(), cfg, p)
 	if err != nil {
 		t.Fatal("Must be able to create file")
 	}
 
-	si := inmem.SrtingsIterator("aaahhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhaaaa",
+	si := records.SrtingsIterator("aaahhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhaaaa",
 		"bbasjdflkjasdf;lkjasd;flkjas;dlfkjasdlkfjasldkfj;asdkfj;aksdfj;akdjf;ajdsf;kjasdflkjads;fb",
 		"adsfiojaskdfjlajdflajsdflkjadslfjalsdfjl asdlfkjalsd fl aflja sfldj aldf la sdfl",
-		"akdjflakjsdf lasdjf lajd fl l j").(*inmem.Reader)
+		"akdjflakjsdf lasdjf lajd fl l j").(*records.Reader)
 
 	start := time.Now()
 	cnt := 0

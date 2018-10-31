@@ -1,4 +1,4 @@
-package fs
+package chunkfs
 
 import (
 	"io"
@@ -7,7 +7,7 @@ import (
 	"path"
 	"testing"
 
-	"github.com/logrange/logrange/pkg/records/inmem"
+	"github.com/logrange/logrange/pkg/records"
 )
 
 func TestCReaderReadWhatIsWritten(t *testing.T) {
@@ -21,14 +21,14 @@ func TestCReaderReadWhatIsWritten(t *testing.T) {
 	cw := newCWriter(fn, -1, 0, 1000)
 	defer cw.Close()
 
-	si := inmem.SrtingsIterator("aa", "b", "c")
+	si := records.SrtingsIterator("aa", "b", "c")
 	_, _, err = cw.write(nil, si)
 	if err != nil {
 		t.Fatal("could not write data to file ", fn, ", err=", err)
 	}
 	cw.flush()
 
-	var w inmem.Writer
+	var w records.Writer
 	buf := make([]byte, 100)
 	w.Reset(buf, false)
 	fr, _ := newFReader(fn, 1024)
@@ -116,7 +116,7 @@ func TestCReaderReadByRecords(t *testing.T) {
 	cw := newCWriter(fn, -1, 0, 1000)
 	defer cw.Close()
 
-	si := inmem.SrtingsIterator("aa", "b")
+	si := records.SrtingsIterator("aa", "b")
 	_, _, err = cw.write(nil, si)
 	if err != nil {
 		t.Fatal("could not write data to file ", fn, ", err=", err)
@@ -134,13 +134,13 @@ func TestCReaderReadByRecords(t *testing.T) {
 
 	fr.seek(0)
 	res, _, err := cr.readRecord(buf)
-	if err != nil || inmem.ByteArrayToString(res) != "aa" {
-		t.Fatal("Expecting nil, but err=", err, " res=", inmem.ByteArrayToString(res))
+	if err != nil || records.ByteArrayToString(res) != "aa" {
+		t.Fatal("Expecting nil, but err=", err, " res=", records.ByteArrayToString(res))
 	}
 
 	res, _, err = cr.readRecord(buf)
-	if err != nil || inmem.ByteArrayToString(res) != "b" {
-		t.Fatal("Expecting nil, but err=", err, " res=", inmem.ByteArrayToString(res))
+	if err != nil || records.ByteArrayToString(res) != "b" {
+		t.Fatal("Expecting nil, but err=", err, " res=", records.ByteArrayToString(res))
 	}
 
 	_, _, err = cr.readRecord(buf)
@@ -161,14 +161,14 @@ func TestCReaderReadWhatIsWrittenBack(t *testing.T) {
 	cw := newCWriter(fn, -1, 0, 1000)
 	defer cw.Close()
 
-	si := inmem.SrtingsIterator("aa", "b", "c")
+	si := records.SrtingsIterator("aa", "b", "c")
 	_, _, err = cw.write(nil, si)
 	if err != nil {
 		t.Fatal("could not write data to file ", fn, ", err=", err)
 	}
 	cw.flush()
 
-	var w inmem.Writer
+	var w records.Writer
 	buf := make([]byte, 100)
 	w.Reset(buf, false)
 	fr, _ := newFReader(fn, 1024)
@@ -232,7 +232,7 @@ func TestCReaderReadWhatIsWrittenBack(t *testing.T) {
 }
 
 func testStrSlices(t *testing.T, buf []byte, strs []string) {
-	s, err := inmem.ReadBufAsStringSlice(inmem.Records(buf))
+	s, err := records.ReadBufAsStringSlice(records.Records(buf))
 	if err != nil {
 		t.Fatal("Could not read buffer as a slice of strings err=", err)
 	}

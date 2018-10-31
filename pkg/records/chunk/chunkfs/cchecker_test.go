@@ -1,4 +1,4 @@
-package fs
+package chunkfs
 
 import (
 	"context"
@@ -8,11 +8,11 @@ import (
 	"testing"
 
 	"github.com/jrivets/log4g"
-	"github.com/logrange/logrange/pkg/records/inmem"
+	"github.com/logrange/logrange/pkg/records"
 )
 
-func TestCCheckerCreateFile(t *testing.T) {
-	dir, err := ioutil.TempDir("", "cCheckerCreateFileTest")
+func TestCheckerCreateFile(t *testing.T) {
+	dir, err := ioutil.TempDir("", "checkerCreateFileTest")
 	if err != nil {
 		t.Fatal("Could not create new dir err=", err)
 	}
@@ -23,7 +23,7 @@ func TestCCheckerCreateFile(t *testing.T) {
 	p.register(0, fn)
 	defer p.Close()
 
-	cc := cChecker{fileName: fn, fdPool: p, logger: log4g.GetLogger("cChecker")}
+	cc := checker{fileName: fn, fdPool: p, logger: log4g.GetLogger("checker")}
 
 	err = cc.checkFileConsistency(context.Background(), 0)
 	if err != nil {
@@ -45,8 +45,8 @@ func TestCCheckerCreateFile(t *testing.T) {
 	}
 }
 
-func TestCCheckerNormalFile(t *testing.T) {
-	dir, err := ioutil.TempDir("", "cCheckerCreateFileTest")
+func TestCheckerNormalFile(t *testing.T) {
+	dir, err := ioutil.TempDir("", "checkerCreateFileTest")
 	if err != nil {
 		t.Fatal("Could not create new dir err=", err)
 	}
@@ -57,8 +57,8 @@ func TestCCheckerNormalFile(t *testing.T) {
 	p.register(123, fn)
 	defer p.Close()
 
-	cc := cChecker{fileName: fn, fdPool: p, logger: log4g.GetLogger("cChecker"), cid: 123}
-	lro := testCCheckerTestFile(t, fn, []string{"aaa", "bbb", "ccc"})
+	cc := checker{fileName: fn, fdPool: p, logger: log4g.GetLogger("checker"), cid: 123}
+	lro := testCheckerTestFile(t, fn, []string{"aaa", "bbb", "ccc"})
 
 	// Check the file was created
 	fi, err := os.Stat(fn)
@@ -90,8 +90,8 @@ func TestCCheckerNormalFile(t *testing.T) {
 	}
 }
 
-func TestCCheckerCorruptedFile(t *testing.T) {
-	dir, err := ioutil.TempDir("", "cCheckerCreateFileTest")
+func TestCheckerCorruptedFile(t *testing.T) {
+	dir, err := ioutil.TempDir("", "checkerCreateFileTest")
 	if err != nil {
 		t.Fatal("Could not create new dir err=", err)
 	}
@@ -102,8 +102,8 @@ func TestCCheckerCorruptedFile(t *testing.T) {
 	p.register(0, fn)
 	defer p.Close()
 
-	cc := cChecker{fileName: fn, fdPool: p, logger: log4g.GetLogger("cChecker")}
-	testCCheckerTestFile(t, fn, []string{"a", "b", "c"})
+	cc := checker{fileName: fn, fdPool: p, logger: log4g.GetLogger("checker")}
+	testCheckerTestFile(t, fn, []string{"a", "b", "c"})
 
 	// Check the file was created
 	fi, err := os.Stat(fn)
@@ -141,11 +141,11 @@ func TestCCheckerCorruptedFile(t *testing.T) {
 	}
 }
 
-func testCCheckerTestFile(t *testing.T, fn string, data []string) int64 {
+func testCheckerTestFile(t *testing.T, fn string, data []string) int64 {
 	cw := newCWriter(fn, -1, 0, 1000)
 	defer cw.Close()
 
-	si := inmem.SrtingsIterator(data...)
+	si := records.SrtingsIterator(data...)
 	n, lro, err := cw.write(nil, si)
 	if n != len(data) || err != nil {
 		t.Fatal("Expecting n=", len(data), ", err=nil, but n=", n, ", err=", err)

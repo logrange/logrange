@@ -1,4 +1,4 @@
-package fs
+package chunkfs
 
 import (
 	"context"
@@ -11,7 +11,6 @@ import (
 	"time"
 
 	"github.com/logrange/logrange/pkg/records"
-	"github.com/logrange/logrange/pkg/records/inmem"
 	"github.com/logrange/logrange/pkg/util"
 )
 
@@ -53,7 +52,7 @@ func TestCWriterWrite(t *testing.T) {
 		t.Fatal("Should not be flush needed")
 	}
 
-	si := inmem.SrtingsIterator("a")
+	si := records.SrtingsIterator("a")
 	n, offs, err := cw.write(nil, si)
 	if n != 1 || offs != 0 || err != nil || atomic.LoadInt32(&flushes) != 0 {
 		t.Fatal("Expecting n=1, offs=0, err=nil, but n=", n, ", offs=", offs, ", err=", err)
@@ -65,7 +64,7 @@ func TestCWriterWrite(t *testing.T) {
 		t.Fatal("expecting lro=0, but it is ", cw.lro, "flushes=", flushes)
 	}
 
-	si = inmem.SrtingsIterator("a", "b", "c")
+	si = records.SrtingsIterator("a", "b", "c")
 	n, offs, err = cw.write(nil, si)
 	if !cw.isFlushNeeded() {
 		t.Fatal("expecting flush is needed")
@@ -96,7 +95,7 @@ func TestCWriterIdleTimeout(t *testing.T) {
 	cw.idleTO = 50
 	cw.flushTO = 10
 
-	si := inmem.SrtingsIterator("a")
+	si := records.SrtingsIterator("a")
 	cw.write(nil, si)
 	time.Sleep(70 * time.Millisecond)
 	if cw.w != nil {
@@ -139,13 +138,13 @@ func TestCWriterMaxSize(t *testing.T) {
 	cw := newCWriter(path.Join(dir, "tst"), -1, 0, 1)
 	defer cw.Close()
 
-	si := inmem.SrtingsIterator("a", "b", "c")
+	si := records.SrtingsIterator("a", "b", "c")
 	n, offs, err := cw.write(nil, si)
 	if n != 3 || offs != 18 || err != nil {
 		t.Fatal("Expecting n=3, offs=27, err=nil, but n=", n, ", offs=", offs, ", err=", err)
 	}
 
-	si = inmem.SrtingsIterator("a", "b", "c")
+	si = records.SrtingsIterator("a", "b", "c")
 	_, _, err = cw.write(nil, si)
 	if err != util.ErrMaxSizeReached {
 		t.Fatal("Must report ErrMaxSizeReached")

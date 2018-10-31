@@ -1,4 +1,4 @@
-package fs
+package jrnlfs
 
 import (
 	"errors"
