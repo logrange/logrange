@@ -43,7 +43,7 @@ func ReadBufAsStringSlice(buf Records) ([]string, error) {
 	}
 
 	for {
-		r, err := rdr.Get()
+		r, err := rdr.Get(nil)
 		if err != nil {
 			if err != io.EOF {
 				return nil, err
@@ -51,7 +51,7 @@ func ReadBufAsStringSlice(buf Records) ([]string, error) {
 			break
 		}
 		res = append(res, string(r))
-		rdr.Next()
+		rdr.Next(nil)
 	}
 	return res, nil
 }

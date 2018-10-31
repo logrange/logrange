@@ -84,9 +84,15 @@ const (
 func NewChunk(ctx context.Context, cfg *ChunkConfig, fdPool *FdPool) (*Chunk, error) {
 	// run the checker
 	lid := "{" + cfg.FileName + "}"
-	chkr := &cChecker{fileName: cfg.FileName, fdPool: fdPool, logger: log4g.GetLogger("chunk.checker").WithId(lid).(log4g.Logger)}
-	err := chkr.checkFileConsistency(ctx, cfg.ChnkCheckFlags)
+	chkr := &cChecker{fileName: cfg.FileName, fdPool: fdPool, logger: log4g.GetLogger("chunk.checker").WithId(lid).(log4g.Logger), cid: cfg.Id}
+	err := fdPool.register(cfg.Id, cfg.FileName)
 	if err != nil {
+		return nil, err
+	}
+
+	err = chkr.checkFileConsistency(ctx, cfg.ChnkCheckFlags)
+	if err != nil {
+		fdPool.releaseAllByCid(cfg.Id)
 		return nil, err
 	}
 
@@ -121,8 +127,15 @@ func (c *Chunk) Id() uint64 {
 
 // Iterator returns the chunk iterator which could be used for reading the chunk data
 func (c *Chunk) Iterator() (records.ChunkIterator, error) {
+	c.lock.Lock()
+	defer c.lock.Unlock()
+
+	if c.closed {
+		return nil, util.ErrWrongState
+	}
+
 	buf := make([]byte, c.maxRecSize)
-	ci := newCIterator(c.fileName, c.fdPool, &c.w.lroCfrmd, buf)
+	ci := newCIterator(c.id, c.fdPool, &c.w.lroCfrmd, &c.w.sizeCfrmd, buf)
 	return ci, nil
 }
 
@@ -131,9 +144,9 @@ func (c *Chunk) Write(ctx context.Context, it records.Iterator) (int, int64, err
 	return c.w.write(ctx, it)
 }
 
-// Size returns the size (unconfirmed) of the chunk
+// Size returns the size (confirmed) of the chunk
 func (c *Chunk) Size() int64 {
-	return atomic.LoadInt64(&c.w.size)
+	return atomic.LoadInt64(&c.w.sizeCfrmd)
 }
 
 // GetLastRecordOffset returns synced last record offset (read guarantee)
@@ -152,7 +165,7 @@ func (c *Chunk) Close() error {
 	c.logger.Info("Closing the chunk: ")
 	c.closed = true
 
-	c.fdPool.releaseAllByName(c.fileName)
+	c.fdPool.releaseAllByCid(c.id)
 	return nil
 }
 

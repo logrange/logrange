@@ -61,29 +61,20 @@ func (bbi *Reader) fillCur() {
 	bbi.offs = len(bbi.buf)
 }
 
-// Get returns current element
-func (bbi *Reader) Get() (records.Record, error) {
+// Get returns current element. It receives ctx, but ignores it, because
+// the function is not blocking here.
+func (bbi *Reader) Get(ctx context.Context) (records.Record, error) {
 	if bbi.End() {
 		return nil, io.EOF
 	}
 	return records.Record(bbi.cur), nil
 }
 
-// GetCtx returns current element, but checks the context before.
-// In case of provided ctx == nil, the value will be ignored and result will
-// be the same as calling Get()
-func (bbi *Reader) GetCtx(ctx context.Context) (records.Record, error) {
-	if ctx != nil {
-		if err := ctx.Err(); err != nil {
-			return nil, err
-		}
-	}
-	return bbi.Get()
-}
-
 // Next switches to the next element. Data() allows to access to the current one.
 // Has no effect if the end is reached
-func (bbi *Reader) Next() {
+//
+// The ctx param is ignored, because the method is not blocking
+func (bbi *Reader) Next(ctx context.Context) {
 	bbi.offs += 4 + len(bbi.cur)
 	bbi.fillCur()
 }

@@ -21,20 +21,16 @@ type lazyIt struct {
 	limit int
 }
 
-func (li *lazyIt) Next() {
+func (li *lazyIt) Next(ctx context.Context) {
 	li.limit--
 }
 
-func (li *lazyIt) Get() (records.Record, error) {
+func (li *lazyIt) Get(ctx context.Context) (records.Record, error) {
 	if li.limit <= 0 {
 		return nil, io.EOF
 	}
 	time.Sleep(li.delay)
 	return li.buf, nil
-}
-
-func (li *lazyIt) GetCtx(ctx context.Context) (records.Record, error) {
-	return li.Get()
 }
 
 func TestCWriterWrite(t *testing.T) {

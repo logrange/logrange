@@ -178,38 +178,98 @@ func (cr *cReader) readBack(offset int64, maxRecs int, bbw *inmem.Writer) (int, 
 // ErrBufferTooSmall error. If the top size is not equal to bottom one, it will return
 // ErrCorruptedData. The method shifts current position to the next record to be
 // read
-func (cr *cReader) readRecord(buf []byte) ([]byte, error) {
+// it returns the result buffer, position, which must be next and an error, if any
+func (cr *cReader) readRecord(buf []byte) ([]byte, int64, error) {
 	rdSlice := cr.szBuf[:]
 
 	// top size
 	_, err := cr.fr.read(rdSlice)
 	if err != nil {
-		return nil, err
+		return nil, -1, err
 	}
 
 	sz := int(binary.BigEndian.Uint32(rdSlice))
 	if len(buf) < sz {
-		return nil, ErrBufferTooSmall
+		return nil, -1, ErrBufferTooSmall
 	}
 
 	// payload
 	_, err = cr.fr.read(buf[:sz])
 	if err != nil {
-		return nil, err
+		return nil, -1, err
 	}
 
 	// bottom size
 	_, err = cr.fr.read(rdSlice)
 	if err != nil {
-		return nil, err
+		return nil, -1, err
 	}
 
 	bsz := int(binary.BigEndian.Uint32(rdSlice))
 	if sz != bsz {
-		return nil, ErrCorruptedData
+		return nil, -1, ErrCorruptedData
 	}
 
-	return buf[:sz], nil
+	return buf[:sz], cr.getPos(), nil
+}
+
+// readRecordBack read record and shifts the position to previous record.
+// it returns the data, offset for the previous position to be read and
+// an error, if any.
+func (cr *cReader) readRecordBack(buf []byte) ([]byte, int64, error) {
+	pos := cr.getPos()
+	rdSlice := cr.szBuf[:]
+	poffs := int64(-1)
+	psz := 0
+
+	// top size current
+	_, err := cr.fr.read(rdSlice)
+	if err != nil {
+		return nil, -1, err
+	}
+
+	sz := int(binary.BigEndian.Uint32(rdSlice))
+	if len(buf) < sz {
+		return nil, -1, ErrBufferTooSmall
+	}
+
+	if pos > 0 {
+		err := cr.fr.smartSeek(pos-ChnkDataHeaderSize, sz+ChnkDataHeaderSize+ChnkDataRecMetaSize)
+		if err != nil {
+			return nil, -1, err
+		}
+
+		cr.fr.read(rdSlice) // prev record size
+		psz = int(binary.BigEndian.Uint32(rdSlice))
+		poffs = pos - int64(psz+ChnkDataRecMetaSize)
+		cr.fr.read(rdSlice) // cur record size once again
+	}
+
+	// payload
+	_, err = cr.fr.read(buf[:sz])
+	if err != nil {
+		return nil, -1, err
+	}
+
+	// bottom size
+	_, err = cr.fr.read(rdSlice)
+	if err != nil {
+		return nil, -1, err
+	}
+
+	bsz := int(binary.BigEndian.Uint32(rdSlice))
+	if sz != bsz {
+		return nil, -1, ErrCorruptedData
+	}
+
+	if poffs >= 0 {
+		err := cr.fr.smartSeek(poffs, psz+ChnkDataRecMetaSize)
+		if err != nil {
+			return nil, -1, err
+		}
+	}
+
+	return buf[:sz], poffs, nil
 }
 
 func (cr *cReader) getPos() int64 {

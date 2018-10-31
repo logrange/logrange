@@ -16,6 +16,7 @@ type (
 		logger   log4g.Logger
 		fdPool   *FdPool
 		fileName string
+		cid      uint64
 
 		// Last Record offset, could be filled by the checkFileConsistency
 		lro int64
@@ -58,9 +59,10 @@ func (cc *cChecker) checkFileConsistency(ctx context.Context, flags int) error {
 		return nil
 	}
 
-	fr, err := cc.fdPool.acquire(ctx, cc.fileName, 0)
+	fr, err := cc.fdPool.acquire(ctx, cc.cid, 0)
 	if err != nil {
 		cc.logger.Error("checkFileConsistency: Could not obtain fReader, err=", err)
+		return err
 	}
 	defer cc.fdPool.release(fr)
 

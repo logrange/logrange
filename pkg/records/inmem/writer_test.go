@@ -278,7 +278,7 @@ func TestReader(t *testing.T) {
 	}
 
 	offs := 0
-	r, err := bbi.Get()
+	r, err := bbi.Get(nil)
 	for err == nil {
 		sz = 20 + offs/10
 		if len(r) != sz {
@@ -288,8 +288,8 @@ func TestReader(t *testing.T) {
 			t.Fatal("wrong data read. Expected size sz=", sz, ", offs=", offs)
 		}
 		offs += sz
-		bbi.Next()
-		r, err = bbi.Get()
+		bbi.Next(nil)
+		r, err = bbi.Get(nil)
 	}
 }
 
@@ -324,7 +324,7 @@ func TestReaderEven(t *testing.T) {
 
 	offs := 0
 	its := 0
-	r, err := bbi.Get()
+	r, err := bbi.Get(nil)
 	for err == nil {
 		its++
 		if len(r) != 4 {
@@ -334,8 +334,8 @@ func TestReaderEven(t *testing.T) {
 			t.Fatal("wrong data read. Expected size 4, offs=", offs)
 		}
 		offs += 4
-		bbi.Next()
-		r, err = bbi.Get()
+		bbi.Next(nil)
+		r, err = bbi.Get(nil)
 	}
 
 	if its != 2 {

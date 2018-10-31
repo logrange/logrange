@@ -8,6 +8,7 @@ import (
 	"crypto/sha1"
 	"fmt"
 	"io"
+	"sort"
 	"strconv"
 	"sync"
 	"sync/atomic"
@@ -54,6 +55,9 @@ type (
 	JournalIterator interface {
 		io.Closer
 		records.Iterator
+
+		Pos() JPos
+		SetPos(pos JPos)
 	}
 
 	journal struct {
@@ -296,6 +300,24 @@ func (j *journal) waitData(ctx context.Context, curId JPos) error {
 			break
 		}
 	}
+}
+
+func (j *journal) getChunkById(cid uint64) records.Chunk {
+	chunks := j.chunks.Load().(Chunks)
+	n := len(chunks)
+	if n == 0 {
+		return nil
+	}
+
+	if chunks[0].Id() >= cid {
+		return chunks[0]
+	}
+
+	if chunks[n-1].Id() < cid {
+		return chunks[n-1]
+	}
+
+	return chunks[sort.Search(len(chunks), func(i int) bool { return chunks[i].Id() >= cid })]
 }
 
 // ------------------------------- JPos --------------------------------------

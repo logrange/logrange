@@ -7,7 +7,7 @@ import (
 
 func TestSrtingsIterator(t *testing.T) {
 	it := SrtingsIterator()
-	if _, err := it.Get(); err != io.EOF {
+	if _, err := it.Get(nil); err != io.EOF {
 		t.Fatal("should be EOF")
 	}
 
@@ -15,7 +15,7 @@ func TestSrtingsIterator(t *testing.T) {
 	it = SrtingsIterator(strs...)
 	cnt := 0
 	for {
-		rec, err := it.Get()
+		rec, err := it.Get(nil)
 		if err == io.EOF {
 			break
 		}
@@ -27,7 +27,7 @@ func TestSrtingsIterator(t *testing.T) {
 			t.Fatal("Expected ", strs[cnt], " but got ", string(rec))
 		}
 		cnt++
-		it.Next()
+		it.Next(nil)
 	}
 
 	if cnt != len(strs) {

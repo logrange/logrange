@@ -20,6 +20,7 @@ func TestCCheckerCreateFile(t *testing.T) {
 
 	fn := path.Join(dir, "test")
 	p := NewFdPool(2)
+	p.register(0, fn)
 	defer p.Close()
 
 	cc := cChecker{fileName: fn, fdPool: p, logger: log4g.GetLogger("cChecker")}
@@ -53,9 +54,10 @@ func TestCCheckerNormalFile(t *testing.T) {
 
 	fn := path.Join(dir, "test")
 	p := NewFdPool(2)
+	p.register(123, fn)
 	defer p.Close()
 
-	cc := cChecker{fileName: fn, fdPool: p, logger: log4g.GetLogger("cChecker")}
+	cc := cChecker{fileName: fn, fdPool: p, logger: log4g.GetLogger("cChecker"), cid: 123}
 	lro := testCCheckerTestFile(t, fn, []string{"aaa", "bbb", "ccc"})
 
 	// Check the file was created
@@ -83,7 +85,7 @@ func TestCCheckerNormalFile(t *testing.T) {
 	}
 
 	// check the pool
-	if p.curSize != 1 || p.frs[fn].rdrs[0].plState != 0 {
+	if p.curSize != 1 || p.frs[123].rdrs[0].plState != 0 {
 		t.Fatal("something wrong with the pool state")
 	}
 }
@@ -97,6 +99,7 @@ func TestCCheckerCorruptedFile(t *testing.T) {
 
 	fn := path.Join(dir, "test")
 	p := NewFdPool(2)
+	p.register(0, fn)
 	defer p.Close()
 
 	cc := cChecker{fileName: fn, fdPool: p, logger: log4g.GetLogger("cChecker")}

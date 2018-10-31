@@ -16,7 +16,6 @@ func TestReaderOpen(t *testing.T) {
 	defer os.RemoveAll(dir) // clean up
 
 	fn := path.Join(dir, "123.dat")
-	t.Log(fn)
 	_, err = newFReader(fn, 100)
 	if err == nil {
 		t.Fatal("expected not to open the file, err=", err)

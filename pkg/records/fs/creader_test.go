@@ -127,24 +127,24 @@ func TestCReaderReadByRecords(t *testing.T) {
 	defer fr.Close()
 	cr := cReader{fr: fr, lro: &cw.lro}
 	buf := make([]byte, 2)
-	_, err = cr.readRecord(buf[:1])
+	_, _, err = cr.readRecord(buf[:1])
 	if err != ErrBufferTooSmall {
 		t.Fatal("Expecting ErrBufferTooSmall, but err=", err)
 	}
 
 	fr.seek(0)
-	res, err := cr.readRecord(buf)
+	res, _, err := cr.readRecord(buf)
 	if err != nil || inmem.ByteArrayToString(res) != "aa" {
 		t.Fatal("Expecting nil, but err=", err, " res=", inmem.ByteArrayToString(res))
 	}
 
-	res, err = cr.readRecord(buf)
+	res, _, err = cr.readRecord(buf)
 	if err != nil || inmem.ByteArrayToString(res) != "b" {
 		t.Fatal("Expecting nil, but err=", err, " res=", inmem.ByteArrayToString(res))
 	}
 
-	_, err = cr.readRecord(buf)
-	_, err = cr.readRecord(buf)
+	_, _, err = cr.readRecord(buf)
+	_, _, err = cr.readRecord(buf)
 	if err != io.EOF {
 		t.Fatal("Expecting io.EOF, but err=", err)
 	}

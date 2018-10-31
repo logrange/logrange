@@ -26,25 +26,27 @@ type (
 		// Next moves the iterator current position to the next record. Implementation
 		// must define the order and which record should be the next.
 		//
+		// Next expects ctx to be used in case of the call is going to be blocked
+		// some implementations can ignore this parameter if the the
+		// operation can be perform without blocking the context.
+		//
 		// For some implementations, calling the function makes the result, returned
-		// by previous call of Get() not relevant. It means, that NO Get() results
-		// must be used after the Next() call. In case of if the result is needed
-		// it must be copied to another record before calling the Next() function.
-		Next()
+		// by previous call of Get() not relevant. It means, that NO results,
+		// that were previously received by calling Get(), must be used after
+		// the Next() call. In case of if the result is needed it must be copied
+		// to another record before calling the Next() function.
+		Next(ctx context.Context)
 
 		// Get returns the current record the iterator points to. If there is
 		// no current records (all ones are iterated), or the collection is empty
 		// the method will return io.EOF in the error.
 		//
+		// Get receives ctx to be used in case of the call is going to be blocked.
+		// Some implementations can ignore this parameter if the the
+		// operation can be perform without blocking the context.
+		//
 		// If error is nil, then the method returns slice of bytes, which is the
 		// current record. The slice could be nil as well, which is valid.
-		Get() (Record, error)
-
-		// GetCtx works the same way like Get does, but it allows to invoke the
-		// call in the context provided. If the ctx is closed the function can
-		// return value nil together with error code from the ctx.Err() immediately.
-		// provided ctx could be nil, this case the call will be equal as to calling
-		// Get()
-		GetCtx(ctx context.Context) (Record, error)
+		Get(ctx context.Context) (Record, error)
 	}
 )

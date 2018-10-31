@@ -43,12 +43,24 @@ type (
 		GetLastRecordOffset() int64
 	}
 
-	// ChunkIterator is an Iterator (see) extension, which allows to read records
-	// from the chunk the iterator is associated with.
+	// ChunkIterator is an Iterator extension, which allows to read records
+	// from a Сhunk.
+	//
+	// Chunk suppposes that the records are resided in a storage. Each record
+	// has its offset or position. The position could be in the range [-1..Chunk.Size()]
+	// Current position contains position of the record which could be read by
+	// Get() function.  Poition could be changed via Next() function or via
+	// SetPos() function. Two corner values: -1 (record before first one),
+	// or Chunk.Size() (record which will come after last one) are allowed.
+	// All other values outside of the range above are prohibited. For position
+	// with value=-1, the Get() method always returns (nil, io.EOF), for position
+	// value set to Chunk.Size() the Get() function can either return (nil, io.EOF)
+	// or a new record, which could be added to the chunk after the position has been set.
 	ChunkIterator interface {
 		// ChunkIterator ihnerits io.Closer interfase. Being called the behavior
 		// of the iterator is unpredictable and it must not be used anymore
 		io.Closer
+
 		// ChunkIterator inherits Iterator interface
 		Iterator
 
@@ -57,13 +69,45 @@ type (
 		// code to let the implementation know that underlying resources can
 		// be freed. There is no guarantee that the iterator will be used after
 		// the call again. Implementation should guarantee that it will behave
-		// same way after the call as if it never called.
+		// same way after the call as if it is never called.
 		Release()
 
-		// GetPos returns the current iterator position within the chunk
-		GetPos() int64
-		// SetPos sets the current position within the chunk
-		SetPos(pos int64)
+		// SetBackward allows to specify direction of the iterator. Backward means
+		// LIFO, but forward means FIFO order.
+		//
+		// Changing direction can cause the Get() result if the iterator position
+		// was either -1, or Chunk.Size(). So if the iterator position was forward
+		// and the end is reached (io.EOF is returned), changing the iterator
+		// position to backward with consequtieve Get() call will return the
+		// last record in the chunk. Same is true for backward. If the io.EOF
+		// was returned and the direction has been changed to forward after that
+		// the Get() function will return first record in the chunk.
+		SetBackward(bkwd bool)
+
+		// Pos returns the current iterator position within the chunk. It could
+		// return value in [-1..Chunk.Size()] range
+		Pos() int64
+
+		// SetPos sets the current position within the chunk. The pos param must be in
+		// between [-1..ChunkSize]. The pos points to the record offset in the
+		// chunk data storage. So, if the pos has incorrect value in [0..ChunkSize)
+		// range the iterator Get() function will constantly return an error
+		// which will indicate the data storage is inconsistent or the position is
+		// wrong.
+		//
+		// Two corner position values -1 and Chunk.Size() are allowed. Setting
+		// pos to -1 will cause that Get() function returns (nil, io.EOF) for
+		// backward iterator until the position is changed via SetPos() call.
+		//
+		// Setting pos to -1 for forward iterator means that it will return
+		// first record in the chunk.
+		//
+		// Setting pos to Chunk.Size() value can cause that the Get() function will
+		// return (nil, io.EOF) or the new record, which has been added to the
+		// chunk after the SetPos() call.
+		//
+		// The function returns value which was set by the call.
+		SetPos(pos int64) int64
 	}
 
 	// ChunkListener an interface which can be used for receiving some chunk

@@ -34,6 +34,8 @@ type (
 		lroCfrmd int64
 		// last raw record offset: unconfirmed(not flushed) record
 		lro int64
+		// confirmed file size
+		sizeCfrmd int64
 		// unconfirmed file size
 		size int64
 
@@ -74,6 +76,7 @@ func newCWriter(fileName string, lro, size, maxSize int64) *cWrtier {
 	cw.lro = lro
 	cw.lroCfrmd = lro
 	cw.size = size
+	cw.sizeCfrmd = size
 	cw.sizeBuf = make([]byte, ChnkDataHeaderSize)
 	cw.idleTO = ChnkWriterIdleTO
 	cw.flushTO = ChnkWriterFlushTO
@@ -177,7 +180,7 @@ func (cw *cWrtier) write(ctx context.Context, it records.Iterator) (int, int64, 
 	// call and give up before we iterated completely over the iterator
 	for atomic.LoadInt32(&cw.closed) == 0 {
 		var rec records.Record
-		rec, err = it.GetCtx(ctx)
+		rec, err = it.Get(ctx)
 		if err != nil {
 			if err == io.EOF {
 				err = nil
@@ -213,7 +216,7 @@ func (cw *cWrtier) write(ctx context.Context, it records.Iterator) (int, int64, 
 		// update last raw record
 		cw.lro = ro
 		cw.size = cw.w.fdPos
-		it.Next()
+		it.Next(ctx)
 		wrtn++
 
 	}
@@ -225,7 +228,7 @@ func (cw *cWrtier) write(ctx context.Context, it records.Iterator) (int, int64, 
 	} else if cw.w.buffered() == 0 {
 		// ok, write buffer is empty, no flush is needed
 		cw.lroCfrmd = cw.lro
-		cw.size = cw.w.fdPos
+		cw.sizeCfrmd = cw.size
 	} else if !signal {
 		// signal the channel about write anyway
 		cw.wSgnlChan <- true
@@ -249,6 +252,7 @@ func (cw *cWrtier) flushWriter() bool {
 	}
 	res := cw.lroCfrmd != cw.lro
 	cw.lroCfrmd = cw.lro
+	cw.sizeCfrmd = cw.size
 	return res
 }
 
