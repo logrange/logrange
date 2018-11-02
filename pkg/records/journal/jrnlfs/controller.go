@@ -6,7 +6,7 @@ import (
 
 type (
 	// Controller struct allows to scan provided folder on a file-system,
-	// collects information about possible logrange database and manages the
+	// collects information about possible logrange database and manages
 	// found journals via its interface
 	//
 	// The Controller implements journal.Controller and journal.ChunksController
@@ -20,7 +20,7 @@ func NewController() *Controller {
 }
 
 // ----------------------- journal.Controller -------------------------------
-func (c *Controller) GetOrCreate(ctx context.Context, jname string) (Journal, error) {
+func (c *Controller) GetOrCreate(ctx context.Context, jname string) (journal.Journal, error) {
 
 }
 

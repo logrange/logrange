@@ -3,6 +3,7 @@ package chunkfs
 import (
 	"context"
 	"fmt"
+	"path"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -13,15 +14,9 @@ import (
 	"github.com/logrange/logrange/pkg/util"
 )
 
-var (
-	ErrWrongOffset    = fmt.Errorf("Error wrong offset while seeking")
-	ErrBufferTooSmall = fmt.Errorf("Too small buffer for read")
-	ErrCorruptedData  = fmt.Errorf("Chunk data has an inconsistency in the data inside")
-)
-
 type (
 	Config struct {
-		FileName       string
+		BaseDir        string
 		ChnkCheckFlags int
 		WriteIdleSec   int
 		WriteFlushMs   int
@@ -64,15 +59,27 @@ const (
 	ChnkWriterIdleTO    = time.Minute
 	ChnkWriterFlushTO   = 500 * time.Millisecond
 
-	ChnkWriterBufSize = 4 * 4096
-	ChnkReaderBufSize = 2 * 4096
-	ChnkMaxRecordSize = ChnkWriterBufSize
+	ChnkWriterBufSize    = 4 * 4096
+	ChnkReaderBufSize    = 2 * 4096
+	ChnkIdxReaderBufSize = 4096
+	ChnkMaxRecordSize    = ChnkWriterBufSize
 
 	// ChnkChckTruncateOk means that chunk data can be truncated to good size
 	ChnkChckTruncateOk = 1
 
 	// ChnkChckFullScan means that full scan to find last record must be performed
 	ChnkChckFullScan = 2
+
+	ChnkIndexRecSize = 8
+
+	ChnkDataExt  = ".dat"
+	ChnkIndexExt = ".idx"
+)
+
+var (
+	ErrWrongOffset    = fmt.Errorf("Error wrong offset while seeking")
+	ErrBufferTooSmall = fmt.Errorf("Too small buffer for read")
+	ErrCorruptedData  = fmt.Errorf("Chunk data has an inconsistency in the data inside")
 )
 
 // NewChunk returns new chunk using the following params:
@@ -84,21 +91,27 @@ const (
 // fdPool - file descriptors pool, which is used for holding fdReader objects.
 func New(ctx context.Context, cfg *Config, fdPool *FdPool) (*Chunk, error) {
 	// run the checker
-	lid := "{" + cfg.FileName + "}"
-	chkr := &checker{fileName: cfg.FileName, fdPool: fdPool, logger: log4g.GetLogger("chunk.checker").WithId(lid).(log4g.Logger), cid: cfg.Id}
-	err := fdPool.register(cfg.Id, cfg.FileName)
+	fileName := MakeChunkFileName(cfg.BaseDir, cfg.Id)
+	lid := "{" + fileName + "}"
+	chkr := &checker{fileName: fileName, fdPool: fdPool, logger: log4g.GetLogger("chunk.checker").WithId(lid).(log4g.Logger), cid: cfg.Id}
+	err := fdPool.register(cfg.Id, frParams{fileName, ChnkReaderBufSize})
+	if err != nil {
+		return nil, err
+	}
+
+	err = fdPool.register(cfg.Id+1, frParams{util.SetFileExt(fileName, ChnkIndexExt), ChnkIdxReaderBufSize})
 	if err != nil {
 		return nil, err
 	}
 
 	err = chkr.checkFileConsistency(ctx, cfg.ChnkCheckFlags)
 	if err != nil {
-		fdPool.releaseAllByCid(cfg.Id)
+		fdPool.releaseAllByGid(cfg.Id)
 		return nil, err
 	}
 
 	// try the file writer
-	w := newCWriter(cfg.FileName, chkr.lro, chkr.tSize, cfg.MaxChunkSize)
+	w := newCWriter(fileName, chkr.tSize, cfg.MaxChunkSize, 0)
 	if cfg.WriteFlushMs > 0 {
 		w.flushTO = time.Duration(cfg.WriteFlushMs) * time.Millisecond
 	}
@@ -108,7 +121,7 @@ func New(ctx context.Context, cfg *Config, fdPool *FdPool) (*Chunk, error) {
 	}
 
 	c := new(Chunk)
-	c.fileName = cfg.FileName
+	c.fileName = fileName
 	c.fdPool = fdPool
 	c.w = w
 	c.id = cfg.Id
@@ -136,12 +149,12 @@ func (c *Chunk) Iterator() (chunk.Iterator, error) {
 	}
 
 	buf := make([]byte, c.maxRecSize)
-	ci := newCIterator(c.id, c.fdPool, &c.w.lroCfrmd, &c.w.sizeCfrmd, buf)
+	ci := newCIterator(c.id, c.fdPool, &c.w.cntCfrmd, buf) //TODO!!!
 	return ci, nil
 }
 
 // Write allows to write records to the chunk.
-func (c *Chunk) Write(ctx context.Context, it records.Iterator) (int, int64, error) {
+func (c *Chunk) Write(ctx context.Context, it records.Iterator) (int, uint32, error) {
 	return c.w.write(ctx, it)
 }
 
@@ -150,9 +163,9 @@ func (c *Chunk) Size() int64 {
 	return atomic.LoadInt64(&c.w.sizeCfrmd)
 }
 
-// GetLastRecordOffset returns synced last record offset (read guarantee)
-func (c *Chunk) GetLastRecordOffset() int64 {
-	return atomic.LoadInt64(&c.w.lroCfrmd)
+// Count return the number of records (confirmed) in the chunk
+func (c *Chunk) Count() uint32 {
+	return atomic.LoadUint32(&c.w.cntCfrmd)
 }
 
 func (c *Chunk) Close() error {
@@ -166,7 +179,7 @@ func (c *Chunk) Close() error {
 	c.logger.Info("Closing the chunk: ")
 	c.closed = true
 
-	c.fdPool.releaseAllByCid(c.id)
+	c.fdPool.releaseAllByGid(c.id)
 	return nil
 }
 
@@ -176,6 +189,18 @@ func (c *Chunk) String() string {
 
 func (c *Chunk) onWriterFlush() {
 	if c.lstnr != nil {
-		c.lstnr.OnLROChange(c)
+		c.lstnr.OnNewData(c)
 	}
+}
+
+func MakeChunkFileName(baseDir string, cid uint64) string {
+	return util.SetFileExt(path.Join(baseDir, fmt.Sprintf("%016X", cid)), ChnkDataExt)
+}
+
+func SetChunkDataFileExt(fname string) string {
+	return util.SetFileExt(fname, ChnkDataExt)
+}
+
+func SetChunkIdxFileExt(fname string) string {
+	return util.SetFileExt(fname, ChnkIndexExt)
 }

@@ -35,3 +35,11 @@ func ExpandPaths(paths []string) []string {
 	}
 	return result
 }
+
+func SetFileExt(file, ext string) string {
+	if len(ext) > 0 && ext[0] != '.' {
+		ext = "." + ext
+	}
+	e := filepath.Ext(file)
+	return file[:len(file)-len(e)] + ext
+}

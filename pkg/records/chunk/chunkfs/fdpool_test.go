@@ -224,7 +224,7 @@ func TestFdPoolRegisterUnregister(t *testing.T) {
 		t.Fatal("Must be error! frp=", fdp)
 	}
 
-	fdp.releaseAllByCid(0)
+	fdp.releaseAllByGid(0)
 	if len(fdp.frs) != 0 {
 		t.Fatal("Must be empty now! ", fdp)
 	}
@@ -242,11 +242,11 @@ func TestFdPoolRegisterUnregister(t *testing.T) {
 	if len(fdp.frs) != 2 {
 		t.Fatal("Must be 2 frs, but frp=", fdp)
 	}
-	fdp.releaseAllByCid(0)
+	fdp.releaseAllByGid(0)
 	if len(fdp.frs) != 1 {
 		t.Fatal("Must be 1 frs, but frp=", fdp)
 	}
-	fdp.releaseAllByCid(1)
+	fdp.releaseAllByGid(1)
 	if len(fdp.frs) != 0 {
 		t.Fatal("Must be 0 frs, but frp=", fdp)
 	}

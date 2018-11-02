@@ -6,14 +6,13 @@ import (
 	"io"
 	"io/ioutil"
 	"os"
-	"path"
 	"testing"
 	"time"
 
 	"github.com/logrange/logrange/pkg/records"
 )
 
-func TestCheckNewChunkIsOk(t *testing.T) {
+func testCheckNewChunkIsOk(t *testing.T) {
 	dir, err := ioutil.TempDir("", "chunkTest")
 	if err != nil {
 		t.Fatal("Could not create new dir err=", err)
@@ -23,7 +22,7 @@ func TestCheckNewChunkIsOk(t *testing.T) {
 	p := NewFdPool(2)
 	defer p.Close()
 
-	cfg := &Config{FileName: path.Join(dir, "test"), Id: 123, MaxChunkSize: 1024}
+	cfg := &Config{BaseDir: dir, Id: 123, MaxChunkSize: 1024}
 	c, err := New(context.Background(), cfg, p)
 	if err != nil {
 		t.Fatal("Must be able to create file")
@@ -82,7 +81,26 @@ func TestCheckNewChunkIsOk(t *testing.T) {
 	it.Close()
 }
 
-func testCheckPerf(t *testing.T) {
+func TestMakeChunkFileName(t *testing.T) {
+	res := MakeChunkFileName("aaa", 0)
+	if MakeChunkFileName("aaa", 0) != "aaa/0000000000000000.dat" {
+		t.Fatal("unexpected res=", res)
+	}
+}
+
+func TestSetChunkDataFileExt(t *testing.T) {
+	if SetChunkDataFileExt("aaaa") != "aaaa"+ChnkDataExt {
+		t.Fatal("expecting ", "aaaa"+ChnkDataExt, " but got ", SetChunkDataFileExt("aaaa"))
+	}
+}
+
+func TestSetChunkIdxFileExt(t *testing.T) {
+	if SetChunkIdxFileExt("aaaa"+ChnkDataExt) != "aaaa"+ChnkIndexExt {
+		t.Fatal("expecting ", "aaaa"+ChnkIndexExt, " but got ", SetChunkIdxFileExt("aaaa"+ChnkDataExt))
+	}
+}
+
+func TestCheckPerf(t *testing.T) {
 	dir, err := ioutil.TempDir("", "chunkTest22")
 	if err != nil {
 		t.Fatal("Could not create new dir err=", err)
@@ -93,7 +111,7 @@ func testCheckPerf(t *testing.T) {
 	p := NewFdPool(2)
 	defer p.Close()
 
-	cfg := &Config{FileName: path.Join(dir, "test"), Id: 123, MaxChunkSize: 1024 * 1024 * 1024}
+	cfg := &Config{BaseDir: dir, Id: 123, MaxChunkSize: 1024 * 1024 * 1024}
 	c, err := New(context.Background(), cfg, p)
 	if err != nil {
 		t.Fatal("Must be able to create file")
@@ -122,21 +140,10 @@ func testCheckPerf(t *testing.T) {
 	for {
 		_, err := it.Get(context.Background())
 		if err != nil {
+			fmt.Println(err)
 			break
 		}
 		cnt--
-		it.Next(context.Background())
-	}
-	fmt.Println("read cnt=", cnt, " it took  ", time.Now().Sub(start))
-
-	it.SetBackward(true)
-	start = time.Now()
-	for {
-		_, err := it.Get(context.Background())
-		if err != nil {
-			break
-		}
-		cnt++
 		it.Next(context.Background())
 	}
 	fmt.Println("read cnt=", cnt, " it took  ", time.Now().Sub(start))
