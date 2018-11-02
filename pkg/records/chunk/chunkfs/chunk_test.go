@@ -120,12 +120,13 @@ func TestCheckPerf(t *testing.T) {
 
 	it, _ := c.Iterator()
 	start = time.Now()
+	cnt = 0
 	for {
 		_, err := it.Get(context.Background())
 		if err != nil {
 			break
 		}
-		cnt--
+		cnt++
 		it.Next(context.Background())
 	}
 	fmt.Println("read cnt=", cnt, " it took  ", time.Now().Sub(start))
