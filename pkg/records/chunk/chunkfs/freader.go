@@ -55,8 +55,7 @@ func newFReader(filename string, bufSize int) (*fReader, error) {
 }
 
 func (r *fReader) String() string {
-	return fmt.Sprint("reader:{", r.filename, ", pos=", r.pos,
-		", bufLen=", len(r.buf), ", r=", r.r, ", w=", r.w)
+	return fmt.Sprintf("{fn=%s, pos=%d, bufLen=%d, r=%d, w=%d, plState=%d}", r.filename, r.pos, len(r.buf), r.r, r.w, r.plState)
 }
 
 // resetBuf drops the buffer - makes it empty.

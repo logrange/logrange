@@ -110,7 +110,7 @@ func (ci *cIterator) ensureFileReader(ctx context.Context) error {
 		ci.cr.dr, err = ci.fdPool.acquire(ctx, ci.gid, ci.doffs)
 
 		if ci.cr.ir == nil && err == nil {
-			ci.cr.dr, err = ci.fdPool.acquire(ctx, ci.gid+1, int64(ci.pos)*int64(ChnkIndexRecSize))
+			ci.cr.ir, err = ci.fdPool.acquire(ctx, ci.gid+1, int64(ci.pos)*int64(ChnkIndexRecSize))
 		}
 
 		if err == nil {

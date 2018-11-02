@@ -133,17 +133,21 @@ func TestCheckPerf(t *testing.T) {
 		cnt += n
 		si.Reset(si.Buf(), false)
 	}
-	fmt.Println("written ", cnt, " it took  ", time.Now().Sub(start))
+	diff := time.Now().Sub(start)
+	fmt.Println("written ", cnt, " it took  ", diff, "1 rec write=", time.Duration(diff/time.Duration(cnt)))
+	time.Sleep(time.Millisecond)
+
+	c.w.flush()
 
 	it, _ := c.Iterator()
 	start = time.Now()
+	cnt = 0
 	for {
 		_, err := it.Get(context.Background())
 		if err != nil {
-			fmt.Println(err)
 			break
 		}
-		cnt--
+		cnt++
 		it.Next(context.Background())
 	}
 	fmt.Println("read cnt=", cnt, " it took  ", time.Now().Sub(start))

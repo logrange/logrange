@@ -213,7 +213,7 @@ func (cw *cWrtier) write(ctx context.Context, it records.Iterator) (int, uint32,
 
 		// writing the record size -> data chunk
 		binary.BigEndian.PutUint32(cw.rhBuf, uint32(len(rec)))
-		_, err = cw.iw.write(cw.rhBuf)
+		_, err = cw.w.write(cw.rhBuf)
 		if err != nil {
 			// close chunk (unrecoverable error)
 			cw.logger.Error("Could not write record size to the data chunk. err=", err)
