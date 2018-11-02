@@ -82,7 +82,7 @@ func TestCheckNewChunkIsOk(t *testing.T) {
 	it.Close()
 }
 
-func testCheckPerf(t *testing.T) {
+func TestCheckPerf(t *testing.T) {
 	dir, err := ioutil.TempDir("", "chunkTest22")
 	if err != nil {
 		t.Fatal("Could not create new dir err=", err)
@@ -115,7 +115,8 @@ func testCheckPerf(t *testing.T) {
 		cnt += n
 		si.Reset(si.Buf(), false)
 	}
-	fmt.Println("written ", cnt, " it took  ", time.Now().Sub(start))
+	diff := time.Now().Sub(start)
+	fmt.Println("written ", cnt, " it took  ", diff, "1 rec write=", time.Duration(diff/time.Duration(cnt)))
 
 	it, _ := c.Iterator()
 	start = time.Now()
