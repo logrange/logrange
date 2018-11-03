@@ -9,6 +9,7 @@ import (
 	"testing"
 
 	"github.com/logrange/logrange/pkg/records"
+	"github.com/logrange/logrange/pkg/util"
 )
 
 func TestCIteratorCommon(t *testing.T) {
@@ -23,15 +24,16 @@ func TestCIteratorCommon(t *testing.T) {
 	defer p.Close()
 
 	fn := path.Join(dir, "tst")
-	cw := newCWriter(fn, -1, 0, 1000)
+	cw := newCWriter(fn, 0, 1000, 0)
 	cw.ensureFWriter() // to create the file
 	defer cw.Close()
 
-	p.register(123, fn)
+	p.register(123, frParams{fn, ChnkIdxReaderBufSize})
+	p.register(124, frParams{util.SetFileExt(fn, ChnkIndexExt), ChnkIdxReaderBufSize})
 	buf := make([]byte, 10)
 
 	// test it now
-	ci := newCIterator(123, p, &cw.lroCfrmd, &cw.sizeCfrmd, buf)
+	ci := newCIterator(123, p, &cw.cntCfrmd, buf)
 
 	// empty it
 	_, err = ci.Get(context.Background())
@@ -48,13 +50,19 @@ func TestCIteratorCommon(t *testing.T) {
 	cw.flush()
 
 	res, err := ci.Get(context.Background())
-	if records.ByteArrayToString(res) != "aa" || err != nil {
-		t.Fatal("expecting aa, but got ", records.ByteArrayToString(res), " and err=", err)
+	if string(res) != "aa" || err != nil {
+		t.Fatal("expecting aa, but got ", string(res), " and err=", err)
 	}
 
 	res, err = ci.Get(context.Background())
-	if records.ByteArrayToString(res) != "aa" || err != nil {
-		t.Fatal("expecting aa, but got ", records.ByteArrayToString(res), " and err=", err)
+	if string(res) != "aa" || err != nil {
+		t.Fatal("expecting aa, but got ", string(res), " and err=", err)
+	}
+
+	ci.Release()
+	res, err = ci.Get(context.Background())
+	if string(res) != "aa" || err != nil {
+		t.Fatal("expecting aa, but got ", string(res), " and err=", err)
 	}
 
 	ci.Next(context.Background())
@@ -66,7 +74,7 @@ func TestCIteratorCommon(t *testing.T) {
 	// wrong offset
 	ci.SetPos(2)
 	_, err = ci.Get(context.Background())
-	if err != ErrCorruptedData && err != ErrBufferTooSmall {
+	if err != io.EOF {
 		t.Fatal("Expecting ErrCorruptedData, but got err=", err)
 	}
 
@@ -85,8 +93,8 @@ func TestCIteratorCommon(t *testing.T) {
 
 	ci.Next(context.Background())
 	res, err = ci.Get(context.Background())
-	if records.ByteArrayToString(res) != "bb" || err != nil {
-		t.Fatal("expecting bb, but got ", records.ByteArrayToString(res), " and err=", err)
+	if string(res) != "bb" || err != nil {
+		t.Fatal("expecting bb, but got ", string(res), " and err=", err)
 	}
 
 	ci.Next(context.Background())
@@ -122,15 +130,16 @@ func TestCIteratorPos(t *testing.T) {
 	defer p.Close()
 
 	fn := path.Join(dir, "tst")
-	cw := newCWriter(fn, -1, 0, 1000)
+	cw := newCWriter(fn, 0, 1000, 0)
 	cw.ensureFWriter() // to create the file
 	defer cw.Close()
 
-	p.register(123, fn)
+	p.register(123, frParams{fn, ChnkIdxReaderBufSize})
+	p.register(124, frParams{util.SetFileExt(fn, ChnkIndexExt), ChnkIdxReaderBufSize})
 	buf := make([]byte, 10)
 
 	// test it now
-	ci := newCIterator(123, p, &cw.lroCfrmd, &cw.sizeCfrmd, buf)
+	ci := newCIterator(123, p, &cw.cntCfrmd, buf)
 
 	si := records.SrtingsIterator("aa")
 	_, _, err = cw.write(nil, si)
@@ -144,7 +153,7 @@ func TestCIteratorPos(t *testing.T) {
 		t.Fatal("expecting aa, but got ", string(res), " and err=", err)
 	}
 
-	ci.SetPos(-10)
+	ci.SetPos(0)
 	res, err = ci.Get(context.Background())
 	if string(res) != "aa" || err != nil {
 		t.Fatal("expecting aa, but got ", string(res), " and err=", err)
@@ -152,9 +161,9 @@ func TestCIteratorPos(t *testing.T) {
 
 	// wrong offset
 	ci.SetPos(5)
-	_, err = ci.Get(context.Background())
-	if err != ErrCorruptedData && err != ErrBufferTooSmall {
-		t.Fatal("Expecting ErrCorruptedData, but got err=", err)
+	res, err = ci.Get(context.Background())
+	if err != io.EOF {
+		t.Fatal("Expecting io.EOF, but got err=", err, "res=", string(res), " pos=", ci.Pos())
 	}
 
 	ci.SetPos(1235)
@@ -194,15 +203,16 @@ func TestCIteratorBackAndForth(t *testing.T) {
 	defer p.Close()
 
 	fn := path.Join(dir, "tst")
-	cw := newCWriter(fn, -1, 0, 1000)
+	cw := newCWriter(fn, 0, 1000, 0)
 	cw.ensureFWriter() // to create the file
 	defer cw.Close()
 
-	p.register(123, fn)
+	p.register(123, frParams{fn, ChnkIdxReaderBufSize})
+	p.register(124, frParams{util.SetFileExt(fn, ChnkIndexExt), ChnkIdxReaderBufSize})
 	buf := make([]byte, 10)
 
 	// test it now
-	ci := newCIterator(123, p, &cw.lroCfrmd, &cw.sizeCfrmd, buf)
+	ci := newCIterator(123, p, &cw.cntCfrmd, buf)
 
 	si := records.SrtingsIterator("aa", "bb")
 	_, _, err = cw.write(nil, si)
@@ -213,7 +223,7 @@ func TestCIteratorBackAndForth(t *testing.T) {
 
 	// forth
 	ctx := context.Background()
-	ci.SetPos(-1)
+	ci.SetPos(0)
 	for i := 0; i < 3; i++ {
 		res, err := ci.Get(ctx)
 		if string(res) != "aa" || err != nil {
@@ -226,16 +236,15 @@ func TestCIteratorBackAndForth(t *testing.T) {
 			t.Fatal("Expecting io.EOF, but got err=", err)
 		}
 
-		ci.SetBackward(true)
+		ci.SetPos(1)
 		res, err = ci.Get(ctx)
 		if string(res) != "bb" || err != nil {
 			t.Fatal("expecting bb, but got ", string(res), " and err=", err)
 		}
 		ci.Release()
-		ci.Next(ctx)
 		res, err = ci.Get(ctx)
-		if string(res) != "aa" || err != nil {
-			t.Fatal("expecting aa, but got ", string(res), " and err=", err)
+		if string(res) != "bb" || err != nil {
+			t.Fatal("expecting bb, but got ", string(res), " and err=", err)
 		}
 		ci.Release()
 		ci.Next(ctx)
@@ -243,7 +252,7 @@ func TestCIteratorBackAndForth(t *testing.T) {
 		if err != io.EOF {
 			t.Fatal("Expecting io.EOF, but got err=", err)
 		}
-		ci.SetBackward(false)
+		ci.SetPos(0)
 	}
 }
 
@@ -259,22 +268,22 @@ func TestCIteratorEmpty(t *testing.T) {
 	defer p.Close()
 
 	fn := path.Join(dir, "tst")
-	cw := newCWriter(fn, -1, 0, 1000)
+	cw := newCWriter(fn, 0, 1000, 0)
 	cw.ensureFWriter() // to create the file
 	defer cw.Close()
 
-	p.register(123, fn)
+	p.register(123, frParams{fn, ChnkIdxReaderBufSize})
+	p.register(124, frParams{util.SetFileExt(fn, ChnkIndexExt), ChnkIdxReaderBufSize})
 	buf := make([]byte, 10)
 
 	// test it now
 	ctx := context.Background()
-	ci := newCIterator(123, p, &cw.lroCfrmd, &cw.sizeCfrmd, buf)
+	ci := newCIterator(123, p, &cw.cntCfrmd, buf)
 	_, err = ci.Get(ctx)
 	if err != io.EOF {
 		t.Fatal("Expecting io.EOF, but got err=", err)
 	}
 
-	ci.SetBackward(true)
 	_, err = ci.Get(ctx)
 	if err != io.EOF {
 		t.Fatal("Expecting io.EOF, but got err=", err)
@@ -287,12 +296,6 @@ func TestCIteratorEmpty(t *testing.T) {
 	}
 	cw.flush()
 
-	_, err = ci.Get(ctx)
-	if err != io.EOF {
-		t.Fatal("Expecting io.EOF, but got err=", err)
-	}
-
-	ci.SetBackward(false)
 	res, err := ci.Get(ctx)
 	if string(res) != "aa" || err != nil {
 		t.Fatal("expecting aa, but got ", string(res), " and err=", err)

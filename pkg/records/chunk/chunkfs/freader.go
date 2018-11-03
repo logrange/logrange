@@ -54,6 +54,18 @@ func newFReader(filename string, bufSize int) (*fReader, error) {
 	return r, nil
 }
 
+func (r *fReader) reopen() error {
+	var err error
+	if r.fd != nil {
+		err = r.fd.Close()
+		r.resetBuf()
+		r.fd = nil
+		r.pos = 0
+	}
+	r.fd, err = os.OpenFile(r.filename, os.O_RDONLY, 0640)
+	return err
+}
+
 func (r *fReader) String() string {
 	return fmt.Sprintf("{fn=%s, pos=%d, bufLen=%d, r=%d, w=%d, plState=%d}", r.filename, r.pos, len(r.buf), r.r, r.w, r.plState)
 }
@@ -127,6 +139,18 @@ func (r *fReader) seekPhysical(offset int64) error {
 	r.pos = offset
 	r.resetBuf()
 	return err
+}
+
+// seekToEnd sets the read position to the end of the file.  getNextReadPos()
+// must return the file size immeditaly after the call
+func (r *fReader) seekToEnd() error {
+	off, err := r.fd.Seek(0, io.SeekEnd)
+	if err != nil {
+		return err
+	}
+	r.pos = off
+	r.resetBuf()
+	return nil
 }
 
 // smartSeek sets up the file position, but it makes sure that at least bufBottom

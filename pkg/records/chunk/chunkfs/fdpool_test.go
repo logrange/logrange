@@ -16,7 +16,7 @@ func TestFdPoolClose(t *testing.T) {
 	defer removeTmpFileAndDir(fn)
 
 	fdp := NewFdPool(1)
-	fdp.register(0, fn)
+	fdp.register(0, frParams{fn, ChnkReaderBufSize})
 	fr, err := fdp.acquire(context.Background(), 0, 0)
 	if err != nil {
 		t.Fatal("Could not acquire context ", err)
@@ -47,7 +47,7 @@ func TestFdPoolRelease(t *testing.T) {
 	defer removeTmpFileAndDir(fn1)
 
 	fdp := NewFdPool(2)
-	fdp.register(0, fn1)
+	fdp.register(0, frParams{fn1, ChnkReaderBufSize})
 	defer fdp.Close()
 
 	fr1, err := fdp.acquire(context.Background(), 0, 0)
@@ -80,7 +80,7 @@ func TestFdPoolOverflow(t *testing.T) {
 	defer removeTmpFileAndDir(fn1)
 
 	fdp := NewFdPool(1)
-	fdp.register(0, fn1)
+	fdp.register(0, frParams{fn1, ChnkReaderBufSize})
 	defer fdp.Close()
 
 	fr1, err := fdp.acquire(context.Background(), 0, 0)
@@ -109,7 +109,7 @@ func TestFdPoolInOverflowCycling(t *testing.T) {
 	defer removeTmpFileAndDir(fn1)
 
 	fdp := NewFdPool(1)
-	fdp.register(0, fn1)
+	fdp.register(0, frParams{fn1, ChnkReaderBufSize})
 	defer fdp.Close()
 
 	fr1, err := fdp.acquire(context.Background(), 0, 0)
@@ -135,7 +135,7 @@ func TestFdPoolGetFree(t *testing.T) {
 	defer removeTmpFileAndDir(fn1)
 
 	fdp := NewFdPool(3)
-	fdp.register(0, fn1)
+	fdp.register(0, frParams{fn1, ChnkReaderBufSize})
 	defer fdp.Close()
 
 	fr1, _ := fdp.acquire(context.Background(), 0, 0)
@@ -165,7 +165,7 @@ func TestFdPoolacquireClosedCtx(t *testing.T) {
 	defer removeTmpFileAndDir(fn1)
 
 	fdp := NewFdPool(1)
-	fdp.register(0, fn1)
+	fdp.register(0, frParams{fn1, ChnkReaderBufSize})
 	defer fdp.Close()
 
 	ctx, cancel := context.WithCancel(context.Background())
@@ -188,7 +188,7 @@ func TestFdPoolWrongFile(t *testing.T) {
 	removeTmpFileAndDir(fn1)
 
 	fdp := NewFdPool(1)
-	fdp.register(0, fn1)
+	fdp.register(0, frParams{fn1, ChnkReaderBufSize})
 	defer fdp.Close()
 
 	_, err := fdp.acquire(context.Background(), 0, 201)
@@ -209,12 +209,12 @@ func TestFdPoolRegisterUnregister(t *testing.T) {
 		t.Fatal("Must be error! frp=", fdp)
 	}
 
-	err = fdp.register(0, fn1)
+	err = fdp.register(0, frParams{fn1, ChnkReaderBufSize})
 	if err != nil {
 		t.Fatal("Expecting err=nil, but err=", err)
 	}
 
-	err = fdp.register(0, fn1)
+	err = fdp.register(0, frParams{fn1, ChnkReaderBufSize})
 	if err == nil {
 		t.Fatal("Expecting err!=nil, but err=nil")
 	}
@@ -237,8 +237,8 @@ func TestFdPoolRegisterUnregister(t *testing.T) {
 	}
 
 	fn2 := fn1 + "a"
-	fdp.register(0, fn1)
-	fdp.register(1, fn2)
+	fdp.register(0, frParams{fn1, ChnkReaderBufSize})
+	fdp.register(1, frParams{fn2, ChnkReaderBufSize})
 	if len(fdp.frs) != 2 {
 		t.Fatal("Must be 2 frs, but frp=", fdp)
 	}

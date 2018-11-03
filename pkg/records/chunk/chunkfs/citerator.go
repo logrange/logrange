@@ -89,15 +89,17 @@ func (ci *cIterator) SetPos(pos uint32) error {
 		return nil
 	}
 
-	if pos > atomic.LoadUint32(ci.cnt) {
-		return ErrWrongOffset
+	cnt := atomic.LoadUint32(ci.cnt)
+	if pos > cnt {
+		pos = cnt
 	}
 
 	if ci.pos < pos {
 		ci.doffs = 0
 	}
 	ci.pos = pos
-	return ci.cr.setPos(ci.pos)
+	ci.res = nil
+	return ci.cr.setPos(pos)
 }
 
 func (ci *cIterator) ensureFileReader(ctx context.Context) error {

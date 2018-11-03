@@ -2,6 +2,7 @@ package chunkfs
 
 import (
 	"encoding/binary"
+	"io"
 )
 
 type (
@@ -60,6 +61,9 @@ func (cr *cReader) setPos(pos uint32) error {
 	offsBuf := offsArr[:]
 	_, err = cr.ir.read(offsBuf)
 	if err != nil {
+		if err == io.EOF {
+			err = cr.dr.seekToEnd()
+		}
 		return err
 	}
 
