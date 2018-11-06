@@ -25,10 +25,16 @@ type (
 		cchan   chan bool
 	}
 
+	// frParams struct contains params for creating a new fReader when requested
+	frParams struct {
+		fname   string
+		bufSize int
+	}
+
 	// file readers pool
 	frPool struct {
-		fname string
-		rdrs  []*fReader
+		fp   frParams
+		rdrs []*fReader
 	}
 )
 
@@ -63,31 +69,32 @@ func NewFdPool(maxSize int) *FdPool {
 	return fdp
 }
 
-// register allows to register name for creating fReader-s
-func (fdp *FdPool) register(cid uint64, fname string) error {
+// register allows to register a group of fReader(s) by its group id (gid)
+// clients will be able to acquire only registered groups (see acquire)
+func (fdp *FdPool) register(gid uint64, fp frParams) error {
 	fdp.lock.Lock()
 	defer fdp.lock.Unlock()
 
-	if _, ok := fdp.frs[cid]; ok {
-		return fmt.Errorf("Oops the cid=%X is already registered here!", cid)
+	if _, ok := fdp.frs[gid]; ok {
+		return fmt.Errorf("Oops the gid=%X is already registered here!", gid)
 	}
 
-	fdp.frs[cid] = newFRPool(fname)
+	fdp.frs[gid] = newFRPool(fp)
 	return nil
 }
 
-// acquire - allows to acquire fReader for the specified name. It expects the file
-// name and a desired offset, where the read operation will start from. It also
+// acquire - allows to acquire fReader for the specified group (gid). It expects
+// the gid and a desired offset, where the read operation will start from. It also
 // receives a context in case of the pool reaches maximum capacity and the call
 // will be blocking invoking go-routine until a fReader is released.
-func (fdp *FdPool) acquire(ctx context.Context, cid uint64, offset int64) (*fReader, error) {
+func (fdp *FdPool) acquire(ctx context.Context, gid uint64, offset int64) (*fReader, error) {
 	fdp.lock.Lock()
 	if atomic.LoadInt32(&fdp.closed) != 0 {
 		fdp.lock.Unlock()
 		return nil, util.ErrWrongState
 	}
 
-	frp, ok := fdp.frs[cid]
+	frp, ok := fdp.frs[gid]
 	if !ok {
 		fdp.lock.Unlock()
 		return nil, util.ErrWrongState
@@ -115,7 +122,7 @@ func (fdp *FdPool) acquire(ctx context.Context, cid uint64, offset int64) (*fRea
 			atomic.AddInt32(&fdp.curSize, -1)
 			return nil, util.ErrWrongState
 		}
-		return fdp.createAndUseFreader(cid, frp.fname)
+		return fdp.createAndUseFreader(gid, frp.fp)
 	}
 }
 
@@ -136,16 +143,16 @@ func (fdp *FdPool) release(fr *fReader) {
 	}
 }
 
-func (fdp *FdPool) releaseAllByCid(cid uint64) {
+func (fdp *FdPool) releaseAllByGid(gid uint64) {
 	fdp.lock.Lock()
 	defer fdp.lock.Unlock()
 
-	frp, ok := fdp.frs[cid]
+	frp, ok := fdp.frs[gid]
 	if ok {
 		cnt := frp.cleanUp(true)
 		fdp.curSize -= int32(cnt)
 		fdp.freeSem(cnt)
-		delete(fdp.frs, cid)
+		delete(fdp.frs, gid)
 	}
 }
 
@@ -185,14 +192,14 @@ func (fdp *FdPool) freeSem(cnt int) {
 	}
 }
 
-func (fdp *FdPool) createAndUseFreader(cid uint64, fname string) (*fReader, error) {
-	fr, err := newFReader(fname, ChnkReaderBufSize)
+func (fdp *FdPool) createAndUseFreader(gid uint64, fp frParams) (*fReader, error) {
+	fr, err := newFReader(fp.fname, fp.bufSize)
 	if err != nil {
 		return nil, err
 	}
 
 	fdp.lock.Lock()
-	frp, ok := fdp.frs[cid]
+	frp, ok := fdp.frs[gid]
 	if !ok {
 		fdp.lock.Unlock()
 		fr.Close()
@@ -206,9 +213,9 @@ func (fdp *FdPool) createAndUseFreader(cid uint64, fname string) (*fReader, erro
 }
 
 // ============================= frPool ======================================
-func newFRPool(fname string) *frPool {
+func newFRPool(fp frParams) *frPool {
 	frp := new(frPool)
-	frp.fname = fname
+	frp.fp = fp
 	frp.rdrs = make([]*fReader, 0, 1)
 	return frp
 }

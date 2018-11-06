@@ -8,10 +8,6 @@ import (
 	"strings"
 )
 
-const (
-	ChnkDataExt = ".dat"
-)
-
 // scanForJournals receives a dir and scans it for journaling databse strucutre.
 // It returns list of journal names (not folders!!!) found in the dir structure
 //

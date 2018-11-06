@@ -30,10 +30,11 @@ type (
 	// disk in the period of time after last write if it is needed.
 	cWrtier struct {
 		lock sync.Mutex
-		// confirmed last record offset (flushed)
-		lroCfrmd int64
-		// last raw record offset: unconfirmed(not flushed) record
-		lro int64
+		// cntCfrmd is confirmed number of records
+		cntCfrmd uint32
+		// cnt contains dirty number of records int the chunk
+		cnt uint32
+
 		// confirmed file size
 		sizeCfrmd int64
 		// unconfirmed file size
@@ -41,6 +42,7 @@ type (
 
 		fileName  string
 		w         *fWriter
+		iw        *fWriter
 		wSgnlChan chan bool
 
 		// closed flag indicates wht cWriter is closed
@@ -49,7 +51,8 @@ type (
 		logger log4g.Logger
 
 		// writer stuff
-		sizeBuf []byte
+		offsBuf []byte
+		rhBuf   []byte
 
 		// idle timeout (to close the writer)
 		idleTO time.Duration
@@ -63,21 +66,19 @@ type (
 	}
 )
 
-func newCWriter(fileName string, lro, size, maxSize int64) *cWrtier {
+func newCWriter(fileName string, size, maxSize int64, count uint32) *cWrtier {
 	if size < 0 {
 		panic("size must be 0 or positive")
 	}
 
-	if lro >= 0 && lro >= size-2*ChnkDataHeaderSize {
-		panic(fmt.Sprintf("lro=%d must be less than the file size=%d", lro, size))
-	}
 	cw := new(cWrtier)
 	cw.fileName = fileName
-	cw.lro = lro
-	cw.lroCfrmd = lro
+	cw.cntCfrmd = count
+	cw.cnt = count
 	cw.size = size
 	cw.sizeCfrmd = size
-	cw.sizeBuf = make([]byte, ChnkDataHeaderSize)
+	cw.offsBuf = make([]byte, ChnkIndexRecSize)
+	cw.rhBuf = make([]byte, ChnkDataHeaderSize)
 	cw.idleTO = ChnkWriterIdleTO
 	cw.flushTO = ChnkWriterFlushTO
 	cw.maxSize = maxSize
@@ -97,6 +98,17 @@ func (cw *cWrtier) ensureFWriter() error {
 		if err != nil {
 			return err
 		}
+		cw.iw, err = newFWriter(util.SetFileExt(cw.fileName, ChnkIndexExt), ChnkWriterBufSize)
+		if err != nil {
+			cw.closeFWritersUnsafe()
+			return err
+		}
+
+		if cw.count() != cw.cntCfrmd {
+			cw.logger.Error("Could not open index file. It's size is different that the count provided count=", cw.count(), ", cw=", cw)
+			cw.closeFWritersUnsafe()
+			return ErrCorruptedData
+		}
 
 		// put 100 to be sure there is a buffer for not blocking signaling routine
 		cw.wSgnlChan = make(chan bool, 100)
@@ -104,14 +116,14 @@ func (cw *cWrtier) ensureFWriter() error {
 		go func(sc chan bool) {
 			for {
 				for !cw.isFlushNeeded() {
-					lro := atomic.LoadInt64(&cw.lro)
+					cnt := atomic.LoadUint32(&cw.cnt)
 					select {
 					case <-time.After(cw.idleTO):
 						cw.lock.Lock()
 						// check whether lro was advanced while it was sleeping
-						if cw.lro == lro {
+						if cw.cnt == cnt {
 							cw.logger.Debug("closing file-writer due to idle timeout")
-							cw.closeFWriterUnsafe()
+							cw.closeFWritersUnsafe()
 							cw.lock.Unlock()
 							return
 						}
@@ -138,17 +150,26 @@ func (cw *cWrtier) ensureFWriter() error {
 	return nil
 }
 
+// count returns number of unconfirmed count.
+func (cw *cWrtier) count() uint32 {
+	if cw.iw != nil {
+		return uint32(cw.iw.size() / ChnkIndexRecSize)
+	}
+	return cw.cnt
+}
+
 // isFlushNeeded returns whether the write buffer (see fWrtier) should be be
 // flushed or not
 func (cw *cWrtier) isFlushNeeded() bool {
-	return atomic.LoadInt64(&cw.lroCfrmd) != atomic.LoadInt64(&cw.lro)
+	return atomic.LoadUint32(&cw.cnt) != atomic.LoadUint32(&cw.cntCfrmd)
 }
 
 // write receives an iterator and writes records to the file-chunk.
 //
-// the write returns number of records written, offset for the last written
-// record and an error if any. It can return an error together with non-zero
-// first two parameters, which will indicate that some data was written.
+// the write returns number of records written, number of the last written
+// record (unconfirmed count) and an error if any. It can return an error
+// together with non-zero first two parameters, which will indicate that some
+// data was written.
 //
 // It will return no error if iterator is empty (the iterator returns io.EOF)
 //
@@ -159,21 +180,21 @@ func (cw *cWrtier) isFlushNeeded() bool {
 //
 // the write procedure happens in the context of ctx. Which is used for getting
 // records from the iterator.
-func (cw *cWrtier) write(ctx context.Context, it records.Iterator) (int, int64, error) {
+func (cw *cWrtier) write(ctx context.Context, it records.Iterator) (int, uint32, error) {
 	cw.lock.Lock()
 	defer cw.lock.Unlock()
 
 	if cw.size >= cw.maxSize {
-		return 0, cw.lro, util.ErrMaxSizeReached
+		return 0, cw.cnt, util.ErrMaxSizeReached
 	}
 
 	err := cw.ensureFWriter()
 	if err != nil {
-		return 0, cw.lro, err
+		return 0, cw.cnt, err
 	}
 
 	// indicates that flush signal already issued
-	signal := cw.isFlushNeeded()
+	signaled := cw.isFlushNeeded()
 	clsd := false
 	var wrtn int
 	// checking the closed flag holding cw.lock, allows us to detect Close()
@@ -188,15 +209,19 @@ func (cw *cWrtier) write(ctx context.Context, it records.Iterator) (int, int64, 
 			break
 		}
 
-		binary.BigEndian.PutUint32(cw.sizeBuf, uint32(len(rec)))
-		var ro int64
-		ro, err = cw.w.write(cw.sizeBuf)
+		offs := uint64(cw.w.size())
+
+		// writing the record size -> data chunk
+		binary.BigEndian.PutUint32(cw.rhBuf, uint32(len(rec)))
+		_, err = cw.w.write(cw.rhBuf)
 		if err != nil {
-			cw.logger.Error("Could not write a record header. err=", err)
+			// close chunk (unrecoverable error)
+			cw.logger.Error("Could not write record size to the data chunk. err=", err)
 			clsd = true
 			break
 		}
 
+		// writing the record payload -> data chunk
 		_, err = cw.w.write(rec)
 		if err != nil {
 			// close chunk (unrecoverable error)
@@ -205,17 +230,20 @@ func (cw *cWrtier) write(ctx context.Context, it records.Iterator) (int, int64, 
 			break
 		}
 
-		_, err = cw.w.write(cw.sizeBuf)
+		// writing the record offset -> index
+		binary.BigEndian.PutUint64(cw.offsBuf, offs)
+		_, err = cw.iw.write(cw.offsBuf)
 		if err != nil {
 			// close chunk (unrecoverable error)
-			cw.logger.Error("Could not write a record footer. err=", err)
+			cw.logger.Error("Could not write record offset to the index. err=", err)
 			clsd = true
 			break
 		}
 
-		// update last raw record
-		cw.lro = ro
+		// update dynamic pararms
+		cw.cnt++
 		cw.size = cw.w.fdPos
+
 		it.Next(ctx)
 		wrtn++
 
@@ -225,16 +253,20 @@ func (cw *cWrtier) write(ctx context.Context, it records.Iterator) (int, int64, 
 		err = util.ErrWrongState
 	} else if clsd {
 		cw.closeUnsafe()
-	} else if cw.w.buffered() == 0 {
+	} else if cw.w.buffered() == 0 && cw.iw.buffered() == 0 {
 		// ok, write buffer is empty, no flush is needed
-		cw.lroCfrmd = cw.lro
+		cnt := cw.cnt
+		cw.cntCfrmd = cw.cnt
 		cw.sizeCfrmd = cw.size
-	} else if !signal {
+		if cw.cntCfrmd != cnt && cw.onFlushF != nil {
+			cw.onFlushF()
+		}
+	} else if !signaled {
 		// signal the channel about write anyway
 		cw.wSgnlChan <- true
 	}
 
-	return wrtn, cw.lro, err
+	return wrtn, cw.cnt, err
 }
 
 func (cw *cWrtier) flush() {
@@ -250,19 +282,35 @@ func (cw *cWrtier) flushWriter() bool {
 	if cw.w != nil {
 		cw.w.flush()
 	}
-	res := cw.lroCfrmd != cw.lro
-	cw.lroCfrmd = cw.lro
+	if cw.iw != nil {
+		cw.iw.flush()
+	}
+
+	res := cw.cntCfrmd != cw.cnt
+	cw.cntCfrmd = cw.cnt
 	cw.sizeCfrmd = cw.size
 	return res
 }
 
-func (cw *cWrtier) closeFWriterUnsafe() error {
+func (cw *cWrtier) closeFWritersUnsafe() error {
 	var err error
-	if cw.w != nil {
-		err = cw.w.Close()
-		fl := cw.lroCfrmd != cw.lro
-		cw.lroCfrmd = cw.lro
-		cw.w = nil
+	if cw.w != nil || cw.iw != nil {
+		if cw.w != nil {
+			err = cw.w.Close()
+			cw.w = nil
+		}
+
+		if cw.iw != nil {
+			err1 := cw.iw.Close()
+			cw.iw = nil
+			if err1 != nil {
+				err = err1
+			}
+		}
+
+		fl := cw.cntCfrmd != cw.cnt
+		cw.cntCfrmd = cw.cnt
+
 		close(cw.wSgnlChan)
 		cw.wSgnlChan = nil
 
@@ -279,14 +327,14 @@ func (cw *cWrtier) Close() (err error) {
 	defer cw.lock.Unlock()
 
 	cw.logger.Debug("Closing...")
-	return cw.closeFWriterUnsafe()
+	return cw.closeFWritersUnsafe()
 }
 
 func (cw *cWrtier) closeUnsafe() (err error) {
 	cw.closed = 1
-	return cw.closeFWriterUnsafe()
+	return cw.closeFWritersUnsafe()
 }
 
 func (cw *cWrtier) String() string {
-	return fmt.Sprintf("{lroCfrmd=%d, lro=%d, size=%d, closed=%d, idleTO=%s, flushTO=%s, maxSize=%d}", cw.lroCfrmd, cw.lro, cw.size, cw.closed, cw.idleTO, cw.flushTO, cw.maxSize)
+	return fmt.Sprintf("{cntCfrmd=%d, cnt=%d, size=%d, closed=%d, idleTO=%s, flushTO=%s, maxSize=%d}", cw.cntCfrmd, cw.cnt, cw.size, cw.closed, cw.idleTO, cw.flushTO, cw.maxSize)
 }

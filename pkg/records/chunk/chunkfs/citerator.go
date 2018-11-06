@@ -10,29 +10,26 @@ import (
 
 type (
 	cIterator struct {
-		cid    uint64
+		gid    uint64
 		fdPool *FdPool
 		cr     cReader
-		size   *int64
-		pos    int64
-		nPos   int64
+		cnt    *uint32
+		pos    uint32
 		buf    []byte
 		res    []byte
-		rdFunc func(buf []byte) ([]byte, int64, error)
 
-		// bkwd the iterator direction
-		bkwd bool
+		// cached values to acquire readers
+		doffs int64
 	}
 )
 
-func newCIterator(cid uint64, fdPool *FdPool, lro, size *int64, buf []byte) *cIterator {
+func newCIterator(gid uint64, fdPool *FdPool, count *uint32, buf []byte) *cIterator {
 	ci := new(cIterator)
-	ci.cid = cid
+	ci.gid = gid
 	ci.fdPool = fdPool
-	ci.cr.lro = lro
-	ci.size = size
+	ci.cnt = count
+	ci.pos = 0
 	ci.buf = buf[:cap(buf)]
-	ci.rdFunc = ci.cr.readRecord
 	return ci
 }
 
@@ -43,30 +40,11 @@ func (ci *cIterator) Close() error {
 	return nil
 }
 
-func (ci *cIterator) SetBackward(bkwd bool) {
-	if ci.bkwd == bkwd {
-		return
-	}
-
-	ci.bkwd = bkwd
-	if ci.bkwd {
-		ci.rdFunc = ci.cr.readRecordBack
-	} else {
-		ci.rdFunc = ci.cr.readRecord
-	}
-
-	pos := ci.pos
-	ci.pos-- // to be sure SetPos will make the change
-	ci.SetPos(pos)
-
-}
-
 func (ci *cIterator) Next(ctx context.Context) {
 	_, err := ci.Get(ctx)
 	if err == nil {
-		ci.pos = ci.nPos
+		ci.pos++
 	}
-
 	ci.res = nil
 }
 
@@ -80,7 +58,7 @@ func (ci *cIterator) Get(ctx context.Context) (records.Record, error) {
 		return nil, err
 	}
 
-	ci.res, ci.nPos, err = ci.rdFunc(ci.buf)
+	ci.res, err = ci.cr.readRecord(ci.buf)
 	if err != nil {
 		ci.Release()
 	}
@@ -89,59 +67,60 @@ func (ci *cIterator) Get(ctx context.Context) (records.Record, error) {
 }
 
 func (ci *cIterator) Release() {
-	if ci.cr.fr != nil {
-		ci.fdPool.release(ci.cr.fr)
-		ci.cr.fr = nil
+	if ci.cr.dr != nil {
+		ci.doffs = ci.cr.dr.getNextReadPos()
+		ci.fdPool.release(ci.cr.dr)
+		ci.cr.dr = nil
+	}
+
+	if ci.cr.ir != nil {
+		ci.fdPool.release(ci.cr.ir)
+		ci.cr.ir = nil
 	}
 	ci.res = nil
 }
 
-func (ci *cIterator) Pos() int64 {
+func (ci *cIterator) Pos() uint32 {
 	return ci.pos
 }
 
-func (ci *cIterator) SetPos(pos int64) int64 {
-	if ci.pos != pos {
-		size := atomic.LoadInt64(ci.size)
-		if pos >= size {
-			if ci.bkwd {
-				pos = atomic.LoadInt64(ci.cr.lro)
-			} else {
-				pos = size
-			}
-		}
-		if pos < 0 {
-			if ci.bkwd {
-				pos = -1
-			} else {
-				pos = 0
-			}
-		}
-		ci.pos = pos
-		ci.res = nil
+func (ci *cIterator) SetPos(pos uint32) error {
+	if pos == ci.pos {
+		return nil
 	}
-	return ci.pos
+
+	cnt := atomic.LoadUint32(ci.cnt)
+	if pos > cnt {
+		pos = cnt
+	}
+
+	if ci.pos < pos {
+		ci.doffs = 0
+	}
+	ci.pos = pos
+	ci.res = nil
+	return ci.cr.setPos(pos)
 }
 
 func (ci *cIterator) ensureFileReader(ctx context.Context) error {
-	if ci.pos < 0 || ci.pos >= atomic.LoadInt64(ci.size) {
+	if ci.pos < 0 || ci.pos >= atomic.LoadUint32(ci.cnt) {
 		return io.EOF
 	}
 
 	var err error
-	if ci.cr.fr == nil {
-		ci.cr.fr, err = ci.fdPool.acquire(ctx, ci.cid, ci.pos)
-		if err != nil {
-			return err
+	if ci.cr.dr == nil {
+		ci.cr.dr, err = ci.fdPool.acquire(ctx, ci.gid, ci.doffs)
+
+		if ci.cr.ir == nil && err == nil {
+			ci.cr.ir, err = ci.fdPool.acquire(ctx, ci.gid+1, int64(ci.pos)*int64(ChnkIndexRecSize))
+		}
+
+		if err == nil {
+			err = ci.cr.setPos(ci.pos)
+		} else {
+			ci.Release()
 		}
 	}
 
-	if ci.cr.getPos() != ci.pos {
-		err := ci.cr.fr.seek(ci.pos)
-		if err != nil {
-			ci.Release()
-			return err
-		}
-	}
-	return nil
+	return err
 }

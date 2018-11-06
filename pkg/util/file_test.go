@@ -1,13 +1,14 @@
 package util
 
 import (
-	"github.com/stretchr/testify/assert"
 	"io/ioutil"
 	"os"
 	"strconv"
 	"strings"
 	"syscall"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
 )
 
 func TestGetFileId(t *testing.T) {
@@ -39,4 +40,17 @@ func TestGetFileId(t *testing.T) {
 	assert.Equal(t, hsh, Md5(fd.Name()))
 	assert.Equal(t, ino, fi.Sys().(*syscall.Stat_t).Ino)
 	assert.Equal(t, uint64(dev), uint64(fi.Sys().(*syscall.Stat_t).Dev))
+}
+
+func TestSetFileExt(t *testing.T) {
+	if s := SetFileExt("/a/b/c.ddd", ".idx"); "/a/b/c.idx" != s {
+		t.Fatal("expecting \"/a/b/c.idx\" but got ", s)
+	}
+
+	if s := SetFileExt("/a/b/c.ddd", "idx"); "/a/b/c.idx" != s {
+		t.Fatal("expecting \"/a/b/c.idx\" but got ", s)
+	}
+	if s := SetFileExt("abcd.txt", ""); "abcd" != s {
+		t.Fatal("expecting \"abcd\" but got ", s)
+	}
 }

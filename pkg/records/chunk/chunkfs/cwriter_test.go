@@ -39,7 +39,7 @@ func TestCWriterWrite(t *testing.T) {
 	}
 	defer os.RemoveAll(dir) // clean up
 
-	cw := newCWriter(path.Join(dir, "tst"), -1, 0, 1000)
+	cw := newCWriter(path.Join(dir, "tst"), 0, 1000, 0)
 	defer cw.Close()
 
 	flushes := int32(0)
@@ -53,24 +53,24 @@ func TestCWriterWrite(t *testing.T) {
 	}
 
 	si := records.SrtingsIterator("a")
-	n, offs, err := cw.write(nil, si)
-	if n != 1 || offs != 0 || err != nil || atomic.LoadInt32(&flushes) != 0 {
-		t.Fatal("Expecting n=1, offs=0, err=nil, but n=", n, ", offs=", offs, ", err=", err)
+	n, cnt, err := cw.write(nil, si)
+	if n != 1 || cnt != 1 || err != nil || atomic.LoadInt32(&flushes) != 0 {
+		t.Fatal("Expecting n=1, offs=1, err=nil, but n=", n, ", offs=", cnt, ", err=", err)
 	}
 	w := cw.w
-	cw.closeFWriterUnsafe()
+	cw.closeFWritersUnsafe()
 	time.Sleep(10 * time.Millisecond)
-	if cw.lro != cw.lroCfrmd || cw.lro != 0 || atomic.LoadInt32(&flushes) != 1 {
-		t.Fatal("expecting lro=0, but it is ", cw.lro, "flushes=", flushes)
+	if cw.cnt != cw.cntCfrmd || cw.cnt != 1 || atomic.LoadInt32(&flushes) != 1 {
+		t.Fatal("expecting lro=1, but it is ", cw.cnt, "flushes=", flushes)
 	}
 
 	si = records.SrtingsIterator("a", "b", "c")
-	n, offs, err = cw.write(nil, si)
+	n, cnt, err = cw.write(nil, si)
 	if !cw.isFlushNeeded() {
 		t.Fatal("expecting flush is needed")
 	}
-	if n != 3 || offs != 27 || err != nil {
-		t.Fatal("Expecting n=3, offs=27, err=nil, but n=", n, ", offs=", offs, ", err=", err)
+	if n != 3 || cnt != 4 || err != nil {
+		t.Fatal("Expecting n=3, cnt=4, err=nil, but n=", n, ", cnt=", cnt, ", err=", err)
 	}
 
 	if cw.w == w {
@@ -89,7 +89,7 @@ func TestCWriterIdleTimeout(t *testing.T) {
 	}
 	defer os.RemoveAll(dir) // clean up
 
-	cw := newCWriter(path.Join(dir, "tst"), -1, 0, 1000)
+	cw := newCWriter(path.Join(dir, "tst"), 0, 1000, 0)
 	defer cw.Close()
 
 	cw.idleTO = 50
@@ -114,7 +114,7 @@ func TestCWriterCloseWhileLazyIterator(t *testing.T) {
 	}
 	defer os.RemoveAll(dir) // clean up
 
-	cw := newCWriter(path.Join(dir, "tst"), -1, 0, 1000)
+	cw := newCWriter(path.Join(dir, "tst"), 0, 1000, 0)
 	defer cw.Close()
 
 	go func() {
@@ -135,13 +135,13 @@ func TestCWriterMaxSize(t *testing.T) {
 	}
 	defer os.RemoveAll(dir) // clean up
 
-	cw := newCWriter(path.Join(dir, "tst"), -1, 0, 1)
+	cw := newCWriter(path.Join(dir, "tst"), 0, 1, 0)
 	defer cw.Close()
 
 	si := records.SrtingsIterator("a", "b", "c")
-	n, offs, err := cw.write(nil, si)
-	if n != 3 || offs != 18 || err != nil {
-		t.Fatal("Expecting n=3, offs=27, err=nil, but n=", n, ", offs=", offs, ", err=", err)
+	n, cnt, err := cw.write(nil, si)
+	if n != 3 || cnt != 3 || err != nil {
+		t.Fatal("Expecting n=3, cnt=3, err=nil, but n=", n, ", cnt=", cnt, ", err=", err)
 	}
 
 	si = records.SrtingsIterator("a", "b", "c")
