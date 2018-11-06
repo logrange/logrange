@@ -158,12 +158,12 @@ func (fdp *FdPool) releaseAllByGid(gid uint64) {
 
 // Close - closes the FdPool
 func (fdp *FdPool) Close() error {
+	fdp.lock.Lock()
+	defer fdp.lock.Unlock()
+
 	if atomic.LoadInt32(&fdp.closed) != 0 {
 		return util.ErrWrongState
 	}
-
-	fdp.lock.Lock()
-	defer fdp.lock.Unlock()
 
 	atomic.StoreInt32(&fdp.closed, 1)
 	fdp.clean(true)
