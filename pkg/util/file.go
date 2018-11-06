@@ -36,6 +36,8 @@ func ExpandPaths(paths []string) []string {
 	return result
 }
 
+// SetFileExt changes file extension to ext. ext can be empty, then the result
+// will have no extension
 func SetFileExt(file, ext string) string {
 	if len(ext) > 0 && ext[0] != '.' {
 		ext = "." + ext

@@ -1,6 +1,7 @@
 package chunkfs
 
 import (
+	"context"
 	"encoding/binary"
 	"fmt"
 	"io"
@@ -13,6 +14,7 @@ type (
 	IdxChecker struct {
 		dr     *fReader
 		ir     *fReader
+		ctx    context.Context
 		logger log4g.Logger
 	}
 )
@@ -85,6 +87,10 @@ func (ic *IdxChecker) FullCheck() error {
 	var offsArr [ChnkIndexRecSize]byte
 	offsBuf := offsArr[:]
 	for {
+		if ic.ctx != nil && ic.ctx.Err() != nil {
+			ic.logger.Warn("FullCheck(): context is closed. Interrupting")
+			return ic.ctx.Err()
+		}
 		_, err := ic.ir.read(offsBuf)
 		if err == io.EOF {
 			break
@@ -144,6 +150,12 @@ func (ic *IdxChecker) Recover(fixData bool) error {
 	offsBuf := offsArr[:]
 	tPos := int64(0)
 	for {
+		if ic.ctx != nil && ic.ctx.Err() != nil {
+			ic.logger.Warn("Recover(): context is closed. Interrupting")
+			err = ic.ctx.Err()
+			break
+		}
+
 		gdPos := ic.dr.getNextReadPos()
 		_, err = ic.dr.read(offsBuf[:4])
 		if err != nil {
@@ -152,7 +164,7 @@ func (ic *IdxChecker) Recover(fixData bool) error {
 		sz := int(binary.BigEndian.Uint32(offsBuf))
 
 		nPos := int64(sz) + 4 + gdPos
-		if nPos > dsize {
+		if nPos > dsize || sz < 0 {
 			ic.logger.Warn("Recover(): found wrong size=", sz, " at the record ", cnt, ", which greate than data file size=", dsize, ", gdPos=", gdPos)
 			err = ErrCorruptedData
 			break
@@ -189,6 +201,6 @@ func (ic *IdxChecker) Recover(fixData bool) error {
 		}
 	}
 
-	ic.logger.Info("Recover(): completed. Initial file size=", dsize, ", truncated at ", tPos, " err=", err)
+	ic.logger.Info("Recover(): completed. Initial file size=", dsize, ", ", cnt, " records found, truncated at ", tPos, " err=", err)
 	return err
 }

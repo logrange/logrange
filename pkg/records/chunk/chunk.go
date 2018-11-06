@@ -2,7 +2,9 @@ package chunk
 
 import (
 	"context"
+	"fmt"
 	"io"
+	"strconv"
 	"sync/atomic"
 	"time"
 
@@ -11,6 +13,9 @@ import (
 )
 
 type (
+	// CId stores a chunk identifier
+	Id uint64
+
 	// Chunk is an abstraction which represents a records storage. It has its own
 	// id, which should be sortable within a group of chunks like a journal.
 	//
@@ -22,7 +27,7 @@ type (
 		// Id returns the chunk id which must be unique between a group of
 		// chunks like a journal. Also it is sortable, so chunks with less
 		// value of the id comes before the chunks with greater values
-		Id() uint64
+		Id() Id
 
 		// Write allows to write records to the chunk. It expects context and
 		// the iterator, which provides the records source.
@@ -102,7 +107,7 @@ var lastCid uint64
 
 // NewCId generates new the host unique chunk id. The chunk IDs are sortable,
 // lately created chunks have greater ID values than older ones.
-func NewCId() uint64 {
+func NewId() Id {
 	for {
 		cid := (uint64(time.Now().UnixNano()) & 0xFFFFFFFFFFFF0000) | uint64(util.HostId16&0xFFFF)
 		lcid := atomic.LoadUint64(&lastCid)
@@ -110,7 +115,18 @@ func NewCId() uint64 {
 			cid = lcid + 0x10000
 		}
 		if atomic.CompareAndSwapUint64(&lastCid, lcid, cid) {
-			return cid
+			return Id(cid)
 		}
 	}
+}
+
+// ParseCId receives a cid string and tries to turn it to CId. Returns an error
+// if any.
+func ParseId(cid string) (Id, error) {
+	c, err := strconv.ParseUint(cid, 16, 64)
+	return Id(c), err
+}
+
+func (id Id) String() string {
+	return fmt.Sprintf("%016X", uint64(id))
 }
