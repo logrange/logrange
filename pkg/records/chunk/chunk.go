@@ -1,3 +1,17 @@
+// Copyright 2018 The logrange Authors
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 package chunk
 
 import (
@@ -13,7 +27,15 @@ import (
 )
 
 type (
-	// CId stores a chunk identifier
+	// Id represents a chunk identifier. The NewId() function generates new
+	// unique Id.
+	//
+	// The identifier is 64bit unsigned integer value, which consists of 2 parts.
+	// Highest part of the value contains UNIX timestamp in nanoseconds cut to
+	// 48bits, and the lowest 16bits contain a process-related  hash which
+	// supposed to be unique per a process. Based on the nature of the Id
+	// generation, it is supposed that every chunk has it's own unique id and
+	// it can be ordered comparing to other chunks in the system.
 	Id uint64
 
 	// Chunk is an abstraction which represents a records storage. It has its own
@@ -105,7 +127,7 @@ type (
 
 var lastCid uint64
 
-// NewCId generates new the host unique chunk id. The chunk IDs are sortable,
+// NewId generates new the host unique chunk id. The chunk IDs are sortable,
 // lately created chunks have greater ID values than older ones.
 func NewId() Id {
 	for {
@@ -120,13 +142,14 @@ func NewId() Id {
 	}
 }
 
-// ParseCId receives a cid string and tries to turn it to CId. Returns an error
-// if any.
+// ParseCId receives cid - string representation of an Id and tries to turn it
+// to Id. Returns an error if the string cannot be decoded.
 func ParseId(cid string) (Id, error) {
 	c, err := strconv.ParseUint(cid, 16, 64)
 	return Id(c), err
 }
 
+// String returns a string representation of the chunk Id
 func (id Id) String() string {
 	return fmt.Sprintf("%016X", uint64(id))
 }

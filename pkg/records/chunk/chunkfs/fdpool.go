@@ -1,3 +1,17 @@
+// Copyright 2018 The logrange Authors
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 package chunkfs
 
 import (
@@ -12,8 +26,8 @@ import (
 )
 
 type (
-	// FdPool struct manages fReader(s) pool. It counts how many are created at
-	// a moment and doesn't allow to have more than a maximum value. FdPool caches
+	// FdPool manages fReader(s) pool. It counts how many are created at
+	// a moment and it doesn't allow to have more than a maximum value. FdPool caches
 	// fReader(s) with a purpose to re-use oftenly used ones.
 	FdPool struct {
 		maxSize int32
@@ -158,14 +172,13 @@ func (fdp *FdPool) releaseAllByGid(gid uint64) {
 
 // Close - closes the FdPool
 func (fdp *FdPool) Close() error {
-	if atomic.LoadInt32(&fdp.closed) != 0 {
+	if !atomic.CompareAndSwapInt32(&fdp.closed, 0, 1) {
 		return util.ErrWrongState
 	}
 
 	fdp.lock.Lock()
 	defer fdp.lock.Unlock()
 
-	atomic.StoreInt32(&fdp.closed, 1)
 	fdp.clean(true)
 	close(fdp.cchan)
 	close(fdp.sem)
