@@ -75,6 +75,9 @@ type (
 		// then number of records that can be read, but Write returns the number of
 		// records written, but not confirmed to be read yet in the chunk
 		Count() uint32
+
+		// AddListener adds a listener to the chunk
+		AddListener(lstnr Listener)
 	}
 
 	Chunks []Chunk
@@ -123,9 +126,12 @@ type (
 		// OnNewData is called when new records were added to the end
 		OnNewData(c Chunk)
 	}
+
+	emptyListener struct{}
 )
 
 var lastCid uint64
+var EmptyListener emptyListener
 
 // NewId generates new the host unique chunk id. The chunk IDs are sortable,
 // lately created chunks have greater ID values than older ones.
@@ -152,4 +158,9 @@ func ParseId(cid string) (Id, error) {
 // String returns a string representation of the chunk Id
 func (id Id) String() string {
 	return fmt.Sprintf("%016X", uint64(id))
+}
+
+// OnNewData does nothing for the emptyListener
+func (el emptyListener) OnNewData(c Chunk) {
+
 }

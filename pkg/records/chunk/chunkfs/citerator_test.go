@@ -80,16 +80,18 @@ func TestCIteratorCommon(t *testing.T) {
 	}
 
 	ci.Next(context.Background())
+	ci.Next(context.Background())
+	ci.Next(context.Background())
 	_, err = ci.Get(context.Background())
-	if err != io.EOF {
+	if err != io.EOF || ci.Pos() != 1 {
 		t.Fatal("Expecting io.EOF, but got err=", err)
 	}
 
 	// wrong offset
 	ci.SetPos(2)
 	_, err = ci.Get(context.Background())
-	if err != io.EOF {
-		t.Fatal("Expecting ErrCorruptedData, but got err=", err)
+	if err != io.EOF || ci.Pos() != 1 {
+		t.Fatal("Expecting ErrCorruptedData, but got err=", err, " or pos=", ci.Pos(), " is not 1")
 	}
 
 	si = records.SrtingsIterator("bb")

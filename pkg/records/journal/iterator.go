@@ -1,3 +1,17 @@
+// Copyright 2018 The logrange Authors
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 package journal
 
 import (
@@ -12,10 +26,7 @@ type (
 	iterator struct {
 		j   *journal
 		pos Pos
-		//c   records.Chunk
-		ci chunk.Iterator
-		// the bkwd flag indicates that the direction is backward
-		bkwd bool
+		ci  chunk.Iterator
 	}
 )
 
@@ -23,7 +34,7 @@ func (it *iterator) Next(ctx context.Context) {
 	it.Get(ctx)
 	if it.ci != nil {
 		it.ci.Next(ctx)
-		it.pos.Offs = it.ci.Pos()
+		it.pos.Idx = it.ci.Pos()
 	}
 }
 
@@ -34,7 +45,7 @@ func (it *iterator) Get(ctx context.Context) (records.Record, error) {
 	}
 
 	rec, err := it.ci.Get(ctx)
-	if err == io.EOF {
+	for err == io.EOF {
 		err = it.advanceChunk()
 		if err != nil {
 			return nil, err
@@ -48,20 +59,17 @@ func (it *iterator) Pos() Pos {
 	return it.pos
 }
 
-func (it *iterator) Reset(pos Pos, bkwd bool) {
-	if pos == it.pos && it.bkwd == bkwd {
+func (it *iterator) SetPos(pos Pos) {
+	if pos == it.pos {
 		return
 	}
-
-	it.bkwd = bkwd
 
 	if pos.CId != it.pos.CId {
 		it.Release()
 	}
 
 	if it.ci != nil {
-		it.ci.SetBackward(bkwd)
-		it.ci.SetPos(pos.Offs)
+		it.ci.SetPos(pos.Idx)
 	}
 	it.pos = pos
 }
@@ -81,35 +89,26 @@ func (it *iterator) Release() {
 
 func (it *iterator) advanceChunk() error {
 	it.Release()
-
-	cid := it.pos.CId
-	if it.bkwd {
-		cid--
-	} else {
-		cid++
-	}
-
-	return it.ensureChkIt(cid)
+	it.pos.CId++
+	return it.ensureChkIt(it.pos.CId)
 }
 
 // findChunkByPos looks for the chunk and updates the pos if needed
-func (it *iterator) findChkAndCorrectPos(cid uint64) chunk.Chunk {
-	chk := it.j.getChunkById(cid, it.bkwd)
+func (it *iterator) findChkAndCorrectPos(cid chunk.Id) chunk.Chunk {
+	chk := it.j.getChunkById(cid)
 	if chk == nil {
 		return nil
 	}
 
 	it.pos.CId = chk.Id()
-	if chk.Id() < cid {
-		it.pos.Offs = chk.Size()
-	} else if chk.Id() > cid {
-		it.pos.Offs = -1
+	if chk.Id() > cid {
+		it.pos.Idx = 0
 	}
 
 	return chk
 }
 
-func (it *iterator) ensureChkIt(cid uint64) error {
+func (it *iterator) ensureChkIt(cid chunk.Id) error {
 	if it.ci != nil {
 		return nil
 	}
@@ -124,6 +123,7 @@ func (it *iterator) ensureChkIt(cid uint64) error {
 	if err != nil {
 		return err
 	}
-	it.pos.Offs = it.ci.SetPos(it.pos.Offs)
+	it.ci.SetPos(it.pos.Idx)
+	it.pos.Idx = it.ci.Pos()
 	return nil
 }

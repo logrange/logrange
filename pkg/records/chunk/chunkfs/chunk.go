@@ -72,9 +72,6 @@ type (
 
 		// MaxRecordSize defines the maimum one record size
 		MaxRecordSize int64
-
-		// ChkListener defines the chunk notifications listener.
-		ChkListener chunk.Listener
 	}
 
 	// Chunk struct allows to control read and write operations over the underlying
@@ -92,7 +89,7 @@ type (
 		// writing part
 		w *cWrtier
 		// the chunk listener
-		lstnr chunk.Listener
+		lstnr atomic.Value
 
 		// Max Record Size
 		maxRecSize int64
@@ -206,7 +203,7 @@ func recoverAndNew(ctx context.Context, cfg *Config, fdPool *FdPool, newChunk bo
 	log := log4g.GetLogger("chunkfs").WithId("{" + cfg.Id.String() + "}").(log4g.Logger)
 	log.Debug("recoverAndNew(): cfg=", cfg, ", newChunk=", newChunk)
 
-	var chunk *Chunk
+	var c *Chunk
 
 	// register group Ids
 	gid := uint64(atomic.AddInt64(&gId, 2) - 2)
@@ -221,7 +218,7 @@ func recoverAndNew(ctx context.Context, cfg *Config, fdPool *FdPool, newChunk bo
 		return nil, err
 	}
 	defer func() {
-		if chunk == nil {
+		if c == nil {
 			log.Debug("Releasing gid=", gid, ", cause no chunk is created")
 			fdPool.releaseAllByGid(gid)
 			fdPool.releaseAllByGid(gid + 1)
@@ -254,22 +251,22 @@ func recoverAndNew(ctx context.Context, cfg *Config, fdPool *FdPool, newChunk bo
 			w.idleTO = time.Duration(cfg.WriteIdleSec) * time.Second
 		}
 
-		chunk = new(Chunk)
-		chunk.id = cfg.Id
-		chunk.gid = gid
-		chunk.fileName = cfg.FileName
-		chunk.fdPool = fdPool
-		chunk.w = w
-		chunk.id = cfg.Id
-		chunk.maxRecSize = cfg.MaxRecordSize
-		if chunk.maxRecSize <= 0 {
-			chunk.maxRecSize = ChnkMaxRecordSize
+		c = new(Chunk)
+		c.id = cfg.Id
+		c.gid = gid
+		c.fileName = cfg.FileName
+		c.fdPool = fdPool
+		c.w = w
+		c.id = cfg.Id
+		c.maxRecSize = cfg.MaxRecordSize
+		if c.maxRecSize <= 0 {
+			c.maxRecSize = ChnkMaxRecordSize
 		}
-		chunk.lstnr = cfg.ChkListener
-		chunk.logger = log
+		c.logger = log
+		c.AddListener(chunk.EmptyListener)
 	}
 
-	return chunk, err
+	return c, err
 }
 
 func checkAndRecover(ctx context.Context, cfg *Config, fdPool *FdPool, gid uint64) error {
@@ -360,8 +357,6 @@ func (cfg *Config) String() string {
 	b.WriteString(strconv.FormatInt(cfg.MaxChunkSize, 10))
 	b.WriteString("MaxRecordSize: ")
 	b.WriteString(strconv.FormatInt(cfg.MaxRecordSize, 10))
-	b.WriteString("ChkListener: ")
-	b.WriteString(strconv.FormatBool(cfg.ChkListener != nil))
 	b.WriteString("}")
 	return b.String()
 }
@@ -418,12 +413,18 @@ func (c *Chunk) Close() error {
 	return c.w.Close()
 }
 
+// AddListener sets the chunk's listener to lstnr
+func (c *Chunk) AddListener(lstnr chunk.Listener) {
+	if lstnr != nil {
+		c.lstnr.Store(lstnr)
+	}
+}
+
 func (c *Chunk) String() string {
 	return fmt.Sprintf("{Id: %s, gid: %d, file=%s, writer=%s, closed=%t, maxRecSize=%d}", c.id, c.gid, c.fileName, c.w, c.closed, c.maxRecSize)
 }
 
 func (c *Chunk) onWriterFlush() {
-	if c.lstnr != nil {
-		c.lstnr.OnNewData(c)
-	}
+	lstnr := c.lstnr.Load().(chunk.Listener)
+	lstnr.OnNewData(c)
 }

@@ -1,11 +1,28 @@
-package jrnlfs
+// Copyright 2018 The logrange Authors
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+package jctrlr
 
 import (
-	"errors"
+	"fmt"
 	"os"
 	"path/filepath"
-	"strconv"
 	"strings"
+
+	"github.com/logrange/logrange/pkg/records/chunk"
+	"github.com/logrange/logrange/pkg/records/chunk/chunkfs"
+	"github.com/logrange/logrange/pkg/util"
 )
 
 // scanForJournals receives a dir and scans it for journaling databse strucutre.
@@ -64,8 +81,8 @@ func jName2eJName(jn string) string {
 }
 
 // scanForChunks scans a journal directory to find out data chunks there
-func scanForChunks(dir string) ([]uint64, error) {
-	res := []uint64{}
+func scanForChunks(dir string) ([]chunk.Id, error) {
+	res := make([]chunk.Id, 0, 3)
 	err := filepath.Walk(dir, func(pth string, info os.FileInfo, err error) error {
 		if err != nil {
 			return err
@@ -75,16 +92,16 @@ func scanForChunks(dir string) ([]uint64, error) {
 		}
 
 		_, file := filepath.Split(pth)
-		if filepath.Ext(file) != ChnkDataExt {
+		if filepath.Ext(file) != chunkfs.ChnkDataExt {
 			return nil
 		}
-		name := file[:len(file)-len(ChnkDataExt)]
+		name := util.SetFileExt(file, "")
 
-		id, err := strconv.ParseUint(name, 10, 64)
+		cid, err := chunk.ParseId(name)
 		if err != nil {
 			return nil
 		}
-		res = append(res, uint64(id))
+		res = append(res, cid)
 		return nil
 	})
 	return res, err
@@ -101,13 +118,12 @@ func checkPathExists(path string) (bool, error) {
 	return true, err
 }
 
-func journalPath(baseDir, jid string) (string, error) {
-	if len(jid) < 2 {
-		return "", errors.New("Journal Id must be at least 2 chars len" + jid)
+func journalPath(baseDir, jname string) (string, error) {
+	ejn := jName2eJName(jname)
+	if len(ejn) < 2 {
+		return "", fmt.Errorf("Journal folder name must be at least 2 chars length. ejname=%s from the original name=%s", ejn, jname)
 	}
-	jpath := filepath.Join(baseDir, jid[len(jid)-2:], jid)
-	err := ensureDirExists(jpath)
-	return jpath, err
+	return filepath.Join(baseDir, ejn[len(ejn)-2:], ejn), nil
 }
 
 func ensureDirExists(dir string) error {

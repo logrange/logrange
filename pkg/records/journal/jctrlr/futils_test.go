@@ -12,15 +12,24 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package journal
+package jctrlr
 
 import (
 	"testing"
 )
 
-func BenchmarkJHashFromName(b *testing.B) {
-	str := "some name for a journal"
-	for i := 0; i < b.N; i++ {
-		JHashFromName(str)
+func TestJournalPath(t *testing.T) {
+	jp, err := journalPath("aaa", "123")
+	if err != nil {
+		t.Fatal("err must be nil, but err=", err)
+	}
+
+	if jp != "aaa/23/123" {
+		t.Fatal("Wrong dir=", jp)
+	}
+
+	jp, err = journalPath("aaa", "3")
+	if err == nil {
+		t.Fatal("err must be not nil, but err=nil")
 	}
 }

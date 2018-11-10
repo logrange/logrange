@@ -12,15 +12,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+/*
+journal package contains data structures and functions which allow to
+organize chunks of records in to one storage - journal. Journal is a set of
+ordered chunks that contains records from one source and that could be disctributed
+over different places.
+*/
+
 package journal
-
-import (
-	"testing"
-)
-
-func BenchmarkJHashFromName(b *testing.B) {
-	str := "some name for a journal"
-	for i := 0; i < b.N; i++ {
-		JHashFromName(str)
-	}
-}
