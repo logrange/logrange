@@ -386,6 +386,11 @@ func (c *Chunk) Write(ctx context.Context, it records.Iterator) (int, uint32, er
 	return c.w.write(ctx, it)
 }
 
+// Sync flushes the written data to the fs
+func (c *Chunk) Sync() {
+	c.w.flush()
+}
+
 // Size returns the size (confirmed) of the chunk
 func (c *Chunk) Size() int64 {
 	return atomic.LoadInt64(&c.w.sizeCfrmd)
@@ -416,7 +421,7 @@ func (c *Chunk) Close() error {
 // AddListener sets the chunk's listener to lstnr
 func (c *Chunk) AddListener(lstnr chunk.Listener) {
 	if lstnr != nil {
-		c.lstnr.Store(lstnr)
+		c.lstnr.Store(lwrapper{lstnr})
 	}
 }
 

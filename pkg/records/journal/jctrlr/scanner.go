@@ -46,7 +46,7 @@ func (s *scanner) scan(dir string) ([]scJournal, error) {
 
 	stt := time.Now()
 	defer func() {
-		s.logger.Info(len(jrnls), " journals found, ", chunks, " chunks for them. It took ", time.Now().Sub(stt))
+		s.logger.Info(len(jrnls), " journals found, ", chunks, " chunks for them. It took ", time.Now().Sub(stt), ". dir=", dir)
 	}()
 
 	jrnls, err = scanForJournals(dir)

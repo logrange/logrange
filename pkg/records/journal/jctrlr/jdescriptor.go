@@ -98,6 +98,7 @@ func (jd *jDescriptor) getOrCreateJournal(ctx context.Context) (journal.Journal,
 	switch jd.state {
 	case cJDS_INIT:
 		jd.setCreating()
+		ch = jd.crtCh
 	case cJDS_CREATING:
 		ch = jd.crtCh
 	}

@@ -98,8 +98,15 @@ func (j *journal) Write(ctx context.Context, rit records.Iterator) (int, Pos, er
 	return 0, Pos{}, err
 }
 
-func (j *journal) Iterator() (Iterator, error) {
-	return nil, nil
+func (j *journal) Sync() {
+	c := j.getLastChunk()
+	if c != nil {
+		c.Sync()
+	}
+}
+
+func (j *journal) Iterator() Iterator {
+	return &iterator{j: j}
 }
 
 func (j *journal) Size() int64 {

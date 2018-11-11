@@ -128,11 +128,17 @@ func (cw *cWrtier) ensureFWriter() error {
 		cw.wSgnlChan = make(chan bool, 100)
 
 		go func(sc chan bool) {
+			tmr := time.NewTimer(cw.idleTO)
+			if !tmr.Stop() {
+				<-tmr.C
+
+			}
 			for {
 				for !cw.isFlushNeeded() {
 					cnt := atomic.LoadUint32(&cw.cnt)
+					tmr.Reset(cw.idleTO)
 					select {
-					case <-time.After(cw.idleTO):
+					case <-tmr.C:
 						cw.lock.Lock()
 						// check whether lro was advanced while it was sleeping
 						if cw.cnt == cnt {
@@ -143,6 +149,9 @@ func (cw *cWrtier) ensureFWriter() error {
 						}
 						cw.lock.Unlock()
 					case _, ok := <-sc:
+						if !tmr.Stop() {
+							<-tmr.C
+						}
 						if !ok {
 							// the channel closed
 							return
@@ -150,10 +159,15 @@ func (cw *cWrtier) ensureFWriter() error {
 					}
 				}
 
+				tmr.Reset(cw.flushTO)
 				select {
-				case <-time.After(cw.flushTO):
+				case <-tmr.C:
 					cw.flush()
 				case _, ok := <-sc:
+					if !tmr.Stop() {
+						<-tmr.C
+					}
+
 					if !ok {
 						return
 					}

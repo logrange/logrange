@@ -64,6 +64,9 @@ type (
 		//				the size limits
 		Write(ctx context.Context, it records.Iterator) (int, uint32, error)
 
+		// Sync allows to flash just written data to the storage
+		Sync()
+
 		// Iterator returns a chunk.Iterator object to read records from the chunk
 		Iterator() (Iterator, error)
 
@@ -131,7 +134,9 @@ type (
 )
 
 var lastCid uint64
-var EmptyListener emptyListener
+var (
+	EmptyListener = Listener(emptyListener{})
+)
 
 // NewId generates new the host unique chunk id. The chunk IDs are sortable,
 // lately created chunks have greater ID values than older ones.

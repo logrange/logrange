@@ -59,6 +59,7 @@ type (
 
 func New(cfg Config) *Controller {
 	c := new(Controller)
+	c.cfg = cfg
 	c.journals = make(map[string]*jDescriptor)
 	c.logger = log4g.GetLogger("jctrlr")
 	c.closeCh = make(chan struct{})

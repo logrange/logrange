@@ -60,14 +60,19 @@ type (
 		Name() string
 
 		// Write - writes records received from the iterator to the journal.
-		// It returns number of records written, first record position and an error if any
+		// It returns number of records written, next record write position and an error if any
 		Write(ctx context.Context, rit records.Iterator) (int, Pos, error)
 
 		// Size returns the summarized chunks size
 		Size() int64
 
 		// Iterator returns an iterator to walk through the journal records
-		Iterator() (Iterator, error)
+		Iterator() Iterator
+
+		// Sync could be called after a write to sync the written data with the
+		// storage to be sure the read will be able to read the new added
+		// data
+		Sync()
 	}
 
 	// Iterator interface provides a journal iterator
