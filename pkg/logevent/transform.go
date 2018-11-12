@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"unsafe"
 
-	"github.com/logrange/logrange/pkg/records/inmem"
+	"github.com/logrange/logrange/pkg/records"
 )
 
 type (
@@ -21,7 +21,7 @@ type (
 
 // String turns the WeakString to it's safe immutable version. Just copy context
 func (ws WeakString) String() string {
-	return string(inmem.StringToByteArray(string(ws)))
+	return string(records.StringToByteArray(string(ws)))
 }
 
 func StrSliceToSSlice(ss []string) SSlice {
@@ -170,12 +170,12 @@ func MarshalStringBuf(v string, buf []byte) (int, error) {
 	if len(v) > len(buf) {
 		return 0, fmt.Errorf("could not MarshalStringBuf() - not enough space. Required %d bytes, but the buffer sized is %d", len(v), len(buf))
 	}
-	ba := inmem.StringToByteArray(v)
+	ba := records.StringToByteArray(v)
 	return copy(buf, ba), nil
 }
 
 func UnmarshalStringBuf(buf []byte) WeakString {
-	return WeakString(inmem.ByteArrayToString(buf))
+	return WeakString(records.ByteArrayToString(buf))
 }
 
 func noBufErr(src string, ln, req int) error {
