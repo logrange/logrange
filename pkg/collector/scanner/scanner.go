@@ -5,8 +5,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/logrange/logrange/pkg/collector/model"
-	"github.com/logrange/logrange/pkg/util"
 	"os"
 	"regexp"
 	"regexp/syntax"
@@ -15,6 +13,10 @@ import (
 	"sync"
 	"sync/atomic"
 	"time"
+
+	"github.com/ilya-zz/logrange/pkg/records"
+	"github.com/logrange/logrange/pkg/collector/model"
+	"github.com/logrange/logrange/pkg/util"
 
 	"github.com/jrivets/log4g"
 	"github.com/mohae/deepcopy"
@@ -455,7 +457,7 @@ func (s *Scanner) getDescsToScan() descs {
 			// ignoring error, cause we already tried it when checked the config
 			re, _ := regexp.Compile(ex)
 			for id, d := range res {
-				if re.Match(util.StringToByteArray(d.File)) {
+				if re.Match(records.StringToByteArray(d.File)) {
 					delete(res, id)
 					exclds = append(exclds, d.File)
 				}

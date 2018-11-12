@@ -1,15 +1,15 @@
 package ingestor
 
 import (
+	"github.com/ilya-zz/logrange/pkg/records"
 	"github.com/logrange/logrange/pkg/collector/model"
 	"github.com/logrange/logrange/pkg/logevent"
-	"github.com/logrange/logrange/pkg/records/inmem"
 )
 
 // encoder structs intends to form a binary package will be send by Atmosphere
 type encoder struct {
-	bwriter inmem.Writer
-	buf []byte
+	bwriter records.Writer
+	buf     []byte
 }
 
 // newEncoder creates a new encoder object
