@@ -15,6 +15,7 @@
 package sync
 
 import (
+	"context"
 	"testing"
 	"time"
 
@@ -206,5 +207,51 @@ func TestRWLockRWLockClosed(t *testing.T) {
 	err = r1.RLock()
 	if err != util.ErrWrongState {
 		t.Fatal("Expecting err=ErrWrongState, but err=", err)
+	}
+}
+
+func TestRWLockLockCtx(t *testing.T) {
+	var r RWLock
+
+	ctx, cncl := context.WithCancel(context.Background())
+	r.Lock()
+	if r.state != stateLocked {
+		t.Fatal("Wrong state, expecting Locked, but ", r)
+	}
+	r.Unlock()
+	if r.state != stateInit {
+		t.Fatal("Wrong state, expecting Init, but ", r)
+	}
+
+	r.Lock()
+	go func() {
+		time.Sleep(time.Millisecond)
+		r.Unlock()
+	}()
+	err := r.LockWithCtx(ctx)
+	if err != nil || r.state != stateLocked {
+		t.Fatal("Wrong state, expecting Locked, but ", r)
+	}
+
+	go func() {
+		time.Sleep(time.Millisecond)
+		cncl()
+	}()
+	err = r.LockWithCtx(ctx)
+	if err != ctx.Err() || err == nil {
+		t.Fatal("Expecting an err, but ", err)
+	}
+
+	start := time.Now()
+	go func() {
+		time.Sleep(10 * time.Millisecond)
+		r.Close()
+	}()
+	err = r.LockWithCtx(context.Background())
+	if err != util.ErrWrongState {
+		t.Fatal("Must be wrong state")
+	}
+	if time.Now().Sub(start) < 10*time.Millisecond {
+		t.Fatal("Must be at least 10 milliseconds wait")
 	}
 }
