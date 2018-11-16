@@ -96,6 +96,12 @@ func (rw *RWLock) Close() error {
 // If the lock is already locked for writing,
 // RLock blocks until the lock is available or closed.
 func (rw *RWLock) RLock() error {
+	return rw.RLockWithCtx(nil)
+}
+
+// RLockWithCtx same as RLock, but can be interrupted by ctx provided if blocked
+// ctx could be nil, then no difference with RLock() behavior
+func (rw *RWLock) RLockWithCtx(ctx context.Context) error {
 	if atomic.AddInt32(&rw.readers, 1) > 0 {
 		return nil
 	}
@@ -118,10 +124,17 @@ func (rw *RWLock) RLock() error {
 	ch = rw.rrCh
 	rw.lock.Unlock()
 
+	if ctx == nil {
+		ctx = context.Background()
+	}
+
 	select {
 	case <-rw.clsCh:
 		atomic.AddInt32(&rw.readers, -1)
 		return util.ErrWrongState
+	case <-ctx.Done():
+		atomic.AddInt32(&rw.readers, -1)
+		return ctx.Err()
 	case <-ch:
 		// got it
 	}
@@ -164,12 +177,13 @@ func (rw *RWLock) RUnlock() {
 // If the lock is already locked for reading or writing,
 // Lock blocks until the lock is available or closed.
 func (rw *RWLock) Lock() error {
-	return rw.LockWithCtx(context.Background())
+	return rw.LockWithCtx(nil)
 }
 
 // Lock locks rw for writing using context provided.
 // If the lock is already locked for reading or writing,
 // Lock blocks until the lock is available, closed or provided context is closed.
+// ctx could be nil, then no difference with Lock() behavior
 func (rw *RWLock) LockWithCtx(ctx context.Context) error {
 	rw.lock.Lock()
 	if !rw.init() {
@@ -192,6 +206,10 @@ func (rw *RWLock) LockWithCtx(ctx context.Context) error {
 		rw.state = stateWaiting
 	}
 	rw.lock.Unlock()
+
+	if ctx == nil {
+		ctx = context.Background()
+	}
 
 	select {
 	case <-rw.clsCh:
