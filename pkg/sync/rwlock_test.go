@@ -51,6 +51,14 @@ func TestRWLockRLock(t *testing.T) {
 		t.Fatal("Expecting readers 0, but ", r)
 	}
 
+	r.RLock()
+	go func() {
+		time.Sleep(10 * time.Millisecond)
+		r.RUnlock()
+	}()
+	r.Lock()
+	r.Unlock()
+
 	r.Lock()
 	func() {
 		defer func() {
