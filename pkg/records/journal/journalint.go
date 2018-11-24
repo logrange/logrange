@@ -28,8 +28,22 @@ import (
 )
 
 type (
+	// ChnksController allows to create and access to a journal's chunks, it is used
+	// by the journal.journal implementation.
+	ChnksController interface {
+		// JournalName returns the jounal name it controls
+		JournalName() string
+
+		// NewChunk creates new chunk for the provided journal and returns
+		// the immutable chunk.Chunks sorted slice of the chunks that can be used
+		// by the iterator
+		NewChunk() (chunk.Chunks, error)
+
+		// Chunks returns a sorted list of chunks
+		Chunks(ctx context.Context) (chunk.Chunks, error)
+	}
+
 	journal struct {
-		name   string
 		cc     ChnksController
 		logger log4g.Logger
 		lock   sync.Mutex
@@ -45,32 +59,27 @@ type (
 		// closed the journal state flag
 		closed bool
 
-		// contains []records.Chunk in sorted order
-		chunks atomic.Value
-
 		// settings
 		maxChunkSize uint64
 	}
 )
 
-func New(cc ChnksController, jname string) Journal {
+func New(cc ChnksController) Journal {
 	j := new(journal)
-	j.name = jname
 	j.cc = cc
 	j.cond = sync.NewCond(&j.lock)
-	j.chunks.Store(cc.GetChunks(j))
 
 	// prepare wsem. one element is there
 	j.wsem = make(chan bool, 1)
 	j.wsem <- true
-	j.logger = log4g.GetLogger("journal").WithId("{" + j.name + "}").(log4g.Logger)
+	j.logger = log4g.GetLogger("journal").WithId("{" + j.cc.JournalName() + "}").(log4g.Logger)
 	j.logger.Info("New instance created ", j)
 	return j
 }
 
 // Name returns the name of the journal
 func (j *journal) Name() string {
-	return j.name
+	return j.cc.JournalName()
 }
 
 // Write - writes records received from the iterator to the journal.
@@ -110,7 +119,7 @@ func (j *journal) Iterator() Iterator {
 }
 
 func (j *journal) Size() int64 {
-	chunks := j.chunks.Load().(chunk.Chunks)
+	chunks := j.cc.Chunks()
 	var sz int64
 	for _, c := range chunks {
 		sz += c.Size()
@@ -118,27 +127,8 @@ func (j *journal) Size() int64 {
 	return sz
 }
 
-func (j *journal) Close() error {
-	j.lock.Lock()
-	defer j.lock.Unlock()
-
-	if j.closed {
-		j.logger.Warn("Journal is already closed, ignoring this Close() call ", j)
-		return nil
-	}
-
-	j.logger.Info("Closing the journal ", j)
-	j.closed = true
-
-	close(j.wsem)
-	j.chunks.Store(make(chunk.Chunks, 0, 0))
-
-	return nil
-}
-
 func (j *journal) String() string {
-	chnks := j.chunks.Load().(chunk.Chunks)
-	return fmt.Sprintf("{name=%s, chunks=%d, closed=%t}", j.name, len(chnks), j.closed)
+	return fmt.Sprintf("{name=%s, closed=%t}", j.cc.JournalName(), j.closed)
 }
 
 // --------------------------- ChunkListener ---------------------------------
@@ -147,7 +137,7 @@ func (j *journal) OnNewData(c chunk.Chunk) {
 }
 
 func (j *journal) getLastChunk() chunk.Chunk {
-	chunks := j.chunks.Load().(chunk.Chunks)
+	chunks := j.cc.Chunks()
 	if len(chunks) == 0 {
 		j.logger.Debug("getLastChunk: chunks are empty")
 		return nil
@@ -173,30 +163,18 @@ func (j *journal) getWriterChunk(ctx context.Context, prevC chunk.Chunk) (chunk.
 		}
 	}
 
-	// here we have read j.wsem, only one go-routine could be here at a time
+	// here we have just read j.wsem, only one go-routine could be here at a time
 	var err error
-	newChk := false
 	chk := j.getLastChunk()
 	var chunks chunk.Chunks
 	if chk == nil || chk == prevC {
-		chunks, err = j.cc.NewChunk(ctx, j)
-		newChk = err == nil
-	}
-
-	j.lock.Lock()
-	if !j.closed {
-		if newChk {
+		chunks, err = j.cc.NewChunk(ctx)
+		if err == nil && len(chunks) > 0 {
 			chk = chunks[len(chunks)-1]
-			j.logger.Debug("New chunk is created ", chk)
-			j.chunks.Store(chunks)
 		}
-
-		j.wsem <- true
-	} else if err == nil {
-		// if the chunk was created, but the journal is already closed
-		err = util.ErrWrongState
 	}
-	j.lock.Unlock()
+
+	j.wsem <- true
 	return chk, err
 }
 
@@ -232,11 +210,6 @@ func (j *journal) waitData(ctx context.Context, curId Pos) error {
 
 	for {
 		j.lock.Lock()
-		if j.closed {
-			j.lock.Unlock()
-			return util.ErrWrongState
-		}
-
 		chk := j.getLastChunk()
 		lro := Pos{chk.Id(), chk.Count()}
 		if curId.Less(lro) {
@@ -278,7 +251,7 @@ func (j *journal) waitData(ctx context.Context, curId Pos) error {
 // then the cid. If there is no such chunks, so cid points is out
 // of the chunks range, then the method returns nil
 func (j *journal) getChunkById(cid chunk.Id) chunk.Chunk {
-	chunks := j.chunks.Load().(chunk.Chunks)
+	chunks := j.cc.Chunks()
 	n := len(chunks)
 	if n == 0 {
 		return nil

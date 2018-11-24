@@ -76,3 +76,16 @@ func (s *scanner) scan(dir string) ([]scJournal, error) {
 
 	return res, nil
 }
+
+func (s *scanner) scanJornal(dir, journal string) (scJournal, error) {
+	res := scJournal{name: journal}
+	var err error
+	res.dir, err = journalPath(dir, journal)
+	if err != nil {
+		s.logger.Error("Could not generate journal path for dir=", dir, ", journal name=", journal, ", err=", err)
+		return res, err
+	}
+
+	res.chunks, err = scanForChunks(res.dir)
+	return res, err
+}

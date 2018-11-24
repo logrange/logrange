@@ -18,6 +18,7 @@ import (
 	"context"
 	"fmt"
 	"math"
+	"os"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -41,8 +42,9 @@ type (
 
 	// frParams struct contains params for creating a new fReader when requested
 	frParams struct {
-		fname   string
-		bufSize int
+		fname            string
+		bufSize          int
+		createIfNotFound bool
 	}
 
 	// file readers pool
@@ -207,6 +209,16 @@ func (fdp *FdPool) freeSem(cnt int) {
 
 func (fdp *FdPool) createAndUseFreader(gid uint64, fp frParams) (*fReader, error) {
 	fr, err := newFReader(fp.fname, fp.bufSize)
+	if os.IsNotExist(err) && fp.createIfNotFound {
+		var f *os.File
+		f, err = os.OpenFile(fp.fname, os.O_CREATE|os.O_RDWR, 0640)
+		if err != nil {
+			return nil, err
+		}
+		f.Close()
+
+		fr, err = newFReader(fp.fname, fp.bufSize)
+	}
 	if err != nil {
 		return nil, err
 	}

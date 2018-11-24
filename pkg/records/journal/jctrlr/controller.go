@@ -89,15 +89,40 @@ func (c *Controller) Scan(rmOk bool) error {
 		c.dropRemovedJournals(jrnls)
 	}
 	for _, j := range jrnls {
-		jd, ok := c.journals[j.name]
-		if !ok {
-			jd = newJDescriptor(c, j)
-			c.journals[j.name] = jd
-		}
-		jd.applyChunkIds(j.chunks)
+		c.applyScanRes(j)
 	}
 
 	return nil
+}
+
+func (c *Controller) ScanJournal(journal string) error {
+	s := &scanner{log4g.GetLogger("jctrlr.scanner")}
+	scj, err := s.scanJornal(c.cfg.BaseDir, journal)
+	if err != nil {
+		c.logger.Debug("ScanJournal for ", journal, " err=", err)
+		return err
+	}
+	c.logger.Debug("ScanJournal for ", journal, " res=", scj)
+
+	c.lock.Lock()
+	defer c.lock.Unlock()
+
+	if c.isClosed() {
+		return util.ErrWrongState
+	}
+
+	c.applyScanRes(scj)
+	return nil
+}
+
+func (c *Controller) applyScanRes(scj scJournal) {
+	jd, ok := c.journals[scj.name]
+	if !ok {
+		c.logger.Debug("New journal due to Scan: ", scj)
+		jd = newJDescriptor(c, scj)
+		c.journals[scj.name] = jd
+	}
+	jd.applyChunkIds(scj.chunks)
 }
 
 func (c *Controller) dropRemovedJournals(jrnls []scJournal) {
@@ -177,35 +202,6 @@ func (c *Controller) GetOrCreate(ctx context.Context, jname string) (journal.Jou
 }
 
 // --------------------- journal.ChunksController ----------------------------
-func (c *Controller) GetChunks(j journal.Journal) chunk.Chunks {
-	c.lock.Lock()
-	defer c.lock.Unlock()
-
-	jd, ok := c.journals[j.Name()]
-	if !ok {
-		c.logger.Error("Ascking chunks for unknown journal=", j)
-		return nil
-	}
-
-	return jd.chunks.Load().(chunk.Chunks)
-}
-
-// ------------------------- jDescCtrlr interface ----------------------------
-func (c *Controller) newChunkById(jd *jDescriptor, cid chunk.Id) (chunk.Chunk, error) {
-	cfg := c.cfg.DefChunkConfig
-	cfg.Id = chunk.NewId()
-	cfg.FileName = chunkfs.MakeChunkFileName(jd.dir, cid)
-	return chunkfs.New(lcontext.WrapChannel(c.closeCh), cfg, c.fdPool)
-}
-
-func (c *Controller) newJournal(jd *jDescriptor) journal.Journal {
-	return journal.New(c, jd.name)
-}
-
-func (c *Controller) onChunksCreated(jd *jDescriptor) {
-	c.logger.Debug("onChunksCreated(): ", jd)
-}
-
 func (c *Controller) NewChunk(ctx context.Context, j journal.Journal) (chunk.Chunks, error) {
 	lstnr, ok := j.(chunk.Listener)
 	if !ok {
@@ -232,18 +228,33 @@ func (c *Controller) NewChunk(ctx context.Context, j journal.Journal) (chunk.Chu
 	if lstnr != nil {
 		chnk.AddListener(lstnr)
 	}
+}
 
-	c.lock.Lock()
-	defer c.lock.Unlock()
+// ------------------------- jDescCtrlr interface ----------------------------
+func (c *Controller) newChunkById(jd *jDesc, cid chunk.Id) (chunk.Chunk, error) {
+	cfg := c.cfg.DefChunkConfig
+	cfg.Id = cid
+	cfg.FileName = chunkfs.MakeChunkFileName(jd.dir, cid)
+	c.logger.Debug("Creating New Chunk with cfg=", cfg.String())
+	return chunkfs.New(lcontext.WrapChannel(c.closeCh), cfg, c.fdPool)
+}
 
-	if c.isClosed() {
-		chnk.Close()
-		return nil, util.ErrWrongState
+func (c *Controller) newChunk(jd *jDesc) (chunk.Chunk, error) {
+	jdir, err := journalPath(c.cfg.BaseDir, jd.name)
+	if err != nil {
+		c.logger.Error("Could not compose or create the journal path, err=", err)
+		return nil, err
 	}
+	cfg := c.cfg.DefChunkConfig
+	cfg.Id = chunk.NewId()
+	cfg.FileName = chunkfs.MakeChunkFileName(jdir, cfg.Id)
+	// new chunk, so disabling check
+	cfg.CheckDisabled = true
+	return chunkfs.New(ctx, cfg, c.fdPool)
+}
 
-	jd := c.journals[j.Name()]
-	jd.appendNewChunk(chnk)
-	return jd.chunks.Load().(chunk.Chunks), nil
+func (c *Controller) newJournal(jd *jDesc) journal.Journal {
+	return journal.New(c, jd.name)
 }
 
 func (c *Controller) isClosed() bool {

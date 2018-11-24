@@ -126,7 +126,7 @@ func testCheckPerf(t *testing.T) {
 	p := NewFdPool(2)
 	defer p.Close()
 
-	cfg := Config{FileName: path.Join(dir, "123.dat"), MaxChunkSize: 1 * 1024 * 1024}
+	cfg := Config{FileName: path.Join(dir, "123.dat"), MaxChunkSize: 1024 * 1024 * 1024}
 	c, err := New(context.Background(), cfg, p)
 	if err != nil {
 		t.Fatal("Must be able to create file, err=", err)

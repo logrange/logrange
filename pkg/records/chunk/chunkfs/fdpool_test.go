@@ -30,7 +30,7 @@ func TestFdPoolClose(t *testing.T) {
 	defer removeTmpFileAndDir(fn)
 
 	fdp := NewFdPool(1)
-	fdp.register(0, frParams{fn, ChnkReaderBufSize})
+	fdp.register(0, frParams{fname: fn, bufSize: ChnkReaderBufSize})
 	fr, err := fdp.acquire(context.Background(), 0, 0)
 	if err != nil {
 		t.Fatal("Could not acquire context ", err)
@@ -61,7 +61,7 @@ func TestFdPoolRelease(t *testing.T) {
 	defer removeTmpFileAndDir(fn1)
 
 	fdp := NewFdPool(2)
-	fdp.register(0, frParams{fn1, ChnkReaderBufSize})
+	fdp.register(0, frParams{fname: fn1, bufSize: ChnkReaderBufSize})
 	defer fdp.Close()
 
 	fr1, err := fdp.acquire(context.Background(), 0, 0)
@@ -94,7 +94,7 @@ func TestFdPoolOverflow(t *testing.T) {
 	defer removeTmpFileAndDir(fn1)
 
 	fdp := NewFdPool(1)
-	fdp.register(0, frParams{fn1, ChnkReaderBufSize})
+	fdp.register(0, frParams{fname: fn1, bufSize: ChnkReaderBufSize})
 	defer fdp.Close()
 
 	fr1, err := fdp.acquire(context.Background(), 0, 0)
@@ -123,7 +123,7 @@ func TestFdPoolInOverflowCycling(t *testing.T) {
 	defer removeTmpFileAndDir(fn1)
 
 	fdp := NewFdPool(1)
-	fdp.register(0, frParams{fn1, ChnkReaderBufSize})
+	fdp.register(0, frParams{fname: fn1, bufSize: ChnkReaderBufSize})
 	defer fdp.Close()
 
 	fr1, err := fdp.acquire(context.Background(), 0, 0)
@@ -149,7 +149,7 @@ func TestFdPoolGetFree(t *testing.T) {
 	defer removeTmpFileAndDir(fn1)
 
 	fdp := NewFdPool(3)
-	fdp.register(0, frParams{fn1, ChnkReaderBufSize})
+	fdp.register(0, frParams{fname: fn1, bufSize: ChnkReaderBufSize})
 	defer fdp.Close()
 
 	fr1, _ := fdp.acquire(context.Background(), 0, 0)
@@ -179,7 +179,7 @@ func TestFdPoolacquireClosedCtx(t *testing.T) {
 	defer removeTmpFileAndDir(fn1)
 
 	fdp := NewFdPool(1)
-	fdp.register(0, frParams{fn1, ChnkReaderBufSize})
+	fdp.register(0, frParams{fname: fn1, bufSize: ChnkReaderBufSize})
 	defer fdp.Close()
 
 	ctx, cancel := context.WithCancel(context.Background())
@@ -202,7 +202,7 @@ func TestFdPoolWrongFile(t *testing.T) {
 	removeTmpFileAndDir(fn1)
 
 	fdp := NewFdPool(1)
-	fdp.register(0, frParams{fn1, ChnkReaderBufSize})
+	fdp.register(0, frParams{fname: fn1, bufSize: ChnkReaderBufSize})
 	defer fdp.Close()
 
 	_, err := fdp.acquire(context.Background(), 0, 201)
@@ -223,12 +223,12 @@ func TestFdPoolRegisterUnregister(t *testing.T) {
 		t.Fatal("Must be error! frp=", fdp)
 	}
 
-	err = fdp.register(0, frParams{fn1, ChnkReaderBufSize})
+	err = fdp.register(0, frParams{fname: fn1, bufSize: ChnkReaderBufSize})
 	if err != nil {
 		t.Fatal("Expecting err=nil, but err=", err)
 	}
 
-	err = fdp.register(0, frParams{fn1, ChnkReaderBufSize})
+	err = fdp.register(0, frParams{fname: fn1, bufSize: ChnkReaderBufSize})
 	if err == nil {
 		t.Fatal("Expecting err!=nil, but err=nil")
 	}
@@ -251,8 +251,8 @@ func TestFdPoolRegisterUnregister(t *testing.T) {
 	}
 
 	fn2 := fn1 + "a"
-	fdp.register(0, frParams{fn1, ChnkReaderBufSize})
-	fdp.register(1, frParams{fn2, ChnkReaderBufSize})
+	fdp.register(0, frParams{fname: fn1, bufSize: ChnkReaderBufSize})
+	fdp.register(1, frParams{fname: fn2, bufSize: ChnkReaderBufSize})
 	if len(fdp.frs) != 2 {
 		t.Fatal("Must be 2 frs, but frp=", fdp)
 	}
@@ -263,6 +263,46 @@ func TestFdPoolRegisterUnregister(t *testing.T) {
 	fdp.releaseAllByGid(1)
 	if len(fdp.frs) != 0 {
 		t.Fatal("Must be 0 frs, but frp=", fdp)
+	}
+}
+
+func TestFdPoolCreateFile(t *testing.T) {
+	dir, err := ioutil.TempDir("", "tmpFdPoolCreateFile")
+	defer os.RemoveAll(dir)
+
+	fdp := NewFdPool(2)
+	defer fdp.Close()
+
+	fn1 := path.Join(dir, "t1")
+	fn2 := path.Join(dir, "t2")
+	err = fdp.register(0, frParams{fname: fn1, bufSize: ChnkReaderBufSize})
+	if err != nil {
+		t.Fatal("Expecting err=nil, but err=", err)
+	}
+
+	err = fdp.register(1, frParams{fname: fn2, bufSize: ChnkReaderBufSize, createIfNotFound: true})
+	if err != nil {
+		t.Fatal("Expecting err=nil, but err=", err)
+	}
+
+	_, err = fdp.acquire(context.Background(), 0, 0)
+	if err == nil || os.IsExist(err) {
+		t.Fatal("the file doesn't exist, so the err must be nil, but it is")
+	}
+
+	if _, err = os.Stat(fn2); !os.IsNotExist(err) {
+		t.Fatal("the file ", fn2, " must not exist")
+	}
+	_, err = fdp.acquire(context.Background(), 1, 0)
+	if err != nil {
+		t.Fatal("Te file must be created, but err=", err)
+	}
+	if _, err = os.Stat(fn2); err != nil {
+		t.Fatal("the file ", fn2, " must exist, but err=", err)
+	}
+
+	if _, err = os.Stat(fn1); !os.IsNotExist(err) {
+		t.Fatal("the file ", fn1, " must not exist")
 	}
 }
 

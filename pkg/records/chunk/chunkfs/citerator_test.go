@@ -42,8 +42,8 @@ func TestCIteratorCommon(t *testing.T) {
 	cw.ensureFWriter() // to create the file
 	defer cw.Close()
 
-	p.register(123, frParams{fn, ChnkIdxReaderBufSize})
-	p.register(124, frParams{util.SetFileExt(fn, ChnkIndexExt), ChnkIdxReaderBufSize})
+	p.register(123, frParams{fname: fn, bufSize: ChnkIdxReaderBufSize})
+	p.register(124, frParams{fname: util.SetFileExt(fn, ChnkIndexExt), bufSize: ChnkIdxReaderBufSize})
 	buf := make([]byte, 10)
 
 	// test it now
@@ -150,8 +150,8 @@ func TestCIteratorPos(t *testing.T) {
 	cw.ensureFWriter() // to create the file
 	defer cw.Close()
 
-	p.register(123, frParams{fn, ChnkIdxReaderBufSize})
-	p.register(124, frParams{util.SetFileExt(fn, ChnkIndexExt), ChnkIdxReaderBufSize})
+	p.register(123, frParams{fname: fn, bufSize: ChnkIdxReaderBufSize})
+	p.register(124, frParams{fname: util.SetFileExt(fn, ChnkIndexExt), bufSize: ChnkIdxReaderBufSize})
 	buf := make([]byte, 10)
 
 	// test it now
@@ -223,8 +223,8 @@ func TestCIteratorBackAndForth(t *testing.T) {
 	cw.ensureFWriter() // to create the file
 	defer cw.Close()
 
-	p.register(123, frParams{fn, ChnkIdxReaderBufSize})
-	p.register(124, frParams{util.SetFileExt(fn, ChnkIndexExt), ChnkIdxReaderBufSize})
+	p.register(123, frParams{fname: fn, bufSize: ChnkIdxReaderBufSize})
+	p.register(124, frParams{fname: util.SetFileExt(fn, ChnkIndexExt), bufSize: ChnkIdxReaderBufSize})
 	buf := make([]byte, 10)
 
 	// test it now
@@ -288,8 +288,8 @@ func TestCIteratorEmpty(t *testing.T) {
 	cw.ensureFWriter() // to create the file
 	defer cw.Close()
 
-	p.register(123, frParams{fn, ChnkIdxReaderBufSize})
-	p.register(124, frParams{util.SetFileExt(fn, ChnkIndexExt), ChnkIdxReaderBufSize})
+	p.register(123, frParams{fname: fn, bufSize: ChnkIdxReaderBufSize})
+	p.register(124, frParams{fname: util.SetFileExt(fn, ChnkIndexExt), bufSize: ChnkIdxReaderBufSize})
 	buf := make([]byte, 10)
 
 	// test it now

@@ -26,24 +26,11 @@ import (
 
 type (
 	// Controller provides an access to known journals
+	//
+	// Clients should use the interface for accessing to journals and their
+	// states
 	Controller interface {
 		GetOrCreate(ctx context.Context, jname string) (Journal, error)
-	}
-
-	// ChnksController allows to create and manage a journal's chunks
-	ChnksController interface {
-		// GetChunks returns known chunks for the journal sorted by their
-		// chunk IDs. The function returns non-nil Chunks slice, which
-		// always has at least one chunk. If the journal has just been
-		// created the ChnksController will create new chunk for it.
-		//
-		// The resulted collection can be stored or used for iteration so as
-		// it is immutable
-		GetChunks(j Journal) chunk.Chunks
-
-		// NewChunk creates new chunk for the provided journal and returns
-		// the immutable chunk.Chunks sorted slice
-		NewChunk(ctx context.Context, j Journal) (chunk.Chunks, error)
 	}
 
 	// Pos defines a position within a journal. Can be ordered.
@@ -54,7 +41,6 @@ type (
 
 	// Journal interface describes a journal
 	Journal interface {
-		io.Closer
 
 		// Name returns the journal name
 		Name() string

@@ -208,11 +208,11 @@ func recoverAndNew(ctx context.Context, cfg *Config, fdPool *FdPool, newChunk bo
 	// register group Ids
 	gid := uint64(atomic.AddInt64(&gId, 2) - 2)
 	log.Debug("Registering gid=", gid, " for a new chunk")
-	err = fdPool.register(gid, frParams{cfg.FileName, ChnkReaderBufSize})
+	err = fdPool.register(gid, frParams{cfg.FileName, ChnkReaderBufSize, false})
 	if err != nil {
 		return nil, err
 	}
-	err = fdPool.register(gid+1, frParams{SetChunkIdxFileExt(cfg.FileName), ChnkIdxReaderBufSize})
+	err = fdPool.register(gid+1, frParams{SetChunkIdxFileExt(cfg.FileName), ChnkIdxReaderBufSize, !cfg.RecoverDisabled})
 	if err != nil {
 		fdPool.releaseAllByGid(gid)
 		return nil, err
@@ -234,15 +234,14 @@ func recoverAndNew(ctx context.Context, cfg *Config, fdPool *FdPool, newChunk bo
 
 	// new chunk?
 	if newChunk {
-		sz := int64(0)
-		if fi, err := os.Stat(cfg.FileName); err != nil && !os.IsNotExist(err) {
+		sz, cnt, err := getSizeAndCount(cfg.FileName)
+		if err != nil {
 			log.Error("recoverAndNew(): could not get file info for the chunk file=", cfg.FileName, ", err=", err)
 			return nil, err
-		} else if err == nil {
-			sz = fi.Size()
 		}
 
-		w := newCWriter(cfg.FileName, sz, cfg.MaxChunkSize, 0)
+		log.Debug("Found size=", sz, ", count=", cnt)
+		w := newCWriter(cfg.FileName, sz, cfg.MaxChunkSize, cnt)
 		if cfg.WriteFlushMs > 0 {
 			w.flushTO = time.Duration(cfg.WriteFlushMs) * time.Millisecond
 		}
@@ -267,6 +266,24 @@ func recoverAndNew(ctx context.Context, cfg *Config, fdPool *FdPool, newChunk bo
 	}
 
 	return c, err
+}
+
+func getSizeAndCount(fileName string) (int64, uint32, error) {
+	sz := int64(0)
+	if fi, err := os.Stat(fileName); err != nil && !os.IsNotExist(err) {
+		return 0, 0, err
+	} else if err == nil {
+		sz = fi.Size()
+	}
+
+	cnt := uint32(0)
+	if fi, err := os.Stat(SetChunkIdxFileExt(fileName)); err != nil && !os.IsNotExist(err) {
+		return 0, 0, err
+	} else if err == nil {
+		cnt = uint32(fi.Size() / ChnkIndexRecSize)
+	}
+
+	return sz, cnt, nil
 }
 
 func checkAndRecover(ctx context.Context, cfg *Config, fdPool *FdPool, gid uint64) error {
@@ -297,15 +314,12 @@ func checkAndRecover(ctx context.Context, cfg *Config, fdPool *FdPool, gid uint6
 
 	ic := IdxChecker{dr, ir, ctx, log}
 	if !cfg.CheckFullScan {
-		log.Debug("Running light check")
 		err = ic.LightCheck()
 	} else {
-		log.Debug("Running full check")
 		err = ic.FullCheck()
 	}
 
 	if err != nil && !cfg.RecoverDisabled {
-		log.Debug("Running recovery...")
 		err = ic.Recover(cfg.RecoverLostDataOk)
 	}
 
@@ -341,21 +355,21 @@ func (cfg *Config) String() string {
 	var b strings.Builder
 	b.WriteString("{Id: ")
 	b.WriteString(cfg.Id.String())
-	b.WriteString("CheckDisabled: ")
+	b.WriteString(", CheckDisabled: ")
 	b.WriteString(strconv.FormatBool(cfg.CheckDisabled))
-	b.WriteString("CheckFullScan: ")
+	b.WriteString(", CheckFullScan: ")
 	b.WriteString(strconv.FormatBool(cfg.CheckFullScan))
-	b.WriteString("RecoverDisabled: ")
+	b.WriteString(", RecoverDisabled: ")
 	b.WriteString(strconv.FormatBool(cfg.RecoverDisabled))
-	b.WriteString("RecoverLostDataOk: ")
+	b.WriteString(", RecoverLostDataOk: ")
 	b.WriteString(strconv.FormatBool(cfg.RecoverLostDataOk))
-	b.WriteString("WriteIdleSec: ")
+	b.WriteString(", WriteIdleSec: ")
 	b.WriteString(strconv.FormatInt(int64(cfg.WriteIdleSec), 10))
-	b.WriteString("WriteFlushMs: ")
+	b.WriteString(", WriteFlushMs: ")
 	b.WriteString(strconv.FormatInt(int64(cfg.WriteFlushMs), 10))
-	b.WriteString("MaxChunkSize: ")
+	b.WriteString(", MaxChunkSize: ")
 	b.WriteString(strconv.FormatInt(cfg.MaxChunkSize, 10))
-	b.WriteString("MaxRecordSize: ")
+	b.WriteString(", MaxRecordSize: ")
 	b.WriteString(strconv.FormatInt(cfg.MaxRecordSize, 10))
 	b.WriteString("}")
 	return b.String()
@@ -377,7 +391,7 @@ func (c *Chunk) Iterator() (chunk.Iterator, error) {
 	}
 
 	buf := make([]byte, c.maxRecSize)
-	ci := newCIterator(c.gid, c.fdPool, &c.w.cntCfrmd, buf) //TODO!!!
+	ci := newCIterator(c.gid, c.fdPool, &c.w.cntCfrmd, buf)
 	return ci, nil
 }
 

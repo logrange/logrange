@@ -16,6 +16,7 @@ package journal
 
 import (
 	"context"
+	"fmt"
 	"io"
 
 	"github.com/logrange/logrange/pkg/records"
@@ -87,10 +88,20 @@ func (it *iterator) Release() {
 	}
 }
 
+func (it *iterator) String() string {
+	return fmt.Sprintf("{pos=%s, ci exist=%t}", it.pos, it.ci != nil)
+}
+
 func (it *iterator) advanceChunk() error {
 	it.Release()
+	pos := it.pos
 	it.pos.CId++
-	return it.ensureChkIt(it.pos.CId)
+	it.pos.Idx = 0
+	err := it.ensureChkIt(it.pos.CId)
+	if err == io.EOF {
+		it.pos = pos
+	}
+	return err
 }
 
 // findChunkByPos looks for the chunk and updates the pos if needed

@@ -38,7 +38,7 @@ type (
 // last record of data file. Returns an error if the data inconsistency is found
 // or some file operation is failed
 func (ic *IdxChecker) LightCheck() error {
-	ic.logger.Debug("LightCheck(): Running")
+	ic.logger.Debug("LightCheck(): Running...")
 
 	ic.ir.seekToEnd()
 	pos := ic.ir.getNextReadPos()
@@ -146,6 +146,7 @@ func (ic *IdxChecker) FullCheck() error {
 // but only if fixData=true. Returns the error if the operation could not be
 // completed
 func (ic *IdxChecker) Recover(fixData bool) error {
+	ic.logger.Debug("Recovery(): fixData=", fixData, ", removing idx file and will build the new one")
 	idxfn := ic.ir.filename
 	os.Remove(idxfn)
 	iw, err := newFWriter(idxfn, ChnkWriterBufSize)
