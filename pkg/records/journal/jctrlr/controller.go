@@ -201,35 +201,6 @@ func (c *Controller) GetOrCreate(ctx context.Context, jname string) (journal.Jou
 	return jd.getOrCreateJournal(ctx)
 }
 
-// --------------------- journal.ChunksController ----------------------------
-func (c *Controller) NewChunk(ctx context.Context, j journal.Journal) (chunk.Chunks, error) {
-	lstnr, ok := j.(chunk.Listener)
-	if !ok {
-		c.logger.Warn("The journal implementation doesn't support chunk.Listener: ", j, " no chunk notifications will be there")
-		lstnr = nil
-	}
-
-	jdir, err := journalPath(c.cfg.BaseDir, j.Name())
-	if err != nil {
-		c.logger.Error("Could not compose or create the journal path, err=", err)
-		return nil, err
-	}
-	cfg := c.cfg.DefChunkConfig
-	cfg.Id = chunk.NewId()
-	cfg.FileName = chunkfs.MakeChunkFileName(jdir, cfg.Id)
-	// new chunk, so disabling check
-	cfg.CheckDisabled = true
-
-	chnk, err := chunkfs.New(ctx, cfg, c.fdPool)
-	if err != nil {
-		return nil, err
-	}
-
-	if lstnr != nil {
-		chnk.AddListener(lstnr)
-	}
-}
-
 // ------------------------- jDescCtrlr interface ----------------------------
 func (c *Controller) newChunkById(jd *jDesc, cid chunk.Id) (chunk.Chunk, error) {
 	cfg := c.cfg.DefChunkConfig

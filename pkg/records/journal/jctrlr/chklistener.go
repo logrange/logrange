@@ -56,11 +56,11 @@ func (cl *chunkListener) OnNewData(c chunk.Chunk) {
 // record in the journal. The case, the goroutine will be unblock until one of the
 // two events happen - ctx is closed or new records added to the journal.
 func (cl *chunkListener) waitData(ctx context.Context, curId Pos) error {
-	atomic.AddInt32(&j.waiters, 1)
-	defer atomic.AddInt32(&j.waiters, -1)
+	atomic.AddInt32(&cl.waiters, 1)
+	defer atomic.AddInt32(&cl.waiters, -1)
 
 	for {
-		j.lock.Lock()
+		cl.lock.Lock()
 		chk := j.getLastChunk()
 		lro := Pos{chk.Id(), chk.Count()}
 		if curId.Less(lro) {
