@@ -21,7 +21,6 @@ import (
 
 	"github.com/logrange/logrange/pkg/records"
 	"github.com/logrange/logrange/pkg/records/chunk"
-	"github.com/logrange/logrange/pkg/records/journal/internal"
 )
 
 type (
@@ -29,7 +28,6 @@ type (
 		j   *journal
 		pos Pos
 		ci  chunk.Iterator
-		qdd internal.A
 	}
 )
 

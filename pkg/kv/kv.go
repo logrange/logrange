@@ -16,7 +16,7 @@
 kv package contains interfaces and structures for working with a key-value storage.
 The kv.Storage can be implemented as a distributed consistent storage like etcd,
 consul etc. For stand-alone or test environments some light-weight implementations
-like local file-storage or in memory implementations could be used.
+like local file-storage or in-memory implementations could be used.
 */
 
 package kv
