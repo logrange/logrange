@@ -22,8 +22,8 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/logrange/logrange/pkg/cluster"
 	"github.com/logrange/logrange/pkg/records"
-	"github.com/logrange/logrange/pkg/util"
 )
 
 type (
@@ -142,7 +142,7 @@ var (
 // lately created chunks have greater ID values than older ones.
 func NewId() Id {
 	for {
-		cid := (uint64(time.Now().UnixNano()) & 0xFFFFFFFFFFFF0000) | uint64(util.HostId16&0xFFFF)
+		cid := (uint64(time.Now().UnixNano()) & 0xFFFFFFFFFFFF0000) | uint64(cluster.HostId16&0xFFFF)
 		lcid := atomic.LoadUint64(&lastCid)
 		if lcid >= cid {
 			cid = lcid + 0x10000

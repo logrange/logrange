@@ -65,12 +65,18 @@ type (
 	// A record version identifier
 	Version int64
 
+	// Key is the type for storing keys
+	Key string
+
+	// Value type is for storing Values
+	Value []byte
+
 	// A record that can be stored in a KV
 	Record struct {
 		// Key is a key for the record
-		Key []byte
+		Key Key
 		// Value is a value for the record
-		Value []byte
+		Value Value
 
 		// A version that identifies the record. It is managed by the Storage and
 		// it is ignored in Create and update operations
@@ -94,19 +100,25 @@ type (
 		// Lessor returns Lessor implementation for the storage
 		Lessor() Lessor
 
-		// Create methods adds new record into the storage. It returns existing record with
+		// Create adds a new record into the storage. It returns existing record with
 		// ErrAlreadyExists error if it already exists in the storage.
-		// Create returns nil, if the record was successfully created
+		// Create returns version of the new record with error=nil
 		Create(ctx context.Context, record Record) (Version, error)
 
 		// Get retrieves the record by its key. It will return nil and an error,
 		// which will indicate the reason why the operation was not succesful.
 		// ErrNotFound is returned if the key is not found in the storage
-		Get(ctx context.Context, key []byte) (Record, error)
+		Get(ctx context.Context, key Key) (Record, error)
+
+		// GetRange returns the list of records for the range of keys (inclusively)
+		GetRange(ctx context.Context, startKey, endKey Key) (Records, error)
 
 		// CasByVersion compares-and-sets the record Value if the record stored
 		// version is same as in the provided record. The record version will be updated
 		// too and returned in the result.
+		//
+		// the record lease WILL NOT BE CHANGED, so the record will be associated
+		// with the lease, that it has been done before.
 		//
 		// an error will contain the reason if the operation was not successful, or
 		// the new version will be returned otherwise
@@ -114,7 +126,7 @@ type (
 
 		// Delete removes the record from the storage by its key. It returns
 		// an error if the operation was not successful.
-		Delete(ctx context.Context, key []byte) error
+		Delete(ctx context.Context, key Key) error
 
 		// WaitForVersionChange will wait for the record version change. The
 		// version param contans an expected record version. The call returns
@@ -129,8 +141,10 @@ type (
 		// - the record is deleted
 		//
 		// If the record is deleted during the call (nil, nil) is returned
-		WaitForVersionChange(ctx context.Context, key []byte, version Version) (Record, error)
+		WaitForVersionChange(ctx context.Context, key Key, version Version) (Record, error)
 	}
+
+	Records []Record
 )
 
 const NoLeaseId = 0
@@ -140,5 +154,33 @@ var (
 	ErrNotFound      = fmt.Errorf("The value is not found")
 	ErrWrongVersion  = fmt.Errorf("Wrong version is provided")
 	ErrWrongLeaseId  = fmt.Errorf("Wrong leaseId")
-	ErrClosedContext = fmt.Errorf("Closed context")
 )
+
+// Copy returns copy of the record r
+func (r Record) Copy() Record {
+	var res Record
+	res.Key = r.Key
+
+	if r.Value != nil {
+		res.Value = make([]byte, len(r.Value))
+		copy(res.Value, r.Value)
+	}
+	res.Lease = r.Lease
+	res.Version = r.Version
+	return res
+}
+
+// Len is part of sort.Interface.
+func (rcs Records) Len() int {
+	return len(rcs)
+}
+
+// Swap is part of sort.Interface.
+func (rcs Records) Swap(i, j int) {
+	rcs[i], rcs[j] = rcs[j], rcs[i]
+}
+
+// Less is part of sort.Interface.
+func (rcs Records) Less(i, j int) bool {
+	return rcs[i].Key < rcs[j].Key
+}

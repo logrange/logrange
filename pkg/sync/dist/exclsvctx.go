@@ -40,13 +40,13 @@ import (
 // 	 the context must be req-acquired again.
 //
 // Example:
-// 		ctx, cancel, err := sp.AcquireExclusiveCtx(context.TODO(), distStorage, "mylock")
+// 		cctx, cancel, err := sp.AcquireExclusiveCtx(context.TODO(), distStorage, "mylock")
 // 		if err != nil {
 // 			// handle the error
 //			return
 // 		}
 // 		...
-// 		if ctx.Err() != nil {
+// 		if cctx.Err() != nil {
 //			// a disaster happened and the context was lost,
 //			return
 //		}
