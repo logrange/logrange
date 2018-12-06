@@ -1,3 +1,17 @@
+// Copyright 2018 The logrange Authors
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 package util
 
 import (
@@ -44,4 +58,18 @@ func SetFileExt(file, ext string) string {
 	}
 	e := filepath.Ext(file)
 	return file[:len(file)-len(e)] + ext
+}
+
+// EscapeToFileName receives a name and turns it to a file-system file name.
+// it escapes (substitute) slashes '/' at least.
+func EscapeToFileName(name string) string {
+	// TODO
+	return name
+}
+
+// UnescapeFileName receives a file name and un-escape it. It supposes that the
+// file name was escaped by EscapeToFileName() before
+func UnescapeFileName(fname string) string {
+	//TODO
+	return fname
 }

@@ -11,19 +11,31 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
-package util
+
+package model
 
 import (
-	"testing"
+	"strings"
 
-	"github.com/stretchr/testify/assert"
+	"github.com/logrange/logrange/pkg/kv"
 )
 
-func TestBytesCopy(t *testing.T) {
-	e := []byte{0, 1, 2, 3}
-	a := BytesCopy(e)
+const (
+	keyHostRegistryPfx     = "HR/"
+	keyHostRegistryLastPfx = "HR0"
 
-	assert.NotNil(t, a)
-	assert.False(t, &a == &e)
-	assert.Equal(t, cap(a), cap(e))
+	keyJournalPfx     = "J/"
+	keyJournalLastPfx = "J0"
+)
+
+func makeKey(prefix, suffix string) kv.Key {
+	return kv.Key(prefix + suffix)
+}
+
+func getKeySuffix(key kv.Key, prefix string) string {
+	if !strings.HasPrefix(string(key), prefix) {
+		return ""
+	}
+
+	return string(key)[len(prefix):]
 }

@@ -4,12 +4,13 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/logrange/logrange/pkg/collector"
-	"github.com/logrange/logrange/pkg/collector/ingestor"
-	"github.com/logrange/logrange/pkg/collector/scanner"
 	"os"
 	"os/signal"
 	"syscall"
+
+	"github.com/logrange/logrange/pkg/collector"
+	"github.com/logrange/logrange/pkg/collector/ingestor"
+	"github.com/logrange/logrange/pkg/collector/scanner"
 
 	"github.com/ghodss/yaml"
 	"github.com/jrivets/log4g"

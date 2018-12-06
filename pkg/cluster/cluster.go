@@ -16,11 +16,11 @@ package cluster
 
 import (
 	"fmt"
+	"strconv"
 )
 
 func init() {
 	LocalHostRpcAddr = GetHostAddr("127.0.0.1", DefaultRpcPort)
-	HostId16 = DefaultHostId
 }
 
 type (
@@ -33,17 +33,29 @@ type (
 
 const (
 	DefaultRpcPort = 9999
-	DefaultHostId  = 0
 )
 
 // HostId must be unique identifier in multi-host environment. The id could be
 // used for generating some cross-cluster unique identifiers like chunk id etc.
-// The value cannot be DefaultHostId in distributed environment
+// The value is assigned by data.Init() if it is not explicitly defined for the
+// process when it is started
 var HostId16 HostId
 
 // ThisHostRPCAddress contains address of the logrange instance
 var LocalHostRpcAddr HostAddr
 
+// GetHostAddr gets an address (IP or domain) and adds the port number to it
 func GetHostAddr(addr string, port int) HostAddr {
 	return HostAddr(fmt.Sprintf("%s:%d", addr, port))
+}
+
+// String returns string by its HostId value
+func (h HostId) String() string {
+	return strconv.FormatInt(int64(h), 10)
+}
+
+// ParseHostId translates a string to HostId
+func ParseHostId(hid string) (HostId, error) {
+	res, err := strconv.ParseInt(hid, 10, 32)
+	return HostId(res), err
 }

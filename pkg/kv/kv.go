@@ -111,6 +111,7 @@ type (
 		Get(ctx context.Context, key Key) (Record, error)
 
 		// GetRange returns the list of records for the range of keys (inclusively)
+		// if there is no keys found, it returns empty slice with no error.
 		GetRange(ctx context.Context, startKey, endKey Key) (Records, error)
 
 		// CasByVersion compares-and-sets the record Value if the record stored
@@ -122,6 +123,8 @@ type (
 		//
 		// an error will contain the reason if the operation was not successful, or
 		// the new version will be returned otherwise
+		//   ErrWrongVersion - indicates that the version is changed
+		//   ErrNotFound - indicates that the record does not exist
 		CasByVersion(ctx context.Context, record Record) (Version, error)
 
 		// Delete removes the record from the storage by its key. It returns
