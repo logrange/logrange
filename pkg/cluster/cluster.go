@@ -56,6 +56,6 @@ func (h HostId) String() string {
 
 // ParseHostId translates a string to HostId
 func ParseHostId(hid string) (HostId, error) {
-	res, err := strconv.ParseInt(hid, 10, 32)
+	res, err := strconv.ParseUint(hid, 10, 16)
 	return HostId(res), err
 }
