@@ -26,6 +26,8 @@ import (
 // Start starts the logrange server using the configuration provided. It will
 // stop it as soon as ctx is closed
 func Start(ctx context.Context, cfg *Config) error {
+	log := log4g.GetLogger("server")
+	log.Info("Start with config:", cfg)
 
 	injector := linker.New()
 	injector.SetLogger(log4g.GetLogger("injector"))

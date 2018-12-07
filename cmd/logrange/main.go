@@ -22,6 +22,7 @@ import (
 	"syscall"
 
 	"github.com/jrivets/log4g"
+	"github.com/logrange/logrange/pkg/cluster"
 	"github.com/logrange/logrange/server"
 	"github.com/pkg/errors"
 	"gopkg.in/urfave/cli.v2"
@@ -90,6 +91,7 @@ func main() {
 		},
 	}
 
+	sort.Sort(cli.FlagsByName(app.Flags))
 	sort.Sort(cli.FlagsByName(app.Commands[0].Flags))
 	sort.Sort(cli.CommandsByName(app.Commands))
 
@@ -134,6 +136,25 @@ func runServer(c *cli.Context) error {
 	}()
 
 	// fill up config
-
+	applyParamsToCfg(c)
 	return server.Start(ctx, cfg)
+}
+
+func applyParamsToCfg(c *cli.Context) {
+	dc := server.GetDefaultConfig()
+	if hid := c.Int("host-id"); int(dc.HostHostId) != hid {
+		cfg.HostHostId = cluster.HostId(hid)
+	}
+	if hra := c.String("host-rpc-address"); dc.HostRpcAddress != cluster.HostAddr(hra) {
+		cfg.HostRpcAddress = cluster.HostAddr(hra)
+	}
+	if lttl := c.Int("host-lease-ttl"); int(dc.HostLeaseTTLSec) != lttl {
+		cfg.HostLeaseTTLSec = lttl
+	}
+	if hrt := c.Int("host-registration-timeout"); int(dc.HostRegisterTimeoutSec) != hrt {
+		cfg.HostRegisterTimeoutSec = hrt
+	}
+	if jd := c.String("journals-dir"); dc.JournalsDir != jd {
+		cfg.JournalsDir = jd
+	}
 }

@@ -16,6 +16,7 @@ package server
 
 import (
 	"encoding/json"
+	"fmt"
 	"io/ioutil"
 	"os"
 	"time"
@@ -50,6 +51,16 @@ type Config struct {
 }
 
 var configLog = log4g.GetLogger("Config")
+
+func (c *Config) String() string {
+	return fmt.Sprint(
+		"\n\tJournalsDir=", c.JournalsDir,
+		"\n\tHostHostId=", c.HostHostId,
+		"\n\tHostRpcAddress=", c.HostRpcAddress,
+		"\n\tHostLeaseTTLSec=", c.HostLeaseTTLSec,
+		"\n\tHostRegisterTimeoutSec=", c.HostRegisterTimeoutSec,
+	)
+}
 
 func GetDefaultConfig() *Config {
 	c := new(Config)
