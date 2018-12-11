@@ -69,7 +69,7 @@ func TestSetFileExt(t *testing.T) {
 }
 
 func TestEscapeUnescapeFileName(t *testing.T) {
-	tname := "tesst/bbb\\lll"
+	tname := "te*sst/bb;b\\ll:l\\0;:te||#03'()%@&\""
 	res := UnescapeFileName(EscapeToFileName(tname))
 	if tname != res {
 		t.Fatal("Expecting same name as tname=", tname, " but got ", res)

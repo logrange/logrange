@@ -62,14 +62,12 @@ func SetFileExt(file, ext string) string {
 
 // EscapeToFileName receives a name and turns it to a file-system file name.
 // it escapes (substitute) slashes '/' at least.
-func EscapeToFileName(name string) string {
-	// TODO
-	return name
+func EscapeToFileName(fname string) string {
+	return FileNameEscaper.Escape(fname)
 }
 
 // UnescapeFileName receives a file name and un-escape it. It supposes that the
 // file name was escaped by EscapeToFileName() before
 func UnescapeFileName(fname string) string {
-	//TODO
-	return fname
+	return FileNameEscaper.Unescape(fname)
 }

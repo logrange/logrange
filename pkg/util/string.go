@@ -11,6 +11,7 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
+
 package util
 
 import (
@@ -79,4 +80,19 @@ func RemoveDups(ss []string) []string {
 		}
 	}
 	return ss[:j]
+}
+
+// Swaps (in place) odd and even positions of the given string slice,
+// can be useful in reversing 'map' when represented as slice of {k1,v1,k2,v2}
+// 		Examples:
+//			SwapEvenOdd([]string{1}) returns []string{1}
+//			SwapEvenOdd([]string{1,2,3}) returns []string{2,1,3}
+//			SwapEvenOdd([]string{1,2,3,4}) returns []string{2,1,4,3}
+func SwapEvenOdd(ss []string) []string {
+	for i := 0; i < len(ss)-1; i++ {
+		if i%2 == 0 {
+			ss[i], ss[i+1] = ss[i+1], ss[i]
+		}
+	}
+	return ss
 }

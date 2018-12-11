@@ -14,9 +14,8 @@
 package util
 
 import (
-	"testing"
-
 	"github.com/stretchr/testify/assert"
+	"testing"
 )
 
 func TestRemoveDups(t *testing.T) {
@@ -25,4 +24,12 @@ func TestRemoveDups(t *testing.T) {
 
 	assert.NotNil(t, a)
 	assert.ElementsMatch(t, a, e)
+}
+
+func TestSwapEvenOdd(t *testing.T) {
+	assert.Equal(t, []string{}, SwapEvenOdd([]string{}))
+	assert.Equal(t, []string{"a"}, SwapEvenOdd([]string{"a"}))
+	assert.Equal(t, []string{"a", "b"}, SwapEvenOdd([]string{"b", "a"}))
+	assert.Equal(t, []string{"a", "b", "c"}, SwapEvenOdd([]string{"b", "a", "c"}))
+	assert.Equal(t, []string{"a", "b", "c", "d"}, SwapEvenOdd([]string{"b", "a", "d", "c"}))
 }
