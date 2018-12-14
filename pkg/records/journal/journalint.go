@@ -33,7 +33,8 @@ type (
 		JournalName() string
 
 		// GetChunkForWrite returns chunk for write operaion, the call could
-		// be cancelled via ctx. ctx == nil is acceptable
+		// be cancelled via ctx.
+		// ctx == nil is acceptable
 		GetChunkForWrite(ctx context.Context) (chunk.Chunk, error)
 
 		// Chunks returns a sorted list of chunks. ctx can cancel the call. ctx

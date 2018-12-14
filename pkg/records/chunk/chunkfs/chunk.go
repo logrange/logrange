@@ -179,6 +179,17 @@ func Recover(ctx context.Context, cfg Config, fdPool *FdPool) error {
 	return err
 }
 
+// EnsureFilesExist creates all needed files for a chunk, so the chunk could be
+// found or created later with no errors.
+func EnsureFilesExist(cfg Config) error {
+	f, err := os.OpenFile(cfg.FileName, os.O_CREATE|os.O_RDWR, 0640)
+	if err != nil {
+		return err
+	}
+	f.Close()
+	return nil
+}
+
 // New creates a new chunk or returns an error if it is not possible.
 // The method does the same action, what Recovery (please see) does. If the
 // chunk recovery is ok or it is not needed the Chunk object will be created.
@@ -234,6 +245,11 @@ func recoverAndNew(ctx context.Context, cfg *Config, fdPool *FdPool, newChunk bo
 
 	// new chunk?
 	if newChunk {
+		err := EnsureFilesExist(*cfg)
+		if err != nil {
+			return nil, err
+		}
+
 		sz, cnt, err := getSizeAndCount(cfg.FileName)
 		if err != nil {
 			log.Error("recoverAndNew(): could not get file info for the chunk file=", cfg.FileName, ", err=", err)

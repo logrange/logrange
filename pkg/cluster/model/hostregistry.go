@@ -27,8 +27,20 @@ import (
 )
 
 type (
-	// HostRegistry struct allows to have an access to all known cluster hosts
-	HostRegistry struct {
+	// HostRegistry interface allows to have an access to all known cluster hosts
+	HostRegistry interface {
+		// Id returns the cluster HostId which was choosen for the localhost
+		Id() cluster.HostId
+
+		// Hosts returns map of all known hosts, including the current one.
+		Hosts(ctx context.Context) (HostsMap, error)
+
+		// Lease returns the lease, acquired for the host registry
+		Lease() kv.Lease
+	}
+
+	// hostRegistry struct implements HostRegistry
+	hostRegistry struct {
 		Strg kv.Storage         `inject:""`
 		Cfg  HostRegistryConfig `inject:"HostRegistryConfig"`
 
@@ -66,14 +78,14 @@ type (
 	}
 )
 
-func NewHostRegistry() *HostRegistry {
-	hr := new(HostRegistry)
+func NewHostRegistry() *hostRegistry {
+	hr := new(hostRegistry)
 	hr.logger = log4g.GetLogger("cluster.model.HostRegistry")
 	return hr
 }
 
 // Init as an implementation of linker.Initializer
-func (hr *HostRegistry) Init(ctx context.Context) error {
+func (hr *hostRegistry) Init(ctx context.Context) error {
 	hr.logger.Info("Initializing...")
 	cfg := hr.Cfg
 	// get the lease first
@@ -140,13 +152,13 @@ func (hr *HostRegistry) Init(ctx context.Context) error {
 }
 
 // Shutdown provides an implementation of linker.Shutdowner
-func (hr *HostRegistry) Shutdown() {
+func (hr *hostRegistry) Shutdown() {
 	hr.logger.Info("Shutdown...")
 	hr.lease.Release()
 }
 
 // Id returns the cluster HostId which was choosen for the localhost
-func (hr *HostRegistry) Id() cluster.HostId {
+func (hr *hostRegistry) Id() cluster.HostId {
 	return hr.id
 }
 
@@ -155,7 +167,7 @@ func (hr *HostRegistry) Id() cluster.HostId {
 // Every registered host is represented by one record with keyHostRegistryPfx
 // prefix and its own lease. This schema allows to re-register the host records
 // when the host process is stopped
-func (hr *HostRegistry) Hosts(ctx context.Context) (HostsMap, error) {
+func (hr *hostRegistry) Hosts(ctx context.Context) (HostsMap, error) {
 	hr.logger.Trace("Hosts() invoked")
 	recs, err := hr.Strg.GetRange(ctx, kv.Key(keyHostRegistryPfx), kv.Key(keyHostRegistryLastPfx))
 	if err != nil {
@@ -185,7 +197,7 @@ func (hr *HostRegistry) Hosts(ctx context.Context) (HostsMap, error) {
 }
 
 // Lease returns the lease, acquired for the host registry
-func (hr *HostRegistry) Lease() kv.Lease {
+func (hr *hostRegistry) Lease() kv.Lease {
 	return hr.lease
 }
 

@@ -32,6 +32,19 @@ const (
 	Version = "0.1.0"
 )
 
+const (
+	// Common flag names
+	argLogCfgFile = "log-config-file"
+	argCfgFile    = "config-file"
+
+	// Start command flag names
+	argStartHostHostId     = "host-id"
+	argStartHostRPCAddr    = "host-rpc-address"
+	argStartHostLeaseTTL   = "host-lease-ttl"
+	argStartHostRegTimeout = "host-registration-timeout"
+	argStartJournalDir     = "journals-dir"
+)
+
 var log = log4g.GetLogger("logrange")
 var cfg = server.GetDefaultConfig()
 
@@ -44,12 +57,12 @@ func main() {
 		Usage:   "Log Aggregation service",
 		Flags: []cli.Flag{
 			&cli.StringFlag{
-				Name:  "log-config-file",
+				Name:  argLogCfgFile,
 				Usage: "The log4g configuration file name",
 				Value: "/opt/logrange/log4g.properties",
 			},
 			&cli.StringFlag{
-				Name:  "config-file",
+				Name:  argCfgFile,
 				Usage: "The logrange configuration file name",
 				Value: "/opt/logrange/config.json",
 			},
@@ -62,27 +75,27 @@ func main() {
 				Action: runServer,
 				Flags: []cli.Flag{
 					&cli.IntFlag{
-						Name:  "host-id",
+						Name:  argStartHostHostId,
 						Usage: "Unique host identifier, if 0 the id will be automatically assigned.",
 						Value: int(cfg.HostHostId),
 					},
 					&cli.StringFlag{
-						Name:  "host-rpc-address",
+						Name:  argStartHostRPCAddr,
 						Usage: "Advertised RPC address. Peers in the cluster will use it for connecting to the host",
 						Value: string(cfg.HostRpcAddress),
 					},
 					&cli.IntFlag{
-						Name:  "host-lease-ttl",
+						Name:  argStartHostLeaseTTL,
 						Usage: "Lease TTL in seconds. Used in cluster config",
 						Value: int(cfg.HostLeaseTTLSec),
 					},
 					&cli.IntFlag{
-						Name:  "host-registration-timeout",
+						Name:  argStartHostRegTimeout,
 						Usage: "Host registration timeout in seconds. 0 means forewer.",
 						Value: int(cfg.HostRegisterTimeoutSec),
 					},
 					&cli.StringFlag{
-						Name:  "journals-dir",
+						Name:  argStartJournalDir,
 						Usage: "Defines path to the journals database directory",
 						Value: cfg.JournalsDir,
 					},
@@ -99,7 +112,7 @@ func main() {
 }
 
 func before(c *cli.Context) error {
-	logCfgFile := c.String("log-config-file")
+	logCfgFile := c.String(argLogCfgFile)
 	if logCfgFile != "" {
 		if _, err := os.Stat(logCfgFile); os.IsNotExist(err) {
 			log.Warn("No file ", logCfgFile, " will use default log4g configuration")
@@ -114,7 +127,7 @@ func before(c *cli.Context) error {
 		}
 	}
 
-	fc := server.ReadConfigFromFile(c.String("config-file"))
+	fc := server.ReadConfigFromFile(c.String(argCfgFile))
 	if fc != nil {
 		// overwrite default settings from file
 		cfg.Apply(fc)
@@ -142,19 +155,19 @@ func runServer(c *cli.Context) error {
 
 func applyParamsToCfg(c *cli.Context) {
 	dc := server.GetDefaultConfig()
-	if hid := c.Int("host-id"); int(dc.HostHostId) != hid {
+	if hid := c.Int(argStartHostHostId); int(dc.HostHostId) != hid {
 		cfg.HostHostId = cluster.HostId(hid)
 	}
-	if hra := c.String("host-rpc-address"); dc.HostRpcAddress != cluster.HostAddr(hra) {
+	if hra := c.String(argStartHostRPCAddr); dc.HostRpcAddress != cluster.HostAddr(hra) {
 		cfg.HostRpcAddress = cluster.HostAddr(hra)
 	}
-	if lttl := c.Int("host-lease-ttl"); int(dc.HostLeaseTTLSec) != lttl {
+	if lttl := c.Int(argStartHostLeaseTTL); int(dc.HostLeaseTTLSec) != lttl {
 		cfg.HostLeaseTTLSec = lttl
 	}
-	if hrt := c.Int("host-registration-timeout"); int(dc.HostRegisterTimeoutSec) != hrt {
+	if hrt := c.Int(argStartHostRegTimeout); int(dc.HostRegisterTimeoutSec) != hrt {
 		cfg.HostRegisterTimeoutSec = hrt
 	}
-	if jd := c.String("journals-dir"); dc.JournalsDir != jd {
+	if jd := c.String(argStartJournalDir); dc.JournalsDir != jd {
 		cfg.JournalsDir = jd
 	}
 }

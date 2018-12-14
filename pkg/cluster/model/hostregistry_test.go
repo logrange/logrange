@@ -23,7 +23,7 @@ import (
 	"github.com/logrange/logrange/pkg/kv/inmem"
 )
 
-func newHR() *HostRegistry {
+func newHR() *hostRegistry {
 	ms := inmem.New()
 	hr := NewHostRegistry()
 	hr.Strg = ms

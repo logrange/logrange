@@ -28,7 +28,7 @@ import (
 	"github.com/logrange/logrange/pkg/records/chunk"
 )
 
-func testCheckNewChunkIsOk(t *testing.T) {
+func TestCheckNewChunkIsOk(t *testing.T) {
 	dir, err := ioutil.TempDir("", "chunkTest")
 	if err != nil {
 		t.Fatal("Could not create new dir err=", err)
@@ -44,8 +44,12 @@ func testCheckNewChunkIsOk(t *testing.T) {
 		t.Fatal("Must be able to create file")
 	}
 
-	if c.Id() != chunk.Id(123) {
-		t.Fatal("Expecting c.Id()==123, but it is ", c.Id())
+	if _, err := os.Stat(cfg.FileName); err != nil && !os.IsNotExist(err) {
+		t.Fatal("File must be created")
+	}
+
+	if c.Id() != chunk.Id(0x123) {
+		t.Fatal("Expecting c.Id()==0x123, but it is ", c.Id(), chunk.Id(0x123))
 	}
 
 	// test itself
@@ -54,11 +58,14 @@ func testCheckNewChunkIsOk(t *testing.T) {
 	if err != io.EOF {
 		t.Fatal("Expecting io.EOF, but got err=", err)
 	}
+	if _, err := os.Stat(cfg.FileName); err != nil && os.IsNotExist(err) {
+		t.Fatal("File must be created")
+	}
 
 	si := records.SrtingsIterator("aaa", "bbb")
 	n, offs, err := c.Write(context.Background(), si)
-	if n != 2 || offs != 11 || err != nil {
-		t.Fatal("expecting n=2, offs=11, err=nil, but n=", n, " offs=", offs, ", err=", err)
+	if n != 2 || offs != 2 || err != nil {
+		t.Fatal("expecting n=2, offs=2, err=nil, but n=", n, " offs=", offs, ", err=", err)
 	}
 
 	c.w.flush()
@@ -94,6 +101,37 @@ func testCheckNewChunkIsOk(t *testing.T) {
 	}
 	c.Close()
 	it.Close()
+}
+
+func TestEnsureFilesExist(t *testing.T) {
+	dir, err := ioutil.TempDir("", "chunkTest")
+	if err != nil {
+		t.Fatal("Could not create new dir err=", err)
+	}
+	defer os.RemoveAll(dir) // clean up
+
+	p := NewFdPool(2)
+	defer p.Close()
+
+	cfg := Config{FileName: path.Join(dir, "123.dat"), MaxChunkSize: 1024}
+	if _, err := os.Stat(cfg.FileName); err != nil && !os.IsNotExist(err) {
+		t.Fatal("File must not be here yet")
+	}
+
+	err = EnsureFilesExist(cfg)
+	if err != nil {
+		t.Fatal("Must be able to create empty file")
+	}
+	if _, err := os.Stat(cfg.FileName); os.IsNotExist(err) {
+		t.Fatal("File must be there now")
+	}
+
+	c, err := New(context.Background(), cfg, p)
+	if err != nil {
+		t.Fatal("Must be able to create the chunk")
+	}
+	c.Close()
+
 }
 
 func TestMakeChunkFileName(t *testing.T) {

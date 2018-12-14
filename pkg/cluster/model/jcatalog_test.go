@@ -60,7 +60,32 @@ func TestGetJournalInfo(t *testing.T) {
 	if ji.Journal != "test" || len(ji.Chunks) != 0 || len(ji.LocalChunks) != 1 || ji.LocalChunks[0] != 12 {
 		t.Fatal("must be no records")
 	}
+}
 
+func TestReportEmptyJournalInfo(t *testing.T) {
+	jc := constructJournalCatalog(t, inmem.New())
+
+	err := jc.ReportLocalChunks(context.Background(), "test", nil)
+	if err != nil {
+		t.Fatal("unexpected err=", err)
+	}
+	err = jc.ReportLocalChunks(context.Background(), "test", []chunk.Id{})
+	if err != nil {
+		t.Fatal("unexpected err=", err)
+	}
+
+	err = jc.ReportLocalChunks(context.Background(), "test", []chunk.Id{chunk.Id(1), chunk.Id(2)})
+	if err != nil {
+		t.Fatal("unexpected err=", err)
+	}
+	jc.ReportLocalChunks(context.Background(), "test", nil)
+	ji, err := jc.GetJournalInfo(context.Background(), "test")
+	if err != nil {
+		t.Fatal("unexpected err=", err)
+	}
+	if ji.Journal != "test" || len(ji.Chunks) != 0 || len(ji.LocalChunks) != 0 {
+		t.Fatal("must be no records")
+	}
 }
 
 func TestGetJournalInfo2Hosts(t *testing.T) {
@@ -115,7 +140,7 @@ func TestGetJournalInfo2Hosts(t *testing.T) {
 	}
 }
 
-func constructJournalCatalog(t *testing.T, ms kv.Storage) *JournalCatalog {
+func constructJournalCatalog(t *testing.T, ms kv.Storage) *journalCatalog {
 	hr := NewHostRegistry()
 	hr.Cfg = &hrConfig{leaseTTL: time.Second}
 	hr.Strg = ms

@@ -39,9 +39,18 @@ type (
 	//
 	// So a journal is a set of records. When the host is down, it's records
 	// will be disappeared due to the record's lease expiration
-	JournalCatalog struct {
-		Strg   kv.Storage    `inject:""`
-		HstReg *HostRegistry `inject:""`
+	JournalCatalog interface {
+		// GetJournalInfo returns information known for a journal by its name
+		GetJournalInfo(ctx context.Context, jname string) (JournalInfo, error)
+
+		// ReportLocalChunks reports information about local chunks.
+		ReportLocalChunks(ctx context.Context, jname string, chunks []chunk.Id) error
+	}
+
+	// journalCatalog implements JournalCatalog interface
+	journalCatalog struct {
+		Strg   kv.Storage   `inject:""`
+		HstReg HostRegistry `inject:""`
 
 		logger log4g.Logger
 	}
@@ -61,14 +70,14 @@ type (
 	}
 )
 
-func NewJournalCatalog() *JournalCatalog {
-	jc := new(JournalCatalog)
+func NewJournalCatalog() *journalCatalog {
+	jc := new(journalCatalog)
 	jc.logger = log4g.GetLogger("cluster.model.JournalCatalog")
 	return jc
 }
 
 // GetJournalInfo returns information known for a journal by its name
-func (jc *JournalCatalog) GetJournalInfo(ctx context.Context, jname string) (JournalInfo, error) {
+func (jc *journalCatalog) GetJournalInfo(ctx context.Context, jname string) (JournalInfo, error) {
 	jc.logger.Trace("GetJournalInfo(), jname=", jname)
 
 	startKey := kv.Key(jc.getJournalKey(jname, false))
@@ -117,9 +126,20 @@ func (jc *JournalCatalog) GetJournalInfo(ctx context.Context, jname string) (Jou
 }
 
 // ReportLocalChunks reports information for the journal.
-func (jc *JournalCatalog) ReportLocalChunks(ctx context.Context, jname string, chunks []chunk.Id) error {
+func (jc *journalCatalog) ReportLocalChunks(ctx context.Context, jname string, chunks []chunk.Id) error {
 	key := kv.Key(jc.getJournalKey(jname, false) + jc.HstReg.Id().String())
 	jc.logger.Debug("ReportLocalChunks(), jname=", jname, " chunks=", chunks, ", using key=", key)
+
+	if len(chunks) == 0 {
+		jc.logger.Info("ReportLocalChunks(): the chunks list is empty for jname=", jname, ", removing key=", key, " from the storage")
+
+		err := jc.Strg.Delete(ctx, key)
+		if err == nil || err == kv.ErrNotFound {
+			return nil
+		}
+
+		return errors.Wrapf(err, "Could not delete key=%s for journal %s", key, jname)
+	}
 
 	newVal, err := json.Marshal(chunks)
 	if err != nil {
@@ -166,7 +186,7 @@ func (jc *JournalCatalog) ReportLocalChunks(ctx context.Context, jname string, c
 	}
 }
 
-func (jc *JournalCatalog) getJournalKey(jname string, last bool) string {
+func (jc *journalCatalog) getJournalKey(jname string, last bool) string {
 	jk := keyJournalPfx + util.EscapeToFileName(jname)
 	if last {
 		return jk + "0"
