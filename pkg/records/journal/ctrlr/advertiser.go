@@ -15,7 +15,6 @@
 package ctrlr
 
 import (
-	"context"
 	"sync"
 
 	"github.com/jrivets/log4g"
@@ -51,6 +50,7 @@ func (a *advertiser) advertise(jname string, ckIds []chunk.Id) {
 	a.lock.Lock()
 	if a.closed {
 		a.lock.Unlock()
+		a.logger.Warn("Advertising ", jname, ", after closing the component")
 		return
 	}
 	notify := len(a.amap) == 0
@@ -62,6 +62,7 @@ func (a *advertiser) advertise(jname string, ckIds []chunk.Id) {
 }
 
 func (a *advertiser) reportChunks() {
+	a.logger.Info("reportChunks(): starting")
 	ctx := lctx.WrapChannel(a.clsdCh)
 	for {
 		for {
@@ -73,6 +74,7 @@ func (a *advertiser) reportChunks() {
 			a.lock.Unlock()
 
 			if len(u) == 0 {
+				a.logger.Debug("reportChunks(): nothing to report, waiting new notifications")
 				break
 			}
 
@@ -98,17 +100,20 @@ func (a *advertiser) reportChunks() {
 		select {
 		case <-a.notifyCh:
 		case <-a.clsdCh:
+			a.logger.Info("reportChunks(): Closed now.")
 			return
 		}
 	}
 }
 
-func (a *advertiser) close(ctx context.Context) {
+func (a *advertiser) close() {
 	a.lock.Lock()
 	if a.closed {
 		a.lock.Unlock()
+		a.logger.Warn("close(): already closed.")
 		return
 	}
+	a.logger.Info("close() invoked")
 	a.closed = true
 	a.lock.Unlock()
 	close(a.clsdCh)

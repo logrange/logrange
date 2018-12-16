@@ -19,6 +19,7 @@ import (
 	"fmt"
 	"sort"
 	"sync"
+	"sync/atomic"
 
 	"github.com/jrivets/log4g"
 	lctx "github.com/logrange/logrange/pkg/context"
@@ -33,7 +34,7 @@ type (
 		dir    string
 		fdPool *chunkfs.FdPool
 		lock   sync.Mutex
-		state  int
+		state  int32
 		logger log4g.Logger
 
 		// config for new chunks
@@ -49,6 +50,8 @@ type (
 
 		// dirSem semaphore controls access to the dir changes and scans
 		dirSem chan bool
+
+		ckListener chunk.Listener
 	}
 
 	fsChnkInfo struct {
@@ -100,8 +103,8 @@ var ccChunkStateNames = map[int]string{
 	fsChunkStatePhantom:  "PHANTOM",
 }
 
-func ccStateName(state int) string {
-	if name, ok := ccStateNames[state]; ok {
+func ccStateName(state int32) string {
+	if name, ok := ccStateNames[int(state)]; ok {
 		return name
 	}
 	return fmt.Sprintf("Unknown cc state=%d", state)
@@ -126,6 +129,12 @@ func newFSChnksController(name, dir string, fdPool *chunkfs.FdPool, chunkCfg chu
 	return fc
 }
 
+func (fc *fsChnksController) ensureInit() {
+	if atomic.LoadInt32(&fc.state) == fsCCStateNew {
+		fc.scan()
+	}
+}
+
 // scan checks the dir to detect chunk files there and build a list of chunk Ids.
 // It returns the list of chunk Ids that could be advertised (see getAdvChunks)
 func (fc *fsChnksController) scan() ([]chunk.Id, error) {
@@ -142,7 +151,7 @@ func (fc *fsChnksController) scan() ([]chunk.Id, error) {
 
 	fc.lock.Lock()
 	if fc.state == fsCCStateNew {
-		fc.state = fsCCStateScanned
+		atomic.StoreInt32(&fc.state, fsCCStateScanned)
 		fc.knwnChunks = make(map[chunk.Id]*fsChnkInfo)
 		for _, cid := range cks {
 			fc.knwnChunks[cid] = &fsChnkInfo{state: fsChunkStateScanned}
@@ -248,7 +257,7 @@ func (fc *fsChnksController) close() error {
 		}
 	}()
 
-	fc.state = fsCCStateClosed
+	atomic.StoreInt32(&fc.state, fsCCStateClosed)
 	return nil
 }
 
@@ -307,6 +316,7 @@ func (fc *fsChnksController) createChunkForWrite(ctx context.Context) (chunk.Chu
 		fc.switchStarting()
 	}
 	fc.lock.Unlock()
+	// we return nil for chunk intentionally here, to indicate that a new one was created
 	return nil, nil
 }
 
@@ -371,7 +381,7 @@ func (fc *fsChnksController) releaseSem() {
 
 func (fc *fsChnksController) switchStarting() {
 	fc.logger.Debug("Switch starting")
-	fc.state = fsCCStateStarting
+	atomic.StoreInt32(&fc.state, fsCCStateStarting)
 	fc.startingCh = make(chan struct{})
 	go fc.syncChunks()
 }
@@ -430,7 +440,7 @@ func (fc *fsChnksController) syncChunks() {
 				}
 			}
 			sort.Slice(fc.chunks, func(i, j int) bool { return fc.chunks[i].Id() < fc.chunks[j].Id() })
-			fc.state = fsCCStateStarted
+			atomic.StoreInt32(&fc.state, fsCCStateStarted)
 			close(fc.startingCh)
 			fc.lock.Unlock()
 			return
@@ -458,6 +468,7 @@ func (fc *fsChnksController) syncChunks() {
 				ci.state = fsChunkStateOk
 				ci.chunk = new(chunkWrapper)
 				ci.chunk.chunk = c
+				ci.chunk.AddListener(fc.ckListener)
 			}
 			toCreate[cid] = ci
 		}

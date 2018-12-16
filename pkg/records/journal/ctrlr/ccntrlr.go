@@ -17,39 +17,38 @@ package ctrlr
 import (
 	"context"
 
-	"github.com/jrivets/log4g"
-	"github.com/logrange/logrange/pkg/cluster/model"
 	"github.com/logrange/logrange/pkg/records/chunk"
+	"github.com/logrange/logrange/pkg/records/journal"
 )
 
 type (
+	// chnksController provides journal.ChnkController implementation. It supports
+	// local chunks only so far
 	chnksController struct {
-		name        string
-		jrnlCatalog model.JournalCatalog
-		adv         *advertiser
-		localCC     *fsChnksController
-		logger      log4g.Logger
-		clsdCh      chan struct{}
+		name    string
+		adv     *advertiser
+		localCC *fsChnksController
+		clstnr  *chunkListener
 	}
 )
 
-func newChunksController(name string, jrnlCatalog model.JournalCatalog, localCC *fsChnksController, adv *advertiser) *chnksController {
+func newChunksController(name string, localCC *fsChnksController, adv *advertiser) *chnksController {
 	cc := new(chnksController)
 	cc.name = name
-	cc.jrnlCatalog = jrnlCatalog
 	cc.localCC = localCC
 	cc.adv = adv
-	cc.logger = log4g.GetLogger("chunksController").WithId("{" + name + "}").(log4g.Logger)
-	cc.clsdCh = make(chan struct{})
-
+	cc.clstnr = newChunkListener(cc)
+	cc.localCC.ckListener = cc.clstnr
 	return cc
 }
 
+func (cc *chnksController) ensureInit() {
+	cc.localCC.ensureInit()
+}
+
 func (cc *chnksController) shutdown(ctx context.Context) {
-	close(cc.clsdCh)
-	go func() {
-		cc.adv.advertise(cc.name, nil)
-	}()
+	cc.localCC.close()
+	cc.clstnr.close()
 }
 
 // JournalName is part of journal.ChnksController interface
@@ -69,4 +68,13 @@ func (cc *chnksController) GetChunkForWrite(ctx context.Context) (chunk.Chunk, e
 // Chunks is part of journal.ChnksController interface
 func (cc *chnksController) Chunks(ctx context.Context) (chunk.Chunks, error) {
 	return cc.localCC.getChunks(ctx)
+}
+
+// WaitForNewData is part of journal.ChnksController interface
+func (cc *chnksController) WaitForNewData(ctx context.Context, pos journal.Pos) error {
+	return cc.clstnr.waitData(ctx, pos)
+}
+
+func (cc *chnksController) getLastChunk(ctx context.Context) (chunk.Chunk, error) {
+	return cc.localCC.getLastChunk(ctx)
 }

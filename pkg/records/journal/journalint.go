@@ -40,6 +40,11 @@ type (
 		// Chunks returns a sorted list of chunks. ctx can cancel the call. ctx
 		// could be nil.
 		Chunks(ctx context.Context) (chunk.Chunks, error)
+
+		// WaitForNewData waits till new data appears in the journal, or the
+		// ctx is closed. Will return an error if any. or indicates the new
+		// data is added to the journal
+		WaitForNewData(ctx context.Context, pos Pos) error
 	}
 
 	journal struct {
