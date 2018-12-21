@@ -5,6 +5,8 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/logrange/logrange/pkg/collector/scanner/parser/date"
+	"github.com/logrange/logrange/pkg/collector/scanner/parser/logs"
 	"os"
 	"regexp"
 	"regexp/syntax"
@@ -14,8 +16,8 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/logrange/logrange/pkg/records"
 	"github.com/logrange/logrange/pkg/collector/model"
+	"github.com/logrange/logrange/pkg/records"
 	"github.com/logrange/logrange/pkg/util"
 
 	"github.com/jrivets/log4g"
@@ -64,7 +66,7 @@ type (
 		DataFormat string `json:"format"`
 
 		// TimeFormats contains a list of supposed date-time formats that should
-		// be tried for parsing the file lines (see dtparser) example is
+		// be tried for parsing the file lines (see parser.date) example is
 		// ["MMM D, YYYY h:mm:ss P"]
 		TimeFormats []string `json:"timeFormats"`
 	}
@@ -301,11 +303,12 @@ func (s *Scanner) getWorkerConfig(d *desc) (*workerConfig, error) {
 	var err error
 	switch df {
 	case cJsonDataFormat:
-		wc.parser, err = newJsonParser(d.File, s.cfg.RecordMaxSizeBytes, wc.ctx)
+		wc.parser, err = logs.NewK8sJsonParser(d.File, s.cfg.RecordMaxSizeBytes, wc.ctx)
 	case "":
 		fallthrough
 	case cTxtDataFormat:
-		wc.parser, err = newLinesParser(d.File, getTimeFormats(d, s.cfg.FileFormats), s.cfg.RecordMaxSizeBytes, wc.ctx)
+		dateParser := date.NewParser(getTimeFormats(d, s.cfg.FileFormats)...)
+		wc.parser, err = logs.NewLineParser(d.File, dateParser, s.cfg.RecordMaxSizeBytes, wc.ctx)
 	default:
 		return nil, fmt.Errorf("Unsupported data format=%s expecting %s or %s", df, cTxtDataFormat, cJsonDataFormat)
 	}

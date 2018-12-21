@@ -134,8 +134,8 @@ func (i *Ingestor) connect() error {
 		acl, err = atmosphere.NewClient(i.cfg.Server,
 			&atmosphere.ClientConfig{
 				HeartBeatMs: i.cfg.HeartBeatMs,
-				AccessKey: i.cfg.AccessKey,
-				SecretKey: i.cfg.SecretKey})
+				AccessKey:   i.cfg.AccessKey,
+				SecretKey:   i.cfg.SecretKey})
 		if err == nil {
 			break
 		}

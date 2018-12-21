@@ -120,10 +120,10 @@ func (sfu *StatusFileUpdater) saveStatFile() {
 		fmt.Fprintf(tw, "\tfile:\t%s\n", wkr.Filename)
 		fmt.Fprintf(tw, "\tdesc-id:\t%s\n", wkr.Id)
 		fmt.Fprintf(tw, "\tdata-type:\t%s\n", wkr.ParserStats.DataType)
-		size := wkr.ParserStats.Size
+		size := wkr.ParserStats.FileStats.Size
 		fmt.Fprintf(tw, "\tsize:\t%s\n", util.FormatSize(size))
 
-		pos := wkr.ParserStats.Pos
+		pos := wkr.ParserStats.FileStats.Pos
 		perc := float64(100)
 		if size > 0 {
 			perc = float64(pos) * perc / float64(size)
@@ -138,13 +138,15 @@ func (sfu *StatusFileUpdater) saveStatFile() {
 		}
 
 		fmt.Fprintf(tw, "\tprogress:\t%s %s\n", util.FormatSize(pos), util.FormatProgress(30, perc))
-		if len(wkr.ParserStats.DateFormats) > 0 {
+
+		fmtHits := wkr.ParserStats.FmtStats.Hits()
+		if len(fmtHits) > 0 {
 			fmt.Fprintf(tw, "\n\tFormats:\n")
 			tot := int64(0)
-			for _, v := range wkr.ParserStats.DateFormats {
+			for _, v := range fmtHits {
 				tot += v
 			}
-			for dtf, v := range wkr.ParserStats.DateFormats {
+			for dtf, v := range fmtHits {
 				perc := float64(v) * 100.0 / float64(tot)
 				fmt.Fprintf(tw, "\t\t\"%s\"\t%5.2f%%(%d of %d records have the format)\n", dtf, perc, v, tot)
 			}
