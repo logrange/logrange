@@ -1,4 +1,18 @@
-package scanner
+// Copyright 2018 The logrange Authors
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this f except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+package logs
 
 import (
 	"bufio"
@@ -10,28 +24,28 @@ import (
 
 type (
 	lineReader struct {
-		ctx    context.Context
-		cancel context.CancelFunc
-		r      *bufio.Reader
-		eofTO  time.Duration
+		r        *bufio.Reader
+		ctx      context.Context
+		cancel   context.CancelFunc
+		eofSleep time.Duration
 	}
 )
 
 const (
-	cSleepWhenEOFMs   = 200 * time.Millisecond
+	sleepOnEOF = 200
 )
 
 func newLineReader(ioRdr io.Reader, bufSize int, ctx context.Context) *lineReader {
 	r := new(lineReader)
 	r.r = bufio.NewReaderSize(ioRdr, bufSize)
 	r.ctx, r.cancel = context.WithCancel(ctx)
-	r.eofTO = cSleepWhenEOFMs
+	r.eofSleep = sleepOnEOF * time.Millisecond
 	return r
 }
 
-// readLine reads lines from provided reader until EOF is met. It follows the
-// io.Reader.Read contract and returns io.EOF only when it doesn't have data to be
-// read.
+// readLine reads lines from provided reader until EOF is met.
+// It follows the io.Reader.Read contract and returns io.EOF
+// only when it doesn't have data to be read.
 func (r *lineReader) readLine() ([]byte, error) {
 	var buf []byte
 	for r.ctx.Err() == nil {
@@ -46,7 +60,7 @@ func (r *lineReader) readLine() ([]byte, error) {
 			if len(buf) == 0 {
 				return nil, io.EOF
 			}
-			r.sleep(r.eofTO)
+			r.sleep(r.eofSleep)
 			continue
 		}
 

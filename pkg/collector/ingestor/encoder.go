@@ -1,9 +1,9 @@
 package ingestor
 
 import (
-	"github.com/logrange/logrange/pkg/records"
 	"github.com/logrange/logrange/pkg/collector/model"
 	"github.com/logrange/logrange/pkg/logevent"
+	"github.com/logrange/logrange/pkg/records"
 )
 
 // encoder structs intends to form a binary package will be send by Atmosphere
@@ -39,9 +39,9 @@ func (e *encoder) encode(hdr *hdrsCacheRec, ev *model.Event) ([]byte, error) {
 	var le logevent.LogEvent
 	for _, r := range ev.Records {
 		if first {
-			le.InitWithTagLine(int64(r.GetTs().UnixNano()), logevent.WeakString(r.Data), hdr.tags)
+			le.InitWithTagLine(int64(r.GetDate().UnixNano()), logevent.WeakString(r.Data), hdr.tags)
 		} else {
-			le.Init(int64(r.GetTs().UnixNano()), logevent.WeakString(r.Data))
+			le.Init(int64(r.GetDate().UnixNano()), logevent.WeakString(r.Data))
 		}
 		first = false
 

@@ -3,6 +3,7 @@ package scanner
 import (
 	"context"
 	"github.com/logrange/logrange/pkg/collector/model"
+	"github.com/logrange/logrange/pkg/collector/scanner/parser"
 	"io"
 	"sync"
 	"sync/atomic"
@@ -16,7 +17,7 @@ type (
 	// a new worker
 	workerConfig struct {
 		desc   *desc
-		parser Parser
+		parser parser.Parser
 		logger log4g.Logger
 		ctx    context.Context
 		cancel context.CancelFunc
@@ -31,7 +32,7 @@ type (
 		maxRecCount int
 		ctx         context.Context
 		ctxCancel   context.CancelFunc
-		recParser   Parser
+		recParser   parser.Parser
 		lock        sync.Mutex
 		confCh      chan struct{}
 		existChck   time.Time
@@ -41,7 +42,7 @@ type (
 	WorkerStats struct {
 		Filename    string
 		Id          string
-		ParserStats *ParserStats
+		ParserStats *parser.Stats
 	}
 
 	onEventFunc func(ev *model.Event) error
@@ -148,6 +149,6 @@ func (w *worker) Close() (err error) {
 
 func (w *worker) GetStats() *WorkerStats {
 	ps := w.recParser.GetStats()
-	ps.Pos = w.desc.getOffset()
+	ps.FileStats.Pos = w.desc.getOffset()
 	return &WorkerStats{Filename: w.desc.File, Id: w.desc.Id, ParserStats: ps}
 }

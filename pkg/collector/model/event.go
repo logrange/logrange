@@ -5,17 +5,18 @@ import (
 	"github.com/logrange/logrange/pkg/util"
 )
 
-// Event is a structure which contains a list of records, parsed from the sourced file
+// Event is a structure which contains a list of records,
+// parsed from a file. Event has a consumption confirmation mechanism,
+// consumer must call Confirm() as soon as he finished handling the even.
 type Event struct {
 
-	// File contains filename where the records come from
+	// File contains filename of the file from where the records come
 	File string `json:"file"`
-	// Records list of parsed record, that come from the file
+
+	// Records are the list of parsed records
 	Records []*Record `json:"records"`
 
-	// confCh is handling the event notification channel. The consumer,
-	// after handling the event must perform a READ operation from the channel,
-	// signalling the scanner about successful event handling transaction
+	// confCh is a signaling channel, to notify scanner that even was handled
 	confCh chan struct{}
 }
 
@@ -38,6 +39,7 @@ func (e *Event) MarshalJSON() ([]byte, error) {
 	})
 }
 
+// consumer must call Confirm() as soon as the event is handled
 func (e *Event) Confirm() bool {
 	var ok bool
 	if e.confCh != nil {

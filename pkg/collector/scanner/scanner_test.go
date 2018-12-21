@@ -38,8 +38,8 @@ func TestIntegration(t *testing.T) {
 
 	_, d, _, _ := runtime.Caller(0)
 	cfg.ScanPaths = []string{
-		filepath.Dir(d) + "/testdata/tlogs/ubuntu/var/log/*.log",
-		filepath.Dir(d) + "/testdata/tlogs/ubuntu/var/log/*/*.log",
+		filepath.Dir(d) + "/testdata/logs/ubuntu/var/log/*.log",
+		filepath.Dir(d) + "/testdata/logs/ubuntu/var/log/*/*.log",
 	}
 
 	cfg.FileFormats = append(cfg.FileFormats, &FileFormat{
@@ -107,7 +107,7 @@ func appendToFile(file string, r *model.Record) error {
 
 	/*	bb := bytes.Buffer{}
 		bb.Write([]byte{'\n', '>', 't', 's', '='})
-		bb.Write([]byte((*r.GetTs()).Format(time.RFC3339Nano)))
+		bb.Write([]byte((*r.GetDate()).Format(time.RFC3339Nano)))
 		bb.Write([]byte{'|'})
 		bb.Write(r.Data)
 		bb.Write([]byte{'<'})*/
