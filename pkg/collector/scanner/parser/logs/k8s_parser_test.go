@@ -23,7 +23,7 @@ import (
 )
 
 func TestOne(t *testing.T) {
-	fn := absPath("/testdata/logs/k8s/var/log/containers/kube-dns-5c47645d88-p7fpl_kube-system_dnsmasq-74d2de2d0542c5b507e57d5077832b2400273554c3c16d674f1302bc010d5a0e.log")
+	fn := absPath("../../testdata/logs/k8s/var/log/containers/kube-dns-5c47645d88-p7fpl_kube-system_dnsmasq-74d2de2d0542c5b507e57d5077832b2400273554c3c16d674f1302bc010d5a0e.log")
 	jp, err := NewK8sJsonParser(fn, 1<<12, context.Background())
 	assert.NoError(t, err)
 
@@ -38,7 +38,7 @@ func TestOne(t *testing.T) {
 }
 
 func TestReposition(t *testing.T) {
-	fn := absPath("/testdata/logs/k8s/var/log/containers/kube-dns-5c47645d88-p7fpl_kube-system_dnsmasq-74d2de2d0542c5b507e57d5077832b2400273554c3c16d674f1302bc010d5a0e.log")
+	fn := absPath("../../testdata/logs/k8s/var/log/containers/kube-dns-5c47645d88-p7fpl_kube-system_dnsmasq-74d2de2d0542c5b507e57d5077832b2400273554c3c16d674f1302bc010d5a0e.log")
 	jp, err := NewK8sJsonParser(fn, 1<<12, context.Background())
 	assert.NoError(t, err)
 
@@ -63,7 +63,7 @@ func TestReposition(t *testing.T) {
 }
 
 func TestReadAll(t *testing.T) {
-	fn := absPath("/testdata/logs/k8s/var/log/containers/kube-dns-5c47645d88-p7fpl_kube-system_dnsmasq-74d2de2d0542c5b507e57d5077832b2400273554c3c16d674f1302bc010d5a0e.log")
+	fn := absPath("../../testdata/logs/k8s/var/log/containers/kube-dns-5c47645d88-p7fpl_kube-system_dnsmasq-74d2de2d0542c5b507e57d5077832b2400273554c3c16d674f1302bc010d5a0e.log")
 	jp, err := NewK8sJsonParser(fn, 1<<12, context.Background())
 	assert.NoError(t, err)
 

@@ -24,13 +24,12 @@ import (
 	"math/rand"
 	"os"
 	"path/filepath"
-	"runtime"
 	"testing"
 	"time"
 )
 
 func TestParseAndReposition(t *testing.T) {
-	fn := absPath("/testdata/logs/ubuntu/var/log/mongodb/mongodb.log")
+	fn := absPath("../../testdata/logs/ubuntu/var/log/mongodb/mongodb.log")
 	lp, err := NewLineParser(fn, date.NewDefaultParser(), 1<<12, context.Background())
 	assert.NoError(t, err)
 
@@ -67,12 +66,12 @@ func TestParseAndReposition(t *testing.T) {
 
 func TestParseKnownFormats(t *testing.T) {
 	files := []string{
-		absPath("/testdata/logs/ubuntu/var/log/mongodb/mongodb.log"),
-		absPath("/testdata/logs/ubuntu/var/log/nginx/access.log"),
-		absPath("/testdata/logs/ubuntu/var/log/postgresql/postgresql-9.5-main.log"),
-		absPath("/testdata/logs/ubuntu/var/log/dpkg.log"),
-		absPath("/testdata/logs/ubuntu/var/log/alternatives.log"),
-		absPath("/testdata/logs/ubuntu/var/log/kern.log"),
+		absPath("../../testdata/logs/ubuntu/var/log/mongodb/mongodb.log"),
+		absPath("../../testdata/logs/ubuntu/var/log/nginx/access.log"),
+		absPath("../../testdata/logs/ubuntu/var/log/postgresql/postgresql-9.5-main.log"),
+		absPath("../../testdata/logs/ubuntu/var/log/dpkg.log"),
+		absPath("../../testdata/logs/ubuntu/var/log/alternatives.log"),
+		absPath("../../testdata/logs/ubuntu/var/log/kern.log"),
 	}
 
 	for _, fn := range files {
@@ -99,7 +98,7 @@ func TestParseKnownFormats(t *testing.T) {
 }
 
 func TestParseWithSkipping(t *testing.T) {
-	fn := absPath("/testdata/logs/ubuntu/var/log/apt/term.log")
+	fn := absPath("../../testdata/logs/ubuntu/var/log/apt/term.log")
 	lp, err := NewLineParser(fn, date.NewDefaultParser(), 1<<12, context.Background())
 	assert.NoError(t, err)
 
@@ -131,8 +130,11 @@ func TestParseWithSkipping(t *testing.T) {
 }
 
 func absPath(relative string) string {
-	_, d, _, _ := runtime.Caller(0)
-	return filepath.Dir(d) + relative
+	absolute, err := filepath.Abs(relative)
+	if err != nil {
+		panic(err)
+	}
+	return absolute
 }
 
 func lineCount(fn string) (int, error) {

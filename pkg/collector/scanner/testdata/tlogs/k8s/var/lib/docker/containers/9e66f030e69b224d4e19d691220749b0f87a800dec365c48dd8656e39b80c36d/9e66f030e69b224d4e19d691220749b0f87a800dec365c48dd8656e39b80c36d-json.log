@@ -1,2 +1,0 @@
-{"log":"I0206 10:22:26.153473       1 main.go:44] Determining environment from downward API\n","stream":"stderr","time":"2018-02-06T10:22:26.15374988Z"}
-{"log":"I0206 10:22:26.153647       1 main.go:50] Trying to acquire the flock at \"/var/run/lock/pod-checkpointer.lock\"\n","stream":"stderr","time":"2018-02-06T10:22:26.153985361Z"}
