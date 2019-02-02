@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"unsafe"
 
-	"github.com/logrange/logrange/pkg/records"
+	"github.com/logrange/range/pkg/records"
 )
 
 type (

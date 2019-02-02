@@ -2,7 +2,7 @@ package model
 
 import (
 	"encoding/json"
-	"github.com/logrange/logrange/pkg/util"
+	"github.com/logrange/range/pkg/util"
 )
 
 // Event is a structure which contains a list of records, parsed from the sourced file

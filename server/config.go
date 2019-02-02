@@ -17,13 +17,15 @@ package server
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/logrange/range/pkg/transport"
 	"io/ioutil"
 	"os"
+	"reflect"
 	"time"
 
 	"github.com/jrivets/log4g"
-	"github.com/logrange/logrange/pkg/cluster"
-	"github.com/logrange/logrange/pkg/cluster/model"
+	"github.com/logrange/range/pkg/cluster"
+	"github.com/logrange/range/pkg/cluster/model"
 	"github.com/pkg/errors"
 )
 
@@ -37,9 +39,6 @@ type Config struct {
 	// be assigned automatically
 	HostHostId cluster.HostId
 
-	// RpcAddress contains address for accessing peers via RPC
-	HostRpcAddress cluster.HostAddr
-
 	// HostLeaseTTLSec defines the Lease timeout in second, for registering
 	// Host in the storage
 	HostLeaseTTLSec int
@@ -48,6 +47,12 @@ type Config struct {
 	// the storage until it is successfuly registered or stop. 0 value means
 	// the timeout will be ignored
 	HostRegisterTimeoutSec int
+
+	// PublicApiRpc represents the transport configuration for public RPC API
+	PublicApiRpc transport.Config
+
+	// PrivateApiRpc represents the transport configuration for private RPC API
+	PrivateApiRpc transport.Config
 }
 
 var configLog = log4g.GetLogger("Config")
@@ -56,16 +61,18 @@ func (c *Config) String() string {
 	return fmt.Sprint(
 		"\n\tJournalsDir=", c.JournalsDir,
 		"\n\tHostHostId=", c.HostHostId,
-		"\n\tHostRpcAddress=", c.HostRpcAddress,
 		"\n\tHostLeaseTTLSec=", c.HostLeaseTTLSec,
 		"\n\tHostRegisterTimeoutSec=", c.HostRegisterTimeoutSec,
+		"\n\tPublicApiRpc=", c.PublicApiRpc,
+		"\n\tPrivateApiRpc=", c.PrivateApiRpc,
 	)
 }
 
 func GetDefaultConfig() *Config {
 	c := new(Config)
 	c.JournalsDir = "/opt/logrange/db/"
-	c.HostRpcAddress = "127.0.0.1:9966"
+	c.PublicApiRpc.ListenAddr = "127.0.0.1:9966"
+	c.PrivateApiRpc.ListenAddr = "127.0.0.1:9967"
 	c.HostLeaseTTLSec = 5
 	return c
 }
@@ -77,7 +84,7 @@ func (c *Config) HostId() cluster.HostId {
 
 // Localhost is a part of model.HostRegistryConfig
 func (c *Config) Localhost() model.HostInfo {
-	return model.HostInfo{RpcAddr: c.HostRpcAddress}
+	return model.HostInfo{RpcAddr: cluster.HostAddr(c.PrivateApiRpc.ListenAddr)}
 }
 
 // LeaseTTL is a part of model.HostRegistryConfig
@@ -101,8 +108,11 @@ func (c *Config) Apply(cfg *Config) {
 	if cfg.HostHostId > 0 {
 		c.HostHostId = cfg.HostHostId
 	}
-	if len(cfg.HostRpcAddress) > 0 {
-		c.HostRpcAddress = cfg.HostRpcAddress
+	if !reflect.DeepEqual(cfg.PublicApiRpc, transport.Config{}) {
+		c.PublicApiRpc = cfg.PublicApiRpc
+	}
+	if !reflect.DeepEqual(cfg.PrivateApiRpc, transport.Config{}) {
+		c.PrivateApiRpc = cfg.PrivateApiRpc
 	}
 	if cfg.HostLeaseTTLSec > 0 {
 		c.HostLeaseTTLSec = cfg.HostLeaseTTLSec

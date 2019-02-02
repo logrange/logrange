@@ -1,9 +1,9 @@
 package ingestor
 
 import (
-	"github.com/logrange/logrange/pkg/records"
 	"github.com/logrange/logrange/pkg/collector/model"
 	"github.com/logrange/logrange/pkg/logevent"
+	"github.com/logrange/range/pkg/records"
 )
 
 // encoder structs intends to form a binary package will be send by Atmosphere

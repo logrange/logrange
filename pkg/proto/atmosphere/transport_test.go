@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net"
 	"path/filepath"
+	"reflect"
 	"runtime"
 	"testing"
 )
@@ -14,7 +15,7 @@ func runTestEchoSrv(ln net.Listener) {
 	for {
 		conn, err := ln.Accept()
 		if err != nil {
-			fmt.Println("Oops got the err=", err)
+			fmt.Println("Oops got the err=", err, " but seems it is ok, cause test probably already passed")
 			return
 		}
 		go handleTestEchoConn(conn)
@@ -69,7 +70,7 @@ func TestTlsMutual(t *testing.T) {
 	crtsDir := filepath.Dir(d) + "/test_certs/"
 	fmt.Println(crtsDir)
 
-	scfg := &ServerConfig{ListenAddress: ":12346"}
+	scfg := &ServerConfig{ListenAddress: "127.0.0.1:12347"}
 	scfg.Tls = true
 	scfg.TransportConfig.LoadX509Files(crtsDir+"server0.crt", crtsDir+"server0.key", crtsDir+"chain.pem")
 	scfg.ClientAuthType = tls.RequireAndVerifyClientCert
@@ -78,13 +79,30 @@ func TestTlsMutual(t *testing.T) {
 		t.Fatal("Oops could not create server listener: err=", err)
 	}
 	defer ln.Close()
+	switch netln := ln.(type) {
+	case *net.TCPListener:
+		fmt.Println("alsfjkhalfjdlasdfjlasjf: *TCPListener ", scfg)
+	case nil:
+		fmt.Println("alsfjkhalfjdlasdfjlasjf:nil ")
+	default:
+
+		r := reflect.ValueOf(ln)
+		f := reflect.Indirect(r).FieldByName("Listener")
+
+		if fl, ok := f.Interface().(*net.TCPListener); ok {
+			fmt.Println("Fucking shit ", reflect.TypeOf(fl))
+		}
+		fmt.Println("YYyyyyyYYYYYY: ", reflect.TypeOf(netln).Name(), " pp ", reflect.TypeOf(netln).PkgPath(), " ss ", reflect.TypeOf(netln).String())
+	}
+
+
 
 	go runTestEchoSrv(ln)
 
 	ccfg := &ClientConfig{}
 	ccfg.Tls = true
 	ccfg.TransportConfig.LoadX509Files(crtsDir+"client0.crt", crtsDir+"client0.key", crtsDir+"chain.pem")
-	cc, err := getClientConn("127.0.0.1:12346", ccfg)
+	cc, err := getClientConn("127.0.0.1:12347", ccfg)
 	if err != nil {
 		t.Fatal("Oops could not create client listener: err=", err)
 	}

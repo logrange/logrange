@@ -11,19 +11,24 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
-package util
 
-import (
-	"testing"
+package api
 
-	"github.com/stretchr/testify/assert"
+type (
+	// LogEvent struct describes one message
+	LogEvent struct {
+		// Timestamp contains the time-stamp for the message.
+		Timestamp int64
+		// Message is the message itself
+		Message string
+		// Tag line for the message. It could be empty
+		Tags string
+	}
+
+	// Ingestor provides Wrtie method for sending log data into the storage. This intrface is exposed as
+	// a public API
+	Ingestor interface {
+		// Write sends log events into the stream
+		Write(src, tags string, evs []*LogEvent) error
+	}
 )
-
-func TestBytesCopy(t *testing.T) {
-	e := []byte{0, 1, 2, 3}
-	a := BytesCopy(e)
-
-	assert.NotNil(t, a)
-	assert.False(t, &a == &e)
-	assert.Equal(t, cap(a), cap(e))
-}

@@ -11,14 +11,21 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
-package util
+
+package rpc
 
 import (
-	"fmt"
+	rrpc "github.com/logrange/range/pkg/rpc"
+	"github.com/logrange/range/pkg/transport"
 )
 
-var (
-	ErrWrongState     = fmt.Errorf("Wrong state, probably already closed.")
-	ErrMaxSizeReached = fmt.Errorf("Could not perform the write operation. The maximum size of the storage is reached.")
-	ErrNotFound       = fmt.Errorf("The requested object was not found")
+type (
+	// Client is rpc client which provides the API interface for clients
+	Client struct {
+		rc rrpc.Client
+	}
 )
+
+func NewClient(tcfg transport.Config) {
+
+}
