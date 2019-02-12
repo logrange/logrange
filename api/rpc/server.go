@@ -48,9 +48,10 @@ func (s *Server) Init(ctx context.Context) error {
 	if err != nil {
 		return errors.Wrapf(err, "Could not create transport listener for %s", s.ConnConfig)
 	}
-	s.logger = log4g.GetLogger("rpcServer").WithId("{" + s.ConnConfig.ListenAddr + "}").(log4g.Logger)
+	s.logger = log4g.GetLogger("api.pub.RpcServer").WithId("{" + s.ConnConfig.ListenAddr + "}").(log4g.Logger)
 	s.rs = rrpc.NewServer()
 	s.ln = l
+	s.logger.Info("Initializing...")
 
 	// register endpoints
 	s.rs.Register(cRpcEpIngestorWrite, s.SrvIngestor.ingestorWrite)
@@ -60,6 +61,7 @@ func (s *Server) Init(ctx context.Context) error {
 }
 
 func (s *Server) Shutdown() {
+	s.ln.Close()
 	s.rs.Close()
 }
 

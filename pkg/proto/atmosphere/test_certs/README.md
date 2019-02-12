@@ -1,1 +1,0 @@
-The folder contains test certificates. server0.crt is signed up with SAN 127.0.0.1

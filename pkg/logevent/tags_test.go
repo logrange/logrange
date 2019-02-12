@@ -1,3 +1,16 @@
+// Copyright 2018 The logrange Authors
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
 package logevent
 
 import (
@@ -63,5 +76,13 @@ func TestMarshalUnmarshalTags(t *testing.T) {
 
 	if !reflect.DeepEqual(tags, tags2) {
 		t.Fatal("Expected ", tags, ", but got ", tags2)
+	}
+}
+
+func TestNewTagId(t *testing.T) {
+	tid1 := NewTagId()
+	tid2 := NewTagId()
+	if tid2 != tid1+0x10000 {
+		t.Fatal("Expecting tid2=", tid1+0x10000, ", but tid1=", tid1, " and the tid2=", tid2)
 	}
 }

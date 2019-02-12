@@ -68,7 +68,7 @@ func main() {
 	app := &cli.App{
 		Name:    "logrange",
 		Version: Version,
-		Usage:   "Log Aggregation service",
+		Usage:   "Log Aggregation Service",
 		Flags: []cli.Flag{
 			&cli.StringFlag{
 				Name:  argLogCfgFile,
