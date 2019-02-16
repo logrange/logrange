@@ -18,6 +18,18 @@ import (
 	"testing"
 )
 
+func TestCheckTags(t *testing.T) {
+	if _, err := CheckTags(""); err != nil {
+		t.Fatal("Expecting err=nil, but err=", err)
+	}
+	if _, err := CheckTags("a=b"); err != nil {
+		t.Fatal("Expecting err=nil, but err=", err)
+	}
+	if _, err := CheckTags("a=b|d=f"); err != nil {
+		t.Fatal("Expecting err=nil, but err=", err)
+	}
+}
+
 func TestTLNewTags(t *testing.T) {
 	tl := TagLine("")
 	tags, err := tl.NewTags(123)
@@ -76,13 +88,5 @@ func TestMarshalUnmarshalTags(t *testing.T) {
 
 	if !reflect.DeepEqual(tags, tags2) {
 		t.Fatal("Expected ", tags, ", but got ", tags2)
-	}
-}
-
-func TestNewTagId(t *testing.T) {
-	tid1 := NewTagId()
-	tid2 := NewTagId()
-	if tid2 != tid1+0x10000 {
-		t.Fatal("Expecting tid2=", tid1+0x10000, ", but tid1=", tid1, " and the tid2=", tid2)
 	}
 }

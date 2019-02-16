@@ -22,7 +22,7 @@ import (
 )
 
 type (
-	// TagLine contains a list of tags in a form |tag1=val1|tag2=val2|...| the tags
+	// TagLine contains a list of tags in a form tag1=val1|tag2=val2|... the tags
 	// are sorted alphabetically in ascending order
 	TagLine string
 
@@ -64,11 +64,24 @@ func (tl *TagLine) newTagMap() (TagMap, error) {
 	for _, v := range vals {
 		kv := strings.Split(v, cTagValueSeparator)
 		if len(kv) != 2 {
-			return m, fmt.Errorf("Wrong tag format: %s expecting in a form key=value", v)
+			return m, fmt.Errorf("Wrong tag format: \"%s\" expecting in a form key=value", v)
 		}
 		m[kv[0]] = kv[1]
 	}
 	return m, nil
+}
+
+func CheckTags(tgs string) (TagLine, error) {
+	if len(tgs) == 0 {
+		return "", nil
+	}
+	vals := strings.Split(tgs, cTagSeparator)
+	for _, v := range vals {
+		if len(strings.Split(v, cTagValueSeparator)) != 2 {
+			return "", fmt.Errorf("Wrong tag format: \"%s\" expecting in a form key=value", v)
+		}
+	}
+	return TagLine(tgs), nil
 }
 
 func NewTagMap(m map[string]string) (TagMap, error) {

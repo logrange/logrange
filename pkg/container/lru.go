@@ -11,7 +11,6 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
-
 package container
 
 import (
@@ -30,9 +29,9 @@ type (
 	// Lru should be properly synchronized in case of it is used from multiple
 	// goroutines.
 	Lru struct {
-		head    *CLElement
-		pool    *CLElement
-		kvMap   map[interface{}]*CLElement
+		head    *lruElement
+		pool    *lruElement
+		kvMap   map[interface{}]*lruElement
 		size    int64
 		maxSize int64
 		maxDur  time.Duration
@@ -50,6 +49,12 @@ type (
 
 	LruDeleteCallback func(k, v interface{})
 	LruCallback       func(k, v interface{}) bool
+
+	lruElement struct {
+		prev *lruElement
+		next *lruElement
+		v    LruValue
+	}
 )
 
 var nilTime = time.Time{}
@@ -61,7 +66,7 @@ var nilTime = time.Time{}
 // Timeout 'to' could be 0, what means don't use it at all
 func NewLru(maxSize int64, to time.Duration, cback LruDeleteCallback) *Lru {
 	l := new(Lru)
-	l.kvMap = make(map[interface{}]*CLElement)
+	l.kvMap = make(map[interface{}]*lruElement)
 	l.maxSize = maxSize
 	l.maxDur = to
 	l.cback = cback
@@ -81,15 +86,20 @@ func (l *Lru) Put(k, v interface{}, size int64) {
 	tm := l.SweepByTime()
 	l.sweepBySize(size)
 
-	e = l.pool
-	l.pool = l.pool.TearOff(e)
-	if e == nil {
-		e = NewCLElement()
+	// avoid allocation for the element. We could have the object cached, so will
+	// use it, if we have one.
+	if l.pool != nil {
+		e = l.pool
+		l.pool = nil
+	} else {
+		e = new(lruElement)
 	}
 
-	e.Val = LruValue{size, tm, k, v}
-	l.head = l.head.Append(e)
-	l.head = addHead(l.head, e)
+	e.v.key = k
+	e.v.val = v
+	e.v.ts = tm
+	e.v.size = size
+	l.head = addToHead(l.head, e)
 	l.kvMap[k] = e
 	l.size += size
 }
@@ -104,7 +114,7 @@ func (l *Lru) Get(k interface{}) *LruValue {
 	e, ok := l.kvMap[k]
 	if ok {
 		l.head = removeFromList(l.head, e)
-		l.head = addHead(l.head, e)
+		l.head = addToHead(l.head, e)
 		e.v.ts = ts
 		return &e.v
 	}
@@ -212,7 +222,7 @@ func (l *Lru) sweepBySize(addSize int64) {
 func (l *Lru) delete(e *lruElement, cb bool) {
 	l.head = removeFromList(l.head, e)
 	l.size -= e.v.size
-	l.pool = addHead(l.pool, e)
+	l.pool = e
 	delete(l.kvMap, e.v.key)
 	if cb && l.cback != nil {
 		l.cback(e.v.key, e.v.val)
@@ -222,11 +232,32 @@ func (l *Lru) delete(e *lruElement, cb bool) {
 }
 
 func removeFromList(head, e *lruElement) *lruElement {
-	res := e.tearOff()
+	if e == head && head.next == head {
+		head = nil
+	}
+	e.prev.next = e.next
+	e.next.prev = e.prev
 	if e == head {
-		return res
+		head = e.next
 	}
 	return head
+}
+
+// add n to list with head and returns new head
+func addToHead(head *lruElement, n *lruElement) *lruElement {
+	if n == nil {
+		return head
+	}
+	if head == nil {
+		n.prev = n
+		n.next = n
+		return n
+	}
+	n.next = head
+	n.prev = head.prev
+	head.prev = n
+	n.prev.next = n
+	return n
 }
 
 func (v *LruValue) Key() interface{} {
@@ -243,29 +274,4 @@ func (v *LruValue) Size() int64 {
 
 func (v *LruValue) TouchedAt() time.Time {
 	return v.ts
-}
-
-// tearOff gets the le and tear off it from the chain. It returns le.next if the list is longer than 1, or nil, otherwise
-func (le *lruElement) tearOff() *lruElement {
-	if le == nil || le.next == le || le.prev == le {
-		return nil
-	}
-	res := le.next
-	res.prev = le.prev
-	le.prev.next = res
-	le.prev = le
-	le.next = le
-	return res
-}
-
-// addHead adds e to the list headed by head
-func addHead(head, e *lruElement) *lruElement {
-	if head == nil {
-		return e
-	}
-	e.next = head
-	e.prev = head.prev
-	head.prev = e
-	e.prev.next = e
-	return e
 }

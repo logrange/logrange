@@ -14,7 +14,6 @@
 package container
 
 import (
-	"fmt"
 	"math/rand"
 	"testing"
 	"time"
@@ -27,21 +26,6 @@ func BenchmarkLruLocal(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		l.Put(rand.Intn(1000), rand.Intn(150), 1)
 		l.Get(rand.Intn(1000))
-	}
-}
-
-func BenchmarkLruLocalNoTO(b *testing.B) {
-	l := NewLru(1000, time.Duration(0), nil)
-	for i := 0; i < 1000; i++ {
-		s := fmt.Sprintf("%d", i)
-		l.Put(s, i, 1)
-	}
-	rand.Seed(time.Now().UTC().UnixNano())
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
-		idx := rand.Intn(1000)
-		s := fmt.Sprintf("%d", idx)
-		l.Get(s)
 	}
 }
 
@@ -77,12 +61,12 @@ func TestLruSize(t *testing.T) {
 		i++
 	})
 	l.Put("a", 23, 500)
-	l.Put("b", 2, 250)
-	l.Put("bb", 4, 250)
+	l.Put("b", 23, 250)
+	l.Put("bb", 23, 250)
 	l.Get("bb")
 	l.Get("a")
 	if l.Len() != 3 {
-		t.Fatal("expecting lru len == 3, but len=", l.Len())
+		t.Fatal("expecting lru len == 2, but len=", l.Len())
 	}
 	if l.Size() != 1000 {
 		t.Fatal("expecting lru size == 1000, but it is ", l.Size())
@@ -189,7 +173,7 @@ func TestLruDeleteOrder2(t *testing.T) {
 	}
 }
 
-/*func TestLruAddToList(t *testing.T) {
+func TestLruAddToList(t *testing.T) {
 	h := addToHead(nil, nil)
 	if h != nil {
 		t.Fatal("Wrong nil, nil adding result")
@@ -234,7 +218,7 @@ func TestLruRemoveFromList(t *testing.T) {
 	if h != nil {
 		t.Fatal("Incorrect list (3)")
 	}
-}*/
+}
 
 func TestLruIterate(t *testing.T) {
 	l := NewLru(3, time.Hour, nil)
@@ -279,14 +263,14 @@ func TestLruGetPeek(t *testing.T) {
 	l.Put(2, 2, 1)
 	l.Put(3, 3, 1)
 
-	if _, ok := l.Get(4); ok {
+	if l.Get(4) != nil {
 		t.Fatal("Should not be 4 in the container")
 	}
 
-	v, _ := l.Get(3)
+	v := l.Get(3)
 	ts := v.TouchedAt()
 	time.Sleep(10 * time.Microsecond)
-	if v, _ = l.Peek(3).TouchedAt() != ts {
+	if l.Peek(3).TouchedAt() != ts {
 		t.Fatal("Peek should not affect ts")
 	}
 	if l.Get(3).TouchedAt() == ts {

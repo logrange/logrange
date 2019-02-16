@@ -47,6 +47,10 @@ func (cle *CLElement) Append(chain *CLElement) *CLElement {
 	return cle
 }
 
+func (cle *CLElement) Prev() *CLElement {
+	return cle.prev
+}
+
 // Len returns number of elements in the Circular list. It has O(N) complexity.
 func (cle *CLElement) Len() int {
 	if cle == nil {

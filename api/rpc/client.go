@@ -15,6 +15,8 @@
 package rpc
 
 import (
+	"fmt"
+	"github.com/logrange/logrange/api"
 	rrpc "github.com/logrange/range/pkg/rpc"
 	"github.com/logrange/range/pkg/transport"
 )
@@ -22,10 +24,34 @@ import (
 type (
 	// Client is rpc client which provides the API interface for clients
 	Client struct {
-		rc rrpc.Client
+		rc   rrpc.Client
+		cing *clntIngestor
+	}
+
+	// OpError is returned on the operation error call. Returning the error indicates that the operation execution
+	// is failed, but the error is not related to the network connection.
+	OpError struct {
+		Err error
 	}
 )
 
-func NewClient(tcfg transport.Config) {
+// NewClient creates ne Client for connecting to the server, using the transport config tcfg
+func NewClient(tcfg transport.Config) (*Client, error) {
+	conn, err := transport.Dial(tcfg)
+	if err != nil {
+		return nil, err
+	}
+	c := new(Client)
+	c.rc = rrpc.NewClient(conn)
+	c.cing = new(clntIngestor)
+	c.cing.rc = c.rc
+	return c, nil
+}
 
+func (c *Client) Ingestor() api.Ingestor {
+	return c.cing
+}
+
+func (oe *OpError) Error() string {
+	return fmt.Sprintf("OpError: err=", oe.Err)
 }

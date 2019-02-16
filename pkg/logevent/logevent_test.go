@@ -15,14 +15,39 @@
 package logevent
 
 import (
+	"bytes"
+	"github.com/logrange/range/pkg/utils/encoding/xbinary"
 	"reflect"
 	"testing"
 )
 
+func BenchmarkLogEventMarshal(b *testing.B) {
+	le := &LogEvent{1, 2234, "asdfasdfasdf asdfasdf asdf", "asdfasdfadsfasdf"}
+	var bb [1000]byte
+	buf := bb[:]
+	b.ReportAllocs()
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		le.Marshal(buf)
+	}
+}
+
+func BenchmarkLogEventWriteTo(b *testing.B) {
+	le := &LogEvent{1, 2234, "asdfasdfasdf asdfasdf asdf", "asdfasdfadsfasdf"}
+	var buf bytes.Buffer
+	ow := &xbinary.ObjectsWriter{Writer: &buf}
+	b.ReportAllocs()
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		buf.Reset()
+		le.WriteTo(ow)
+	}
+}
+
 func TestMarshalEmpty(t *testing.T) {
 	le := LogEvent{}
-	if le.Size() != 1 {
-		t.Fatal("Must be 1, but the size is ", le.Size())
+	if le.WritableSize() != 1 {
+		t.Fatal("Must be 1, but the size is ", le.WritableSize())
 	}
 
 	var bb [10]byte
@@ -45,8 +70,8 @@ func TestMarshalUnmarshal(t *testing.T) {
 }
 
 func testMarshalUnmarshal(t *testing.T, le *LogEvent, sz int) {
-	if le.Size() != sz {
-		t.Fatal("Expected size is ", sz, ", but Size()=", le.Size())
+	if le.WritableSize() != sz {
+		t.Fatal("Expected size is ", sz, ", but Size()=", le.WritableSize())
 	}
 
 	var bb [1000]byte

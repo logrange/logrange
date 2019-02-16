@@ -15,12 +15,23 @@
 package logevent
 
 import (
+	"github.com/logrange/logrange/pkg/container"
 	"github.com/logrange/range/pkg/cluster"
+	"sync"
 	"sync/atomic"
 	"time"
 )
 
 type TagIdGenerator struct {
+	lock    sync.Mutex
+	knwnIds *container.CLElement
+	ids     map[string]*container.CLElement
+	max     int
+}
+
+type tigVal struct {
+	ti   uint64
+	tags string
 }
 
 var lastTid uint64
@@ -37,4 +48,39 @@ func newTagId() uint64 {
 			return tid
 		}
 	}
+}
+
+func NewTagIdGenerator(maxSize int) *TagIdGenerator {
+	tig := new(TagIdGenerator)
+	tig.ids = make(map[string]*container.CLElement)
+	tig.max = maxSize
+	return tig
+}
+
+func (tig *TagIdGenerator) GetOrCreateId(k string) uint64 {
+	tig.lock.Lock()
+	if e, ok := tig.ids[k]; ok {
+		tig.knwnIds = tig.knwnIds.TearOff(e)
+		tig.knwnIds = e.Append(tig.knwnIds)
+		v := e.Val.(tigVal)
+		tig.lock.Unlock()
+		return v.ti
+	}
+
+	var e *container.CLElement
+	if len(tig.ids) == tig.max {
+		e = tig.knwnIds.Prev()
+		tig.knwnIds = tig.knwnIds.TearOff(e)
+		v := e.Val.(tigVal)
+		delete(tig.ids, v.tags)
+	} else {
+		e = container.NewCLElement()
+	}
+
+	res := newTagId()
+	e.Val = tigVal{res, k}
+	tig.knwnIds = e.Append(tig.knwnIds)
+	tig.ids[k] = e
+	tig.lock.Unlock()
+	return res
 }

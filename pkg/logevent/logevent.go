@@ -14,7 +14,9 @@
 
 package logevent
 
-import "github.com/logrange/range/pkg/utils/encoding/xbinary"
+import (
+	"github.com/logrange/range/pkg/utils/encoding/xbinary"
+)
 
 type (
 	// LogEvent struct is used for storing one log-event record in a journal.
@@ -26,8 +28,8 @@ type (
 	}
 )
 
-// Size returns the number of bytes required to marshal the LogEvent
-func (le *LogEvent) Size() int {
+// WritableSize returns the number of bytes required to marshal the LogEvent
+func (le *LogEvent) WritableSize() int {
 	// the fields mask goes first, it is 1 byte
 	res := 1
 	if le.Timestamp != 0 {
@@ -37,12 +39,64 @@ func (le *LogEvent) Size() int {
 		res += 8
 	}
 	if len(le.Msg) > 0 {
-		res += xbinary.SizeString(le.Msg)
+		res += xbinary.WritableStringSize(le.Msg)
 	}
 	if len(le.Tags) > 0 {
-		res += xbinary.SizeString(le.Tags)
+		res += xbinary.WritableStringSize(le.Tags)
 	}
 	return res
+}
+
+func (le *LogEvent) WriteTo(ow *xbinary.ObjectsWriter) (int, error) {
+	var fmsk byte
+	if le.Timestamp != 0 {
+		fmsk = 1
+	}
+	if le.TgId != 0 {
+		fmsk |= 2
+	}
+	if len(le.Msg) > 0 {
+		fmsk |= 4
+	}
+	if len(le.Tags) > 0 {
+		fmsk |= 8
+	}
+
+	n, err := ow.WriteByte(fmsk)
+	if err != nil {
+		return n, err
+	}
+	nn := n
+
+	if fmsk&1 != 0 {
+		n, err = ow.WriteUint64(uint64(le.Timestamp))
+		nn += n
+		if err != nil {
+			return nn, err
+		}
+	}
+
+	if fmsk&2 != 0 {
+		n, err = ow.WriteUint64(uint64(le.TgId))
+		nn += n
+		if err != nil {
+			return nn, err
+		}
+	}
+
+	if fmsk&4 != 0 {
+		n, err = ow.WriteString(le.Msg)
+		nn += n
+		if err != nil {
+			return nn, err
+		}
+	}
+
+	if fmsk&8 != 0 {
+		n, err = ow.WriteString(le.Tags)
+		nn += n
+	}
+	return nn, err
 }
 
 // Marshal encodes the log event into the buffer provided

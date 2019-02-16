@@ -106,7 +106,7 @@ func main() {
 					&cli.StringFlag{
 						Name:  argStartJournalDir,
 						Usage: "Defines path to the journals database directory",
-						Value: cfg.JournalsDir,
+						Value: cfg.JrnlCtrlConfig.JournalsDir,
 					},
 					&cli.BoolFlag{
 						Name:  argStartPbApiRpcTlsEnabled,
@@ -236,7 +236,7 @@ func applyParamsToCfg(c *cli.Context) {
 	if hrt := c.Int(argStartHostRegTimeout); int(dc.HostRegisterTimeoutSec) != hrt {
 		cfg.HostRegisterTimeoutSec = hrt
 	}
-	if jd := c.String(argStartJournalDir); dc.JournalsDir != jd {
-		cfg.JournalsDir = jd
+	if jd := c.String(argStartJournalDir); dc.JrnlCtrlConfig.JournalsDir != jd {
+		cfg.JrnlCtrlConfig.JournalsDir = jd
 	}
 }
