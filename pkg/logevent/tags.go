@@ -1,3 +1,16 @@
+// Copyright 2018 The logrange Authors
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
 package logevent
 
 import (
@@ -9,7 +22,7 @@ import (
 )
 
 type (
-	// TagLine contains a list of tags in a form |tag1=val1|tag2=val2|...| the tags
+	// TagLine contains a list of tags in a form tag1=val1|tag2=val2|... the tags
 	// are sorted alphabetically in ascending order
 	TagLine string
 
@@ -18,31 +31,22 @@ type (
 
 	// An immutable structure which holds a reference to the TagMap
 	Tags struct {
-		gId int64
+		gId uint64
 		tl  TagLine
 		tm  TagMap
-	}
-
-	tagsJson struct {
-		GID     int64   `json:"gid"`
-		TagLine TagLine `json:"tagLine"`
 	}
 )
 
 const (
 	cTagValueSeparator = "="
 	cTagSeparator      = "|"
-
-	TAG_TIMESTAMP = "ts"
-	TAG_MESSAGE   = "msg"
-	TAG_JOURNAL   = "src"
 )
 
 var (
 	EmptyTagMap = TagMap(map[string]string{})
 )
 
-func (tl *TagLine) NewTags(id int64) (Tags, error) {
+func (tl *TagLine) NewTags(id uint64) (Tags, error) {
 	if *tl == "" {
 		return Tags{gId: id, tl: *tl, tm: EmptyTagMap}, nil
 	}
@@ -60,11 +64,24 @@ func (tl *TagLine) newTagMap() (TagMap, error) {
 	for _, v := range vals {
 		kv := strings.Split(v, cTagValueSeparator)
 		if len(kv) != 2 {
-			return m, fmt.Errorf("Wrong tag format: %s expecting in a form key=value", v)
+			return m, fmt.Errorf("Wrong tag format: \"%s\" expecting in a form key=value", v)
 		}
 		m[kv[0]] = kv[1]
 	}
 	return m, nil
+}
+
+func CheckTags(tgs string) (TagLine, error) {
+	if len(tgs) == 0 {
+		return "", nil
+	}
+	vals := strings.Split(tgs, cTagSeparator)
+	for _, v := range vals {
+		if len(strings.Split(v, cTagValueSeparator)) != 2 {
+			return "", fmt.Errorf("Wrong tag format: \"%s\" expecting in a form key=value", v)
+		}
+	}
+	return TagLine(tgs), nil
 }
 
 func NewTagMap(m map[string]string) (TagMap, error) {
@@ -79,7 +96,7 @@ func NewTagMap(m map[string]string) (TagMap, error) {
 	return tm, nil
 }
 
-func (tm *TagMap) NewTags(id int64) (Tags, error) {
+func (tm *TagMap) NewTags(id uint64) (Tags, error) {
 	return Tags{gId: id, tl: tm.BuildTagLine(), tm: *tm}, nil
 }
 
@@ -110,7 +127,7 @@ func (tm *TagMap) BuildTagLine() TagLine {
 	return TagLine(b.String())
 }
 
-func (tags *Tags) GetId() int64 {
+func (tags *Tags) GetId() uint64 {
 	return tags.gId
 }
 
@@ -120,6 +137,11 @@ func (tags *Tags) GetTagLine() TagLine {
 
 func (tags *Tags) GetValue(key string) string {
 	return tags.tm[key]
+}
+
+type tagsJson struct {
+	GID     uint64  `json:"gid"`
+	TagLine TagLine `json:"tagLine"`
 }
 
 func (tags *Tags) MarshalJSON() ([]byte, error) {

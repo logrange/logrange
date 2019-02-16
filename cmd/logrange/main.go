@@ -22,8 +22,8 @@ import (
 	"syscall"
 
 	"github.com/jrivets/log4g"
-	"github.com/logrange/logrange/pkg/cluster"
 	"github.com/logrange/logrange/server"
+	"github.com/logrange/range/pkg/cluster"
 	"github.com/pkg/errors"
 	"gopkg.in/urfave/cli.v2"
 )
@@ -37,12 +37,26 @@ const (
 	argLogCfgFile = "log-config-file"
 	argCfgFile    = "config-file"
 
-	// Start command flag names
+	// Start command
+	// common flag names
 	argStartHostHostId     = "host-id"
-	argStartHostRPCAddr    = "host-rpc-address"
 	argStartHostLeaseTTL   = "host-lease-ttl"
 	argStartHostRegTimeout = "host-registration-timeout"
 	argStartJournalDir     = "journals-dir"
+	// public RPC API
+	argStartPbApiRpcTlsEnabled  = "pb-api-rpc-tls-enabled"
+	argStartPbApiRpcTls2Way     = "pb-api-rpc-tls-2w"
+	argStartPbApiRpcTlscaFile   = "pb-api-rpc-tls-ca"
+	argStartPbApiRpcTlsKeyFile  = "pb-api-rpc-tls-key"
+	argStartPbApiRpcTlsCertFile = "pb-api-rpc-tls-cert"
+	argStartPbApiRpcListenOn    = "pb-api-rpc-listen-on"
+	// private RPC API
+	argStartPrvtApiRpcTlsEnabled  = "prvt-api-rpc-tls-enabled"
+	argStartPrvtApiRpcTls2Way     = "prvt-api-rpc-tls-2w"
+	argStartPrvtApiRpcTlscaFile   = "prvt-api-rpc-tls-ca"
+	argStartPrvtApiRpcTlsKeyFile  = "prvt-api-rpc-tls-key"
+	argStartPrvtApiRpcTlsCertFile = "prvt-api-rpc-tls-cert"
+	argStartPrvtApiRpcListenOn    = "prvt-api-rpc-listen-on"
 )
 
 var log = log4g.GetLogger("logrange")
@@ -54,7 +68,7 @@ func main() {
 	app := &cli.App{
 		Name:    "logrange",
 		Version: Version,
-		Usage:   "Log Aggregation service",
+		Usage:   "Log Aggregation Service",
 		Flags: []cli.Flag{
 			&cli.StringFlag{
 				Name:  argLogCfgFile,
@@ -79,11 +93,6 @@ func main() {
 						Usage: "Unique host identifier, if 0 the id will be automatically assigned.",
 						Value: int(cfg.HostHostId),
 					},
-					&cli.StringFlag{
-						Name:  argStartHostRPCAddr,
-						Usage: "Advertised RPC address. Peers in the cluster will use it for connecting to the host",
-						Value: string(cfg.HostRpcAddress),
-					},
 					&cli.IntFlag{
 						Name:  argStartHostLeaseTTL,
 						Usage: "Lease TTL in seconds. Used in cluster config",
@@ -97,7 +106,67 @@ func main() {
 					&cli.StringFlag{
 						Name:  argStartJournalDir,
 						Usage: "Defines path to the journals database directory",
-						Value: cfg.JournalsDir,
+						Value: cfg.JrnlCtrlConfig.JournalsDir,
+					},
+					&cli.BoolFlag{
+						Name:  argStartPbApiRpcTlsEnabled,
+						Usage: "Defines whether TLS is enabled for the public RPC API or not",
+						Value: cfg.PublicApiRpc.TlsEnabled,
+					},
+					&cli.BoolFlag{
+						Name:  argStartPbApiRpcTls2Way,
+						Usage: "Defines whether 2 way TLS is enabled for the public RPC API or not",
+						Value: cfg.PublicApiRpc.Tls2Way,
+					},
+					&cli.StringFlag{
+						Name:  argStartPbApiRpcTlscaFile,
+						Usage: "public RPC API TLS CA file",
+						Value: cfg.PublicApiRpc.TlsCAFile,
+					},
+					&cli.StringFlag{
+						Name:  argStartPbApiRpcTlsKeyFile,
+						Usage: "public RPC API TLS Key file",
+						Value: cfg.PublicApiRpc.TlsKeyFile,
+					},
+					&cli.StringFlag{
+						Name:  argStartPbApiRpcTlsCertFile,
+						Usage: "public RPC API TLS Cert file",
+						Value: cfg.PublicApiRpc.TlsCertFile,
+					},
+					&cli.StringFlag{
+						Name:  argStartPbApiRpcListenOn,
+						Usage: "public RPC API address. Public clients will use the address to reach the server.",
+						Value: cfg.PublicApiRpc.ListenAddr,
+					},
+					&cli.BoolFlag{
+						Name:  argStartPrvtApiRpcTlsEnabled,
+						Usage: "Defines whether TLS is enabled for the private RPC API or not",
+						Value: cfg.PrivateApiRpc.TlsEnabled,
+					},
+					&cli.BoolFlag{
+						Name:  argStartPrvtApiRpcTls2Way,
+						Usage: "Defines whether 2 way TLS is enabled for the private RPC API or not",
+						Value: cfg.PrivateApiRpc.Tls2Way,
+					},
+					&cli.StringFlag{
+						Name:  argStartPrvtApiRpcTlscaFile,
+						Usage: "private RPC API TLS CA file",
+						Value: cfg.PrivateApiRpc.TlsCAFile,
+					},
+					&cli.StringFlag{
+						Name:  argStartPrvtApiRpcTlsKeyFile,
+						Usage: "private RPC API TLS Key file",
+						Value: cfg.PrivateApiRpc.TlsKeyFile,
+					},
+					&cli.StringFlag{
+						Name:  argStartPrvtApiRpcTlsCertFile,
+						Usage: "private RPC API TLS Cert file",
+						Value: cfg.PrivateApiRpc.TlsCertFile,
+					},
+					&cli.StringFlag{
+						Name:  argStartPrvtApiRpcListenOn,
+						Usage: "private RPC API address. Cluster peers will use the address to connect to the server",
+						Value: cfg.PrivateApiRpc.ListenAddr,
 					},
 				},
 			},
@@ -158,16 +227,16 @@ func applyParamsToCfg(c *cli.Context) {
 	if hid := c.Int(argStartHostHostId); int(dc.HostHostId) != hid {
 		cfg.HostHostId = cluster.HostId(hid)
 	}
-	if hra := c.String(argStartHostRPCAddr); dc.HostRpcAddress != cluster.HostAddr(hra) {
-		cfg.HostRpcAddress = cluster.HostAddr(hra)
-	}
+	//if hra := c.String(argStartHostRPCAddr); dc.HostRpcAddress != cluster.HostAddr(hra) {
+	//	cfg.HostRpcAddress = cluster.HostAddr(hra)
+	//}
 	if lttl := c.Int(argStartHostLeaseTTL); int(dc.HostLeaseTTLSec) != lttl {
 		cfg.HostLeaseTTLSec = lttl
 	}
 	if hrt := c.Int(argStartHostRegTimeout); int(dc.HostRegisterTimeoutSec) != hrt {
 		cfg.HostRegisterTimeoutSec = hrt
 	}
-	if jd := c.String(argStartJournalDir); dc.JournalsDir != jd {
-		cfg.JournalsDir = jd
+	if jd := c.String(argStartJournalDir); dc.JrnlCtrlConfig.JournalsDir != jd {
+		cfg.JrnlCtrlConfig.JournalsDir = jd
 	}
 }

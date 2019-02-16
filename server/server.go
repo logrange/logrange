@@ -16,11 +16,14 @@ package server
 
 import (
 	"context"
+	"github.com/logrange/logrange/api/rpc"
+	"github.com/logrange/range/pkg/records/journal/ctrlr"
+	"github.com/logrange/range/pkg/utils/bytes"
 
 	"github.com/jrivets/log4g"
 	"github.com/logrange/linker"
-	"github.com/logrange/logrange/pkg/cluster/model"
-	"github.com/logrange/logrange/pkg/kv/inmem"
+	"github.com/logrange/range/pkg/cluster/model"
+	"github.com/logrange/range/pkg/kv/inmem"
 )
 
 // Start starts the logrange server using the configuration provided. It will
@@ -36,8 +39,13 @@ func Start(ctx context.Context, cfg *Config) error {
 		linker.Component{Name: "HostRegistryConfig", Value: cfg},
 		linker.Component{Name: "", Value: model.NewHostRegistry()},
 		linker.Component{Name: "", Value: model.NewJournalCatalog()},
+		linker.Component{Name: "", Value: rpc.NewServerIngestor()},
+		linker.Component{Name: "", Value: rpc.NewServer()},
+		linker.Component{Name: "JournalControllerConfig", Value: &cfg.JrnlCtrlConfig},
+		linker.Component{Name: "", Value: ctrlr.NewJournalController()},
+		linker.Component{Name: "publicRpcTransport", Value: cfg.PublicApiRpc},
+		linker.Component{Name: "", Value: new(bytes.Pool)},
 	)
-
 	injector.Init(ctx)
 
 	select {
