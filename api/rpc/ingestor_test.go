@@ -17,7 +17,7 @@ package rpc
 import (
 	"bytes"
 	"github.com/logrange/logrange/api"
-	"github.com/logrange/logrange/pkg/logevent"
+	"github.com/logrange/logrange/pkg/model"
 	bytes2 "github.com/logrange/range/pkg/utils/bytes"
 	"github.com/logrange/range/pkg/utils/encoding/xbinary"
 	"io"
@@ -36,7 +36,7 @@ func BenchmarkIterator(b *testing.B) {
 
 	wpi := new(wpIterator)
 	wpi.pool = new(bytes2.Pool)
-	wpi.tig = logevent.NewTagIdGenerator(20000)
+	wpi.tig = model.NewTagIdGenerator(20000)
 	wpi.init(btb.Bytes())
 
 	b.ReportAllocs()
@@ -67,7 +67,7 @@ func TestWritePacket(t *testing.T) {
 	// now test the iterator
 	wpi := new(wpIterator)
 	wpi.pool = new(bytes2.Pool)
-	wpi.tig = logevent.NewTagIdGenerator(20000)
+	wpi.tig = model.NewTagIdGenerator(20000)
 	wpi.init(btb.Bytes())
 
 	if wpi.src != "journal" || wpi.tags != "aaa=bbb" || wpi.recs != 2 {
@@ -78,7 +78,7 @@ func TestWritePacket(t *testing.T) {
 	if err != nil {
 		t.Fatal("err=", err)
 	}
-	var le logevent.LogEvent
+	var le model.LogEvent
 	le.Unmarshal(rec, false)
 	if le.Timestamp != 1 || le.Tags != "aaa=bbb" || le.TgId == 0 || le.Msg != "mes1" {
 		t.Fatal("Something wrong with le=", le)

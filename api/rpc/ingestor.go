@@ -18,7 +18,7 @@ import (
 	"context"
 	"fmt"
 	"github.com/logrange/logrange/api"
-	"github.com/logrange/logrange/pkg/logevent"
+	"github.com/logrange/logrange/pkg/model"
 	"github.com/logrange/range/pkg/records"
 	"github.com/logrange/range/pkg/records/journal"
 	rrpc "github.com/logrange/range/pkg/rpc"
@@ -34,7 +34,7 @@ type (
 		TagIdGenSize int                `inject:"TagIdGenSize,optional:10000"`
 		JrnlCtrlr    journal.Controller `inject:""`
 
-		tig *logevent.TagIdGenerator
+		tig *model.TagIdGenerator
 	}
 
 	clntIngestor struct {
@@ -51,7 +51,7 @@ type (
 	// writing the data directly to a journal
 	wpIterator struct {
 		pool   *bytes.Pool
-		tig    *logevent.TagIdGenerator
+		tig    *model.TagIdGenerator
 		src    string
 		tags   string
 		tagsId uint64
@@ -84,7 +84,7 @@ func (si *ServerIngestor) Init(ctx context.Context) error {
 	if si.TagIdGenSize < 100 {
 		return fmt.Errorf("Too small Tag Id Generator buffer size=%d", si.TagIdGenSize)
 	}
-	si.tig = logevent.NewTagIdGenerator(si.TagIdGenSize)
+	si.tig = model.NewTagIdGenerator(si.TagIdGenSize)
 
 	return nil
 }
@@ -213,7 +213,7 @@ func (wpi *wpIterator) init(buf []byte) (err error) {
 	if err != nil {
 		return
 	}
-	_, err = logevent.CheckTags(wpi.tags)
+	_, err = model.CheckTags(wpi.tags)
 	if err != nil {
 		return
 	}
@@ -257,7 +257,7 @@ func (wpi *wpIterator) Get(ctx context.Context) (records.Record, error) {
 	wpi.pos += n
 	wpi.read = true
 
-	var lge logevent.LogEvent
+	var lge model.LogEvent
 	lge.Timestamp = le.Timestamp
 	lge.Msg = le.Message
 	lge.Tags = le.Tags

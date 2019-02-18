@@ -23,7 +23,7 @@ import (
 	"github.com/logrange/logrange/api/rpc"
 	"github.com/logrange/logrange/collector/model"
 	"github.com/logrange/logrange/collector/utils"
-	"github.com/logrange/logrange/pkg/logevent"
+	bemodel "github.com/logrange/logrange/pkg/model"
 	"github.com/logrange/range/pkg/transport"
 	"github.com/mohae/deepcopy"
 	"sync"
@@ -140,7 +140,7 @@ func (c *Client) send(ev *model.Event) error {
 		return fmt.Errorf("rpc not initialized")
 	}
 
-	tm, err := logevent.NewTagMap(ev.Meta.Tags)
+	tm, err := bemodel.NewTagMap(ev.Meta.Tags)
 	if err != nil {
 		return err
 	}

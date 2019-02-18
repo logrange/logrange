@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package logevent
+package model
 
 import (
 	"github.com/logrange/range/pkg/utils/encoding/xbinary"
