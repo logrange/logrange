@@ -77,7 +77,7 @@ func TestIntegration(t *testing.T) {
 			if err := handle(ev); err != nil {
 				t.Fatal(err)
 			}
-		case <-time.After(time.Second * 10):
+		case <-time.After(time.Second):
 			cancel()
 			_ = cl.Close()
 
@@ -89,7 +89,7 @@ func TestIntegration(t *testing.T) {
 }
 
 func config() *Config {
-	log4g.SetLogLevel("collector.scanner", log4g.DEBUG)
+	log4g.SetLogLevel("collector.scanner", log4g.INFO)
 
 	cfg := NewDefaultConfig()
 	cfg.ScanPathsIntervalSec = 5
@@ -126,7 +126,7 @@ func validate(t *testing.T) {
 		t.FailNow()
 	}
 	for src, dst := range inOutMap {
-		log.Info("comparing src=", src, ", dst=", dst)
+		log.Debug("comparing src=", src, ", dst=", dst)
 		eq, err := md5Eq(src, dst)
 		if err != nil || !eq {
 			log.Error("failed to compare src=", src, ", dst=", dst, "; err=", err, ", eq=", eq)
@@ -187,13 +187,13 @@ func closeOutFiles() {
 
 func md5Eq(f1, f2 string) (bool, error) {
 	f1h, err := md5File(f1)
-	log.Info("file ", f1, " hash=", f1h)
+	log.Debug("file ", f1, " hash=", f1h)
 	if err != nil {
 		return false, err
 	}
 
 	f2h, err := md5File(f2)
-	log.Info("file ", f2, " hash=", f2h)
+	log.Debug("file ", f2, " hash=", f2h)
 	if err != nil {
 		return false, err
 	}
@@ -203,7 +203,7 @@ func md5Eq(f1, f2 string) (bool, error) {
 
 func md5File(file string) ([]byte, error) {
 	fi, _ := os.Stat(file)
-	log.Info("file=", file, " size=", fi.Size())
+	log.Debug("file=", file, " size=", fi.Size())
 
 	f, err := os.Open(file)
 	if err != nil {
