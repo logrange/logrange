@@ -45,12 +45,11 @@ func WaitDone(done chan bool, t time.Duration) bool {
 	}
 }
 
-func DoneChannel(wg *sync.WaitGroup) chan bool {
+func WaitWaitGroup(wg *sync.WaitGroup, t time.Duration) bool {
 	done := make(chan bool)
 	go func() {
 		wg.Wait()
 		close(done)
 	}()
-	return done
+	return WaitDone(done, t)
 }
-

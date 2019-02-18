@@ -57,7 +57,7 @@ func (r *lineReader) readLine(ctx context.Context) ([]byte, error) {
 			if len(buf) == 0 {
 				return nil, io.EOF
 			}
-			r.sleep(r.eofSleep, ctx)
+			utils.Sleep(ctx, r.eofSleep)
 			continue
 		}
 
@@ -71,15 +71,6 @@ func (r *lineReader) readLine(ctx context.Context) ([]byte, error) {
 
 func (r *lineReader) reset(ioRdr io.Reader) {
 	r.r.Reset(ioRdr)
-}
-
-func (r *lineReader) sleep(to time.Duration, ctx context.Context) {
-	select {
-	case <-ctx.Done():
-		return
-	case <-time.After(to):
-		return
-	}
 }
 
 func concatBufs(b1, b2 []byte) []byte {

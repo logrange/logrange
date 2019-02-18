@@ -107,7 +107,7 @@ func (s *Scanner) Run(events chan<- *model.Event, ctx context.Context) error {
 
 func (s *Scanner) Close() error {
 	var err error
-	if !utils.WaitDone(utils.DoneChannel(&s.waitWg), time.Minute) {
+	if !utils.WaitWaitGroup(&s.waitWg, time.Minute) {
 		err = errors.New("close timeout")
 	}
 	s.logger.Info("Closed, err=", err)

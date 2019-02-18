@@ -134,7 +134,7 @@ func (w *worker) sendOrSleep(recs []*model.Record, events chan<- *model.Event, c
 
 	select {
 	case <-ctx.Done():
-		return fmt.Errorf("events channel closed")
+		return fmt.Errorf("interrupted")
 	case events <- ev:
 	}
 
