@@ -53,5 +53,5 @@ func (c *Client) Ingestor() api.Ingestor {
 }
 
 func (oe *OpError) Error() string {
-	return fmt.Sprintf("OpError: err=", oe.Err)
+	return fmt.Sprintf("OpError: err=%v", oe.Err)
 }

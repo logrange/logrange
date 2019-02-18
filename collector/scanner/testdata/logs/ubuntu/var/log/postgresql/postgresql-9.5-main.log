@@ -1,0 +1,5 @@
+2018-01-25 00:48:12 UTC [6320-1] LOG:  database system was shut down at 2018-01-25 00:48:11 UTC
+2018-01-25 00:48:12 UTC [6320-2] LOG:  MultiXact member wraparound protections are now enabled
+2018-01-25 00:48:12 UTC [6319-1] LOG:  database system is ready to accept connections
+2018-01-25 00:48:12 UTC [6324-1] LOG:  autovacuum launcher started
+2018-01-25 00:48:12 UTC [6326-1] [unknown]@[unknown] LOG:  incomplete startup packet
