@@ -25,10 +25,28 @@ type (
 		Tags string
 	}
 
+	// WriteResult struct contains result of Ingestor.Write operation execution.
+	WriteResult struct {
+		Err error
+	}
+
 	// Ingestor provides Wrtie method for sending log data into the storage. This intrface is exposed as
 	// a public API
 	Ingestor interface {
-		// Write sends log events into the stream
-		Write(src, tags string, evs []*LogEvent) error
+		// Write sends log events into the stream. It expects stream name (src), tags, associated with the write,
+		// a slice of events, and the reference to
+		Write(src, tags string, evs []*LogEvent, res *WriteResult) error
+	}
+
+	// QeryResult is a result returned by the server in a response on LQL execution (see Querier.Query)
+	QueryResult struct {
+		Records []string
+	}
+
+	// Querier - executes a query agains logrange deatabase
+	Querier interface {
+		// Query runs lql to collect the server data and return it in the QueryResult. It returns an error which indicates
+		// that the query could not be delivered to the server, or it did not happen.
+		Query(lql string, res *QueryResult) error
 	}
 )

@@ -81,6 +81,7 @@ func (c *Client) runSend(events <-chan *model.Event, ctx context.Context) {
 		}()
 
 		var err error
+		var sendRes api.WriteResult
 		for ctx.Err() == nil {
 			select {
 			case <-ctx.Done():
@@ -88,7 +89,10 @@ func (c *Client) runSend(events <-chan *model.Event, ctx context.Context) {
 			case ev := <-events:
 				for ctx.Err() == nil {
 					if err == nil {
-						if err = c.send(ev); err == nil {
+						if err = c.send(ev, &sendRes); err == nil {
+							if sendRes.Err != nil {
+								c.logger.Warn("Messages were delivered, but server returns the following write error: ", sendRes.Err)
+							}
 							ev.Confirm()
 							break
 						}
@@ -135,7 +139,7 @@ func (c *Client) connect(ctx context.Context) error {
 	return err
 }
 
-func (c *Client) send(ev *model.Event) error {
+func (c *Client) send(ev *model.Event, sendRes *api.WriteResult) error {
 	if c.rpc == nil {
 		return fmt.Errorf("rpc not initialized")
 	}
@@ -146,8 +150,7 @@ func (c *Client) send(ev *model.Event) error {
 	}
 
 	c.logger.Debug("Sending event=", ev)
-	return c.rpc.Ingestor().Write(ev.Meta.SourceId,
-		string(tm.BuildTagLine()), toApiEvents(ev))
+	return c.rpc.Ingestor().Write(ev.Meta.SourceId, string(tm.BuildTagLine()), toApiEvents(ev), sendRes)
 }
 
 func toApiEvents(ev *model.Event) []*api.LogEvent {

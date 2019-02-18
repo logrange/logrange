@@ -89,15 +89,15 @@ func (si *ServerIngestor) Init(ctx context.Context) error {
 	return nil
 }
 
-func (ci *clntIngestor) Write(src, tags string, evs []*api.LogEvent) error {
+func (ci *clntIngestor) Write(src, tags string, evs []*api.LogEvent, res *api.WriteResult) error {
 	var wp writePacket
 	wp.src = src
 	wp.tags = tags
 	wp.events = evs
 
 	_, errOp, err := ci.rc.Call(context.Background(), cRpcEpIngestorWrite, &wp)
-	if errOp != nil {
-		err = errOp
+	if res != nil {
+		res.Err = errOp
 	}
 
 	return err
