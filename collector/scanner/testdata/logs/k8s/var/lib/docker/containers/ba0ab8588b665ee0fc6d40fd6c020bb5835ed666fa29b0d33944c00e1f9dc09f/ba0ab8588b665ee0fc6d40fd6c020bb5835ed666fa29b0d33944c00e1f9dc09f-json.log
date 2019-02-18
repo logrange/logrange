@@ -1,0 +1,3 @@
+{"log":"Flag --etcd-quorum-read has been deprecated, This flag is deprecated and the ability to switch off quorum read will be removed in a future release.\n","stream":"stderr","time":"2018-02-06T10:22:33.19612145Z"}
+{"log":"I0206 10:22:33.196089       1 server.go:121] Version: v1.9.2\n","stream":"stderr","time":"2018-02-06T10:22:33.1964077Z"}
+{"log":"Error: failed to create listener: failed to listen on 0.0.0.0:443: listen tcp 0.0.0.0:443: bind: address already in use\n","stream":"stderr","time":"2018-02-06T10:22:33.196646017Z"}

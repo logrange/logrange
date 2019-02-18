@@ -1,0 +1,50 @@
+{
+  "remote": {
+    "server": "127.0.0.1:9966",
+    "retrySec": 5,
+    "maxRetry": 3
+  },
+  "scanner": {
+    "includePaths": [
+      "/var/log/*.log",
+      "/var/log/*/*.log"
+    ],
+    "excludeMatchers": [],
+    "scanPathsIntervalSec": 20,
+    "stateStoreIntervalSec": 10,
+    "eventMaxRecords": 1000,
+    "recordMaxSizeBytes": 16384,
+    "schemas": [
+      {
+        "pathMatcher": "/*(?:.+/)*(?P<file>.+\\..+)",
+        "format": "text",
+        "dateFormats": [
+          "DD/MMM/YYYY:HH:mm:ss ZZZZ"
+        ],
+        "meta": {
+          "sourceId": "{file}",
+          "tags": {
+            "file": "{file}"
+          }
+        }
+      },
+      {
+        "pathMatcher": "/*(?:.+/)*(?P<pod>.+)_(?P<ns>.+)_(?P<cname>.+)-(?P<cid>.+)\\..+",
+        "format": "k8json",
+        "meta": {
+          "sourceId": "{cname}",
+          "tags": {
+            "pod": "{pod}",
+            "ns": "{ns}",
+            "cname": "{cname}",
+            "cid": "{cid}"
+          }
+        }
+      }
+    ]
+  },
+  "storage": {
+    "type": "file",
+    "location": "/tmp/collector.storage"
+  }
+}

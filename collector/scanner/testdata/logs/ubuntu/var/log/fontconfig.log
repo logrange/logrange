@@ -1,0 +1,8 @@
+/usr/share/fonts: caching, new cache contents: 0 fonts, 1 dirs
+/usr/share/fonts/truetype: caching, new cache contents: 0 fonts, 1 dirs
+/usr/share/fonts/truetype/dejavu: caching, new cache contents: 21 fonts, 0 dirs
+/usr/local/share/fonts: caching, new cache contents: 0 fonts, 0 dirs
+Re-scanning /usr/share/fonts: caching, new cache contents: 0 fonts, 1 dirs
+Re-scanning /usr/share/fonts/truetype: caching, new cache contents: 0 fonts, 1 dirs
+/var/cache/fontconfig: cleaning cache directory
+fc-cache: succeeded

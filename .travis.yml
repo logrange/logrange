@@ -2,5 +2,8 @@ language: go
 go:
  - 1.11.x
 
+before_script:
+ - go get -t -v ./...
+
 script:
  - go test -v ./...
