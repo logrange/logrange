@@ -16,6 +16,7 @@ package main
 
 import (
 	"context"
+	"github.com/logrange/logrange/collector/storage"
 	"gopkg.in/urfave/cli.v2"
 	"os"
 	"os/signal"
@@ -31,8 +32,9 @@ const (
 )
 
 const (
-	argCfgFile    = "config-file"
-	argLogCfgFile = "log-config-file"
+	argStartCfgFile     = "config-file"
+	argStartLogCfgFile  = "log-config-file"
+	argStartStorageFile = "storage-file"
 )
 
 func main() {
@@ -48,12 +50,16 @@ func main() {
 				Action: runCollector,
 				Flags: []cli.Flag{
 					&cli.StringFlag{
-						Name:  argLogCfgFile,
+						Name:  argStartLogCfgFile,
 						Usage: "log4g configuration file path",
 					},
 					&cli.StringFlag{
-						Name:  argCfgFile,
+						Name:  argStartCfgFile,
 						Usage: "collector configuration file path",
+					},
+					&cli.StringFlag{
+						Name:  argStartStorageFile,
+						Usage: "collector storage file path",
 					},
 				},
 			},
@@ -61,6 +67,7 @@ func main() {
 	}
 
 	sort.Sort(cli.FlagsByName(app.Flags))
+	sort.Sort(cli.FlagsByName(app.Commands[0].Flags))
 	sort.Sort(cli.CommandsByName(app.Commands))
 	if err := app.Run(os.Args); err != nil {
 		getLogger().Fatal("Failed to run collector, cause: ", err)
@@ -68,7 +75,7 @@ func main() {
 }
 
 func runCollector(c *cli.Context) error {
-	logCfgFile := c.String(argLogCfgFile)
+	logCfgFile := c.String(argStartLogCfgFile)
 	if logCfgFile != "" {
 		err := log4g.ConfigF(logCfgFile)
 		if err != nil {
@@ -77,8 +84,9 @@ func runCollector(c *cli.Context) error {
 	}
 
 	logger := getLogger()
-	cfgFile := c.String(argCfgFile)
 	cfg := collector.NewDefaultConfig()
+
+	cfgFile := c.String(argStartCfgFile)
 	if cfgFile != "" {
 		logger.Info("Loading collector config from=", cfgFile)
 		config, err := collector.LoadCfgFromFile(cfgFile)
@@ -88,20 +96,31 @@ func runCollector(c *cli.Context) error {
 		cfg.Apply(config)
 	}
 
+	applyArgsToCfg(c, cfg)
+	return collector.Run(cfg, ctxWithSignalHandler())
+}
+
+func applyArgsToCfg(c *cli.Context, cfg *collector.Config) {
+	if sf := c.String(argStartStorageFile); sf != "" {
+		cfg.Storage.Type = storage.TypeFile
+		cfg.Storage.Location = sf
+	}
+}
+
+func ctxWithSignalHandler() context.Context {
 	ctx, cancel := context.WithCancel(context.Background())
 	go func() {
 		sigChan := make(chan os.Signal, 1)
 		signal.Notify(sigChan, syscall.SIGINT, syscall.SIGTERM)
 		select {
 		case s := <-sigChan:
-			logger.Warn("Handling signal=", s)
+			getLogger().Warn("Handling signal=", s)
 			cancel()
 		}
 	}()
-
-	return collector.Run(cfg, ctx)
+	return ctx
 }
 
 func getLogger() log4g.Logger {
-	return log4g.GetLogger("main")
+	return log4g.GetLogger("collector")
 }

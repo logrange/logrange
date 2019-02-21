@@ -25,9 +25,9 @@ import (
 
 // Config struct just aggregate different types of configs in one place
 type Config struct {
-	Remote  *remote.Config  `json:"remote"`
-	Scanner *scanner.Config `json:"scanner"`
-	Storage *storage.Config `json:"storage"`
+	Remote  *remote.Config
+	Scanner *scanner.Config
+	Storage *storage.Config
 }
 
 //===================== config =====================
@@ -65,13 +65,13 @@ func (c *Config) Apply(other *Config) {
 
 func (c *Config) Check() error {
 	if c.Remote == nil {
-		return fmt.Errorf("invalid config; remote=%v, must be non-nil", c.Remote)
+		return fmt.Errorf("invalid config; Remote=%v, must be non-nil", c.Remote)
 	}
 	if c.Scanner == nil {
-		return fmt.Errorf("invalid config; scanner=%v, must be non-nil", c.Scanner)
+		return fmt.Errorf("invalid config; Scanner=%v, must be non-nil", c.Scanner)
 	}
 	if c.Storage == nil {
-		return fmt.Errorf("invalid config; storage=%v, must be non-nil", c.Storage)
+		return fmt.Errorf("invalid config; Storage=%v, must be non-nil", c.Storage)
 	}
 	if err := c.Remote.Check(); err != nil {
 		return err

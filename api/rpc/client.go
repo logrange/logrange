@@ -28,9 +28,9 @@ type (
 	}
 )
 
-// NewClient creates ne Client for connecting to the server, using the transport config tcfg
+// NewClient creates new Client for connecting to the server, using the transport config tcfg
 func NewClient(tcfg transport.Config) (*Client, error) {
-	conn, err := transport.Dial(tcfg)
+	conn, err := transport.NewClientConn(tcfg)
 	if err != nil {
 		return nil, err
 	}

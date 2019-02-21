@@ -17,14 +17,14 @@ package remote
 import (
 	"fmt"
 	"github.com/logrange/logrange/collector/utils"
-	"strings"
+	"github.com/logrange/range/pkg/transport"
 )
 
 type (
 	Config struct {
-		Server   string `json:"server"`
-		RetrySec int    `json:"retrySec"`
-		MaxRetry int 	`json:"maxRetry"`
+		Transport               *transport.Config
+		ConnectMaxRetry         int
+		ConnectRetryIntervalSec int
 	}
 )
 
@@ -32,9 +32,11 @@ type (
 
 func NewDefaultConfig() *Config {
 	cfg := new(Config)
-	cfg.Server = "127.0.0.1:9966"
-	cfg.RetrySec = 5
-	cfg.MaxRetry = 3
+	cfg.Transport = &transport.Config{
+		ListenAddr: "127.0.0.1:9966",
+	}
+	cfg.ConnectMaxRetry = 3
+	cfg.ConnectRetryIntervalSec = 5
 	return cfg
 }
 
@@ -42,27 +44,26 @@ func (c *Config) Apply(other *Config) {
 	if other == nil {
 		return
 	}
-
-	if strings.TrimSpace(other.Server) != "" {
-		c.Server = other.Server
+	c.Transport.Apply(other.Transport)
+	if other.ConnectRetryIntervalSec > 0 {
+		c.ConnectRetryIntervalSec = other.ConnectRetryIntervalSec
 	}
-	if other.RetrySec > 0 {
-		c.RetrySec = other.RetrySec
-	}
-	if other.MaxRetry > 0 {
-		c.MaxRetry = other.MaxRetry
+	if other.ConnectMaxRetry > 0 {
+		c.ConnectMaxRetry = other.ConnectMaxRetry
 	}
 }
 
 func (c *Config) Check() error {
-	if strings.TrimSpace(c.Server) == "" {
-		return fmt.Errorf("invalid config; server=%v, must be non-empty", c.Server)
+	if err := c.Transport.Check(); err != nil {
+		return err
 	}
-	if c.RetrySec < 1 {
-		return fmt.Errorf("invalid config; retrySec=%d, must be >= 1sec", c.RetrySec)
+	if c.ConnectRetryIntervalSec < 1 {
+		return fmt.Errorf("invalid config; "+
+			"ConnectRetryIntervalSec=%d, must be >= 1sec", c.ConnectRetryIntervalSec)
 	}
-	if c.MaxRetry < 0 {
-		return fmt.Errorf("invalid config; maxRetry=%d, must be >= 0", c.RetrySec)
+	if c.ConnectMaxRetry < 0 {
+		return fmt.Errorf("invalid config; "+
+			"ConnectMaxRetry=%d, must be >= 0", c.ConnectMaxRetry)
 	}
 	return nil
 }

@@ -35,10 +35,10 @@ import (
 
 type (
 	desc struct {
-		Id           string `json:"id"`
-		File         string `json:"file"`
-		Offset       int64  `json:"offset"`
-		LastSeenSize int64  `json:"lastSeenSize"`
+		Id           string
+		File         string
+		Offset       int64
+		LastSeenSize int64
 	}
 
 	descs map[string]*desc
@@ -63,6 +63,10 @@ type (
 	Stats struct {
 		Workers []*stats
 	}
+)
+
+const (
+	storeKeyName = "scannerState.json"
 )
 
 //===================== scanner =====================
@@ -90,7 +94,7 @@ func NewScanner(cfg *Config, storage storage.Storage) (*Scanner, error) {
 	}
 
 	s.storage = storage
-	s.logger = log4g.GetLogger("collector.scanner")
+	s.logger = log4g.GetLogger("scanner")
 	return s, nil
 }
 
@@ -227,7 +231,7 @@ func (s *Scanner) newWorkerConfig(d *desc) (*workerConfig, error) {
 		schema:       shm,
 		recsPerEvent: s.cfg.EventMaxRecords,
 		parser:       p,
-		logger:       s.logger.WithId(fmt.Sprintf("[worker#%v]", id)).(log4g.Logger),
+		logger:       s.logger.WithId(fmt.Sprintf("[%v]", id)).(log4g.Logger),
 	}, nil
 }
 
@@ -348,8 +352,8 @@ func (s *Scanner) getFilesToScan(paths []string) []string {
 
 func (s *Scanner) loadState() error {
 	s.logger.Info("Loading state from storage=", s.storage)
-	data, err := s.storage.ReadData()
-	if err != nil {
+	data, err := s.storage.ReadData(storeKeyName)
+	if err != nil && !os.IsNotExist(err) {
 		return err
 	}
 	d := make(descs)
@@ -372,8 +376,10 @@ func (s *Scanner) persistState() error {
 		return fmt.Errorf("cannot marshal state=%v; cause: %v", d, err)
 	}
 
-	err = s.storage.WriteData(data)
-	s.logger.Info("Persisted state (size=", len(data), "bytes)")
+	err = s.storage.WriteData(storeKeyName, data)
+	if err == nil {
+		s.logger.Info("Persisted state (size=", len(data), "bytes)")
+	}
 	return err
 }
 
@@ -408,8 +414,8 @@ func (d *desc) MarshalJSON() ([]byte, error) {
 	type alias desc
 	return json.Marshal(&struct {
 		*alias
-		Offset       int64 `json:"offset"`
-		LastSeenSize int64 `json:"lastSeenSize"`
+		Offset       int64
+		LastSeenSize int64
 	}{
 		alias:        (*alias)(d),
 		Offset:       d.getOffset(),

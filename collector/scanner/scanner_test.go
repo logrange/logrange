@@ -89,7 +89,7 @@ func TestIntegration(t *testing.T) {
 }
 
 func config() *Config {
-	log4g.SetLogLevel("collector.scanner", log4g.INFO)
+	log4g.SetLogLevel("", log4g.INFO)
 
 	cfg := NewDefaultConfig()
 	cfg.ScanPathsIntervalSec = 5

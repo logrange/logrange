@@ -1,0 +1,24 @@
+{
+  "HostHostId": 0,
+  "HostLeaseTTLSec": 5,
+  "HostRegisterTimeoutSec": 0,
+  "PublicApiRpc": {
+    "ListenAddr": "127.0.0.1:9966",
+    "TlsEnabled": false,
+    "Tls2Way": false,
+    "TlsCertFile": "/opt/logrange/ssl/server.crt",
+    "TlsKeyFile": "/opt/logrange/ssl/server.key",
+    "TlsCAFile": "/opt/logrange/ssl/ca.pem"
+  },
+  "JrnlCtrlConfig": {
+    "JournalsDir": "/opt/logrange/db/",
+    "MaxOpenFileDescs": 5000,
+    "CheckFullScan": false,
+    "RecoverDisabled": false,
+    "RecoverLostDataOk": false,
+    "WriteIdleSec": 120,
+    "WriteFlushMs": 500,
+    "MaxChunkSize": 104857600,
+    "MaxRecordSize": 1048576
+  }
+}

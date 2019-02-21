@@ -24,13 +24,13 @@ import (
 
 type (
 	Config struct {
-		IncludePaths          []string        `json:"includePaths"`
-		ExcludeMatchers       []string        `json:"excludeMatchers"`
-		ScanPathsIntervalSec  int             `json:"scanPathsIntervalSec"`
-		StateStoreIntervalSec int             `json:"stateStoreIntervalSec"`
-		RecordMaxSizeBytes    int             `json:"recordMaxSizeBytes"`
-		EventMaxRecords       int             `json:"eventMaxRecords"`
-		Schemas               []*SchemaConfig `json:"schemas"`
+		IncludePaths          []string
+		ExcludeMatchers       []string
+		ScanPathsIntervalSec  int
+		StateStoreIntervalSec int
+		RecordMaxSizeBytes    int
+		EventMaxRecords       int
+		Schemas               []*SchemaConfig
 	}
 )
 
@@ -81,33 +81,33 @@ func (c *Config) Apply(other *Config) {
 
 func (c *Config) Check() error {
 	if len(c.IncludePaths) == 0 {
-		return fmt.Errorf("invalid config; includePaths=%v, must be non-empty", c.IncludePaths)
+		return fmt.Errorf("invalid config; IncludePaths=%v, must be non-empty", c.IncludePaths)
 	}
 	if c.EventMaxRecords <= 0 {
-		return fmt.Errorf("invalid config; eventMaxRecords=%v, must be > 0", c.EventMaxRecords)
+		return fmt.Errorf("invalid config; EventMaxRecords=%v, must be > 0", c.EventMaxRecords)
 	}
 	if c.ScanPathsIntervalSec <= 0 {
-		return fmt.Errorf("invalid config; scanPathsIntervalSec=%v, must be > 0sec", c.ScanPathsIntervalSec)
+		return fmt.Errorf("invalid config; ScanPathsIntervalSec=%v, must be > 0sec", c.ScanPathsIntervalSec)
 	}
 	if c.StateStoreIntervalSec <= 0 {
-		return fmt.Errorf("invalid config; stateStoreIntervalSec=%v, must be > 0sec", c.StateStoreIntervalSec)
+		return fmt.Errorf("invalid config; StateStoreIntervalSec=%v, must be > 0sec", c.StateStoreIntervalSec)
 	}
 	if c.RecordMaxSizeBytes < 64 || c.RecordMaxSizeBytes > 65536 {
-		return fmt.Errorf("invalid config; recordSizeMaxBytes=%v, must be in range [%v..%v]",
+		return fmt.Errorf("invalid config; RecordSizeMaxBytes=%v, must be in range [%v..%v]",
 			c.RecordMaxSizeBytes, 64, 65536)
 	}
 	if len(c.Schemas) == 0 {
-		return fmt.Errorf("invalid config; schemas=%v, must be non-empty", c.Schemas)
+		return fmt.Errorf("invalid config; Schemas=%v, must be non-empty", c.Schemas)
 	}
 	for _, s := range c.Schemas {
 		if err := s.Check(); err != nil {
-			return fmt.Errorf("invalid config; invalid schema=%v, %v", s, err)
+			return fmt.Errorf("invalid config; invalid Schema=%v, %v", s, err)
 		}
 	}
 	for _, ex := range c.ExcludeMatchers {
 		if _, err := syntax.Parse(ex, syntax.Perl); err != nil {
 			return fmt.Errorf("invalid config; could not parse regular "+
-				"expression in excludeMatchers: %s, err=%v", ex, err)
+				"expression in ExcludeMatchers: %s, err=%v", ex, err)
 		}
 	}
 	return nil

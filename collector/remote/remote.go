@@ -24,7 +24,6 @@ import (
 	"github.com/logrange/logrange/collector/model"
 	"github.com/logrange/logrange/collector/utils"
 	bemodel "github.com/logrange/logrange/pkg/model"
-	"github.com/logrange/range/pkg/transport"
 	"github.com/mohae/deepcopy"
 	"sync"
 	"time"
@@ -50,7 +49,7 @@ func NewClient(cfg *Config) (*Client, error) {
 
 	cli := new(Client)
 	cli.cfg = deepcopy.Copy(cfg).(*Config)
-	cli.logger = log4g.GetLogger("collector.remote")
+	cli.logger = log4g.GetLogger("remote")
 	return cli, nil
 }
 
@@ -76,12 +75,13 @@ func (c *Client) Close() error {
 func (c *Client) runSend(events <-chan *model.Event, ctx context.Context) {
 	c.done = make(chan bool)
 	go func() {
-		defer func() {
-			close(c.done)
-		}()
+		defer close(c.done)
 
-		var err error
-		var sendRes api.WriteResult
+		var (
+			err     error
+			sendRes api.WriteResult
+		)
+
 		for ctx.Err() == nil {
 			select {
 			case <-ctx.Done():
@@ -91,13 +91,17 @@ func (c *Client) runSend(events <-chan *model.Event, ctx context.Context) {
 					if err == nil {
 						if err = c.send(ev, &sendRes); err == nil {
 							if sendRes.Err != nil {
-								c.logger.Warn("Messages were delivered, but server returns the following write error: ", sendRes.Err)
+								c.logger.Warn("Tried to deliver event=", ev,
+									", but server returned write err=", sendRes.Err)
 							}
 							ev.Confirm()
 							break
 						}
 					}
-					c.logger.Info("Client error, recovering; cause: ", err)
+
+					c.logger.Info("Communication error, recovering in ",
+						c.cfg.ConnectRetryIntervalSec, "sec; cause: ", err)
+					utils.Sleep(ctx, time.Duration(c.cfg.ConnectRetryIntervalSec)*time.Second)
 					err = c.connect(ctx)
 				}
 			}
@@ -109,17 +113,14 @@ func (c *Client) connect(ctx context.Context) error {
 	var (
 		err    error
 		try    int
-		maxTry = c.cfg.MaxRetry
+		maxTry = c.cfg.ConnectMaxRetry
 	)
 
-	c.logger.Info("Connecting to ", c.cfg.Server)
-	retry := time.Duration(c.cfg.RetrySec) * time.Second
+	c.logger.Info("Connecting to ", c.cfg.Transport.ListenAddr)
+	retry := time.Duration(c.cfg.ConnectRetryIntervalSec) * time.Second
 
 	for try < maxTry {
-		c.rpc, err = rpc.NewClient(transport.Config{
-			TlsEnabled: false,
-			ListenAddr: c.cfg.Server,
-		})
+		c.rpc, err = rpc.NewClient(*c.cfg.Transport)
 		if err == nil {
 			c.logger.Info("Connected!")
 			break
@@ -150,7 +151,8 @@ func (c *Client) send(ev *model.Event, sendRes *api.WriteResult) error {
 	}
 
 	c.logger.Debug("Sending event=", ev)
-	return c.rpc.Ingestor().Write(ev.Meta.SourceId, string(tm.BuildTagLine()), toApiEvents(ev), sendRes)
+	return c.rpc.Ingestor().Write(ev.Meta.SourceId,
+		string(tm.BuildTagLine()), toApiEvents(ev), sendRes)
 }
 
 func toApiEvents(ev *model.Event) []*api.LogEvent {
