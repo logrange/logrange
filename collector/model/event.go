@@ -1,3 +1,17 @@
+// Copyright 2018 The logrange Authors
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a Copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 package model
 
 import (
@@ -11,13 +25,13 @@ import (
 type (
 	Event struct {
 		// File contains filename of the file from where the records come
-		File string `json:"file"`
+		File string
 
 		// Records are the list of parsed records
-		Records []*Record `json:"records"`
+		Records []*Record
 
 		// Tags information, attached to the list of records
-		Meta Meta `json:"meta"`
+		Meta Meta
 
 		// confCh is a signaling channel, to notify scanner that even was handled
 		confCh chan struct{}
@@ -42,8 +56,8 @@ func (e *Event) MarshalJSON() ([]byte, error) {
 	type alias Event
 	return json.Marshal(&struct {
 		*alias
-		Records int  `json:"records"`
-		Meta    Meta `json:"meta"`
+		Records int
+		Meta    Meta
 	}{
 		alias:   (*alias)(e),
 		Records: len(e.Records),

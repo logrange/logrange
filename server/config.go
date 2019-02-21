@@ -20,14 +20,12 @@ import (
 	"github.com/logrange/range/pkg/records/chunk/chunkfs"
 	"github.com/logrange/range/pkg/transport"
 	"io/ioutil"
-	"os"
 	"reflect"
 	"time"
 
 	"github.com/jrivets/log4g"
 	"github.com/logrange/range/pkg/cluster"
 	"github.com/logrange/range/pkg/cluster/model"
-	"github.com/pkg/errors"
 )
 
 // Config struct defines logragnge server settings
@@ -154,10 +152,10 @@ func (c *Config) Apply(cfg *Config) {
 	if cfg.HostHostId > 0 {
 		c.HostHostId = cfg.HostHostId
 	}
-	if !reflect.DeepEqual(cfg.PublicApiRpc, transport.Config{}) {
+	if !reflect.DeepEqual(c.PublicApiRpc, cfg.PublicApiRpc) {
 		c.PublicApiRpc = cfg.PublicApiRpc
 	}
-	if !reflect.DeepEqual(cfg.PrivateApiRpc, transport.Config{}) {
+	if !reflect.DeepEqual(c.PrivateApiRpc, cfg.PrivateApiRpc) {
 		c.PrivateApiRpc = cfg.PrivateApiRpc
 	}
 	if cfg.HostLeaseTTLSec > 0 {
@@ -238,32 +236,16 @@ func (c *JCtrlrConfig) GetChunkConfig() chunkfs.Config {
 	}
 }
 
-// ReadConfigFromFile read config file from filename. It returns nil, if filename
-// is empty or not found. It will panic if the file exists, but could not be
-// read properly
-func ReadConfigFromFile(filename string) *Config {
-	if filename == "" {
-		return nil
-	}
-
-	if _, err := os.Stat(filename); os.IsNotExist(err) {
-		configLog.Warn("There is no file ", filename, " for reading logrange config, will use default configuration.")
-		return nil
-	}
-
+func ReadConfigFromFile(filename string) (*Config, error) {
 	cfgData, err := ioutil.ReadFile(filename)
 	if err != nil {
-		configLog.Fatal("Could not read configuration file ", filename, ": ", err)
-		panic(errors.Wrapf(err, "Could not read data from config file %s", filename))
+		return nil, err
 	}
 
 	c := &Config{}
 	err = json.Unmarshal(cfgData, c)
 	if err != nil {
-		configLog.Fatal("Could not unmarshal data from ", filename, ", err=", err)
-		panic(errors.Wrapf(err, "Could not unmarshal json data from config file %s", filename))
+		return nil, err
 	}
-
-	configLog.Info("Configuration read from ", filename)
-	return c
+	return c, nil
 }

@@ -1,39 +1,46 @@
 {
-  "remote": {
-    "server": "127.0.0.1:9966",
-    "retrySec": 5,
-    "maxRetry": 3
+  "Remote": {
+    "Transport": {
+      "ListenAddr": "127.0.0.1:9966",
+      "TlsEnabled": false,
+      "Tls2Way": false,
+      "TlsCertFile": "/opt/logrange/collector/ssl/client.crt",
+      "TlsKeyFile": "/opt/logrange/collector/ssl/client.key",
+      "TlsCAFile": "/opt/logrange/collector/ssl/ca.pem"
+    },
+    "ConnectMaxRetry": 3,
+    "ConnectRetryIntervalSec": 5
   },
-  "scanner": {
-    "includePaths": [
+  "Scanner": {
+    "IncludePaths": [
       "/var/log/*.log",
       "/var/log/*/*.log"
     ],
-    "excludeMatchers": [],
-    "scanPathsIntervalSec": 20,
-    "stateStoreIntervalSec": 10,
-    "eventMaxRecords": 1000,
-    "recordMaxSizeBytes": 16384,
-    "schemas": [
+    "ExcludeMatchers": [],
+    "ScanPathsIntervalSec": 20,
+    "StateStoreIntervalSec": 10,
+    "EventMaxRecords": 1000,
+    "RecordMaxSizeBytes": 16384,
+    "Schemas": [
       {
-        "pathMatcher": "/*(?:.+/)*(?P<file>.+\\..+)",
-        "format": "text",
-        "dateFormats": [
+        "PathMatcher": "/*(?:.+/)*(?P<file>.+\\..+)",
+        "DataFormat": "text",
+        "DateFormats": [
           "DD/MMM/YYYY:HH:mm:ss ZZZZ"
         ],
-        "meta": {
-          "sourceId": "{file}",
-          "tags": {
+        "Meta": {
+          "SourceId": "{file}",
+          "Tags": {
             "file": "{file}"
           }
         }
       },
       {
-        "pathMatcher": "/*(?:.+/)*(?P<pod>.+)_(?P<ns>.+)_(?P<cname>.+)-(?P<cid>.+)\\..+",
-        "format": "k8json",
-        "meta": {
-          "sourceId": "{cname}",
-          "tags": {
+        "PathMatcher": "/*(?:.+/)*(?P<pod>.+)_(?P<ns>.+)_(?P<cname>.+)-(?P<cid>.+)\\..+",
+        "DataFormat": "k8json",
+        "Meta": {
+          "SourceId": "{cname}",
+          "Tags": {
             "pod": "{pod}",
             "ns": "{ns}",
             "cname": "{cname}",
@@ -43,8 +50,8 @@
       }
     ]
   },
-  "storage": {
-    "type": "file",
-    "location": "/tmp/collector.storage"
+  "Storage": {
+    "Type": "file",
+    "Location": "/opt/logrange/collector/storage/"
   }
 }
