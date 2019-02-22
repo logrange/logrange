@@ -19,6 +19,7 @@ import (
 	"fmt"
 	"github.com/logrange/logrange/api"
 	"github.com/logrange/logrange/pkg/model"
+	"github.com/logrange/logrange/pkg/tindex2"
 	"github.com/logrange/range/pkg/records"
 	"github.com/logrange/range/pkg/records/journal"
 	rrpc "github.com/logrange/range/pkg/rpc"
@@ -33,8 +34,7 @@ type (
 		Pool         *bytes.Pool        `inject:""`
 		TagIdGenSize int                `inject:"TagIdGenSize,optional:10000"`
 		JrnlCtrlr    journal.Controller `inject:""`
-
-		tig *model.TagIdGenerator
+		TIndex       tindex2.Service    `inject:""`
 	}
 
 	clntIngestor struct {
@@ -50,17 +50,16 @@ type (
 	// wpIterator is the struct which receives the slice of bytes and provides a xbinary.WIterator, sutable for
 	// writing the data directly to a journal
 	wpIterator struct {
-		pool   *bytes.Pool
-		tig    *model.TagIdGenerator
-		src    string
-		tags   string
-		tagsId uint64
-		buf    []byte
-		rec    []byte
-		read   bool
-		pos    int
-		recs   int
-		cur    int
+		pool *bytes.Pool
+		src  string
+		tags string
+		trb  tindex2.RecordsBatch
+		buf  []byte
+		rec  []byte
+		read bool
+		pos  int
+		recs int
+		cur  int
 	}
 )
 
@@ -84,7 +83,6 @@ func (si *ServerIngestor) Init(ctx context.Context) error {
 	if si.TagIdGenSize < 100 {
 		return fmt.Errorf("Too small Tag Id Generator buffer size=%d", si.TagIdGenSize)
 	}
-	si.tig = model.NewTagIdGenerator(si.TagIdGenSize)
 
 	return nil
 }
@@ -95,10 +93,11 @@ func (ci *clntIngestor) Write(src, tags string, evs []*api.LogEvent, res *api.Wr
 	wp.tags = tags
 	wp.events = evs
 
-	_, errOp, err := ci.rc.Call(context.Background(), cRpcEpIngestorWrite, &wp)
+	buf, errOp, err := ci.rc.Call(context.Background(), cRpcEpIngestorWrite, &wp)
 	if res != nil {
 		res.Err = errOp
 	}
+	ci.rc.Collect(buf)
 
 	return err
 }
@@ -106,13 +105,17 @@ func (ci *clntIngestor) Write(src, tags string, evs []*api.LogEvent, res *api.Wr
 func (si *ServerIngestor) ingestorWrite(reqId int32, reqBody []byte, sc *rrpc.ServerConn) {
 	var wpi wpIterator
 	wpi.pool = si.Pool
-	wpi.tig = si.tig
-	err := wpi.init(reqBody)
+	err := wpi.init(reqBody, si.TIndex)
 	if err == nil {
 		var jrnl journal.Journal
 		jrnl, err = si.JrnlCtrlr.GetOrCreate(context.Background(), wpi.src)
 		if err == nil {
-			_, _, err = jrnl.Write(context.Background(), &wpi)
+			n, pos, e := jrnl.Write(context.Background(), &wpi)
+			err = e
+			if pos.Idx > uint32(n) && n > 0 {
+				wpi.trb.Idx = pos.Idx - uint32(n)
+				si.TIndex.OnRecords(wpi.src, pos.CId, wpi.trb)
+			}
 		}
 	}
 
@@ -180,12 +183,12 @@ func getLogEventSize(ev *api.LogEvent) int {
 }
 
 func unmarshalLogEvent(res *api.LogEvent, buf []byte) (int, error) {
-	n, v, err := xbinary.UnmarshalInt64(buf)
+	n, v, err := xbinary.UnmarshalUint64(buf)
 	if err != nil {
 		return 0, err
 	}
 	nn := n
-	res.Timestamp = v
+	res.Timestamp = int64(v)
 
 	n, msg, err := xbinary.UnmarshalString(buf[nn:], false)
 	nn += n
@@ -200,7 +203,7 @@ func unmarshalLogEvent(res *api.LogEvent, buf []byte) (int, error) {
 	return nn, err
 }
 
-func (wpi *wpIterator) init(buf []byte) (err error) {
+func (wpi *wpIterator) init(buf []byte, tidx tindex2.Service) (err error) {
 	wpi.buf = buf
 	idx := 0
 	idx, wpi.src, err = xbinary.UnmarshalString(buf, false)
@@ -209,13 +212,22 @@ func (wpi *wpIterator) init(buf []byte) (err error) {
 	}
 
 	idx2 := 0
-	idx2, wpi.tags, err = xbinary.UnmarshalString(buf[idx:], false)
+	idx2, tags, err := xbinary.UnmarshalString(buf[idx:], false)
 	if err != nil {
-		return
+		return err
 	}
-	_, err = model.CheckTags(wpi.tags)
-	if err != nil {
-		return
+
+	if len(tags) > 0 && tidx != nil {
+		tl, err := model.CheckTags(tags)
+		if err != nil {
+			return err
+		}
+		tgs, err := tidx.UpsertTags(tl)
+		if err != nil {
+			return err
+		}
+		wpi.tags = tags
+		wpi.trb.TGroupId = tgs.GetId()
 	}
 
 	idx += idx2
@@ -260,13 +272,9 @@ func (wpi *wpIterator) Get(ctx context.Context) (records.Record, error) {
 	var lge model.LogEvent
 	lge.Timestamp = le.Timestamp
 	lge.Msg = le.Message
-	lge.Tags = le.Tags
-	if len(lge.Tags) == 0 && len(wpi.tags) > 0 {
-		if wpi.tagsId == 0 {
-			lge.Tags = wpi.tags
-			wpi.tagsId = wpi.tig.GetOrCreateId(wpi.tags)
-		}
-		lge.TgId = int64(wpi.tagsId)
+	lge.TgId = wpi.trb.TGroupId
+	if wpi.cur == 1 {
+		lge.Tags = wpi.tags
 	}
 
 	sz := lge.WritableSize()

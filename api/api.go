@@ -33,14 +33,16 @@ type (
 	// Ingestor provides Wrtie method for sending log data into the storage. This intrface is exposed as
 	// a public API
 	Ingestor interface {
-		// Write sends log events into the stream. It expects stream name (src), tags, associated with the write,
-		// a slice of events, and the reference to
+		// Write sends log events into the stream src. It expects stream name (src), tags, associated with the write,
+		// a slice of events and the reference to the WriteResult. Tags field in LogEvents is ignored during the writing operation,
+		// but tags param will be applied to all of the events.
 		Write(src, tags string, evs []*LogEvent, res *WriteResult) error
 	}
 
 	// QeryResult is a result returned by the server in a response on LQL execution (see Querier.Query)
 	QueryResult struct {
 		Records []string
+		Err     error
 	}
 
 	// Querier - executes a query agains logrange deatabase

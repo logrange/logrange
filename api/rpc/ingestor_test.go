@@ -18,6 +18,7 @@ import (
 	"bytes"
 	"github.com/logrange/logrange/api"
 	"github.com/logrange/logrange/pkg/model"
+	"github.com/logrange/logrange/pkg/tindex2"
 	bytes2 "github.com/logrange/range/pkg/utils/bytes"
 	"github.com/logrange/range/pkg/utils/encoding/xbinary"
 	"io"
@@ -36,15 +37,14 @@ func BenchmarkIterator(b *testing.B) {
 
 	wpi := new(wpIterator)
 	wpi.pool = new(bytes2.Pool)
-	wpi.tig = model.NewTagIdGenerator(20000)
-	wpi.init(btb.Bytes())
+	wpi.init(btb.Bytes(), nil)
 
 	b.ReportAllocs()
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		_, err := wpi.Get(nil)
 		if err == io.EOF {
-			wpi.init(btb.Bytes())
+			wpi.init(btb.Bytes(), nil)
 		} else {
 			wpi.Next(nil)
 		}
@@ -67,8 +67,58 @@ func TestWritePacket(t *testing.T) {
 	// now test the iterator
 	wpi := new(wpIterator)
 	wpi.pool = new(bytes2.Pool)
-	wpi.tig = model.NewTagIdGenerator(20000)
-	wpi.init(btb.Bytes())
+	wpi.init(btb.Bytes(), nil)
+
+	if wpi.src != "journal" || wpi.tags != "" || wpi.recs != 2 {
+		t.Fatal("Wrong wpi=", wpi)
+	}
+
+	rec, err := wpi.Get(nil)
+	if err != nil {
+		t.Fatal("err=", err)
+	}
+	var le model.LogEvent
+	le.Unmarshal(rec, false)
+	if le.Timestamp != 1 || le.Tags != "" || le.Msg != "mes1" {
+		t.Fatal("Something wrong with le=", le)
+	}
+
+	wpi.Next(nil)
+	rec, err = wpi.Get(nil)
+	if err != nil {
+		t.Fatal("err=", err)
+	}
+	le.Unmarshal(rec, false)
+	if le.Timestamp != 2 || le.Tags != "" || le.Msg != "mes2" {
+		t.Fatal("Something wrong with le=", le)
+	}
+
+	wpi.Next(nil)
+	_, err = wpi.Get(nil)
+	if err != io.EOF {
+		t.Fatal("Expecting io.EOF, but err=", err)
+	}
+}
+
+func TestWritePacketWithTindex(t *testing.T) {
+	wp := &writePacket{tags: "aaa=bbb", src: "journal", events: []*api.LogEvent{
+		&api.LogEvent{1, "mes1", ""},
+		&api.LogEvent{2, "mes2", "bbb=ttt"},
+	}}
+
+	tim := tindex2.NewInMemTagIndex()
+
+	btb := &bytes.Buffer{}
+	ow := &xbinary.ObjectsWriter{Writer: btb}
+	wp.WriteTo(ow)
+	if len(btb.Bytes()) != wp.WritableSize() {
+		t.Fatal("Expected size=", wp.WritableSize(), ", but real size is ", len(btb.Bytes()))
+	}
+
+	// now test the iterator
+	wpi := new(wpIterator)
+	wpi.pool = new(bytes2.Pool)
+	wpi.init(btb.Bytes(), tim)
 
 	if wpi.src != "journal" || wpi.tags != "aaa=bbb" || wpi.recs != 2 {
 		t.Fatal("Wrong wpi=", wpi)
@@ -83,6 +133,7 @@ func TestWritePacket(t *testing.T) {
 	if le.Timestamp != 1 || le.Tags != "aaa=bbb" || le.TgId == 0 || le.Msg != "mes1" {
 		t.Fatal("Something wrong with le=", le)
 	}
+	tid := le.TgId
 
 	wpi.Next(nil)
 	rec, err = wpi.Get(nil)
@@ -90,7 +141,7 @@ func TestWritePacket(t *testing.T) {
 		t.Fatal("err=", err)
 	}
 	le.Unmarshal(rec, false)
-	if le.Timestamp != 2 || le.Tags != "bbb=ttt" || le.TgId != 0 || le.Msg != "mes2" {
+	if le.Timestamp != 2 || le.Tags != "" || le.TgId != tid || le.Msg != "mes2" {
 		t.Fatal("Something wrong with le=", le)
 	}
 
