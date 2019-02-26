@@ -32,11 +32,10 @@ import (
 type (
 	// ServerIngestor is a struct, which provides the ingestor RPC functionality.
 	ServerIngestor struct {
-		Pool         *bytes.Pool        `inject:""`
-		TagIdGenSize int                `inject:"TagIdGenSize,optional:10000"`
-		JrnlCtrlr    journal.Controller `inject:""`
-		TIndex       tindex.Service     `inject:""`
-		MainCtx      context.Context    `inject:"mainCtx"`
+		Pool      *bytes.Pool        `inject:""`
+		JrnlCtrlr journal.Controller `inject:""`
+		TIndex    tindex.Service     `inject:""`
+		MainCtx   context.Context    `inject:"mainCtx"`
 
 		wg sync.WaitGroup
 	}
@@ -81,10 +80,6 @@ func NewServerIngestor() *ServerIngestor {
 }
 
 func (si *ServerIngestor) Init(ctx context.Context) error {
-	if si.TagIdGenSize < 100 {
-		return fmt.Errorf("Too small Tag Id Generator buffer size=%d", si.TagIdGenSize)
-	}
-
 	return nil
 }
 
