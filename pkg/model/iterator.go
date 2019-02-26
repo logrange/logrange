@@ -39,9 +39,10 @@ type (
 )
 
 // Wrap sets the underlying records.Iterator it
-func (lei *LogEventIterator) Wrap(it records.Iterator) {
+func (lei *LogEventIterator) Wrap(it records.Iterator) *LogEventIterator {
 	lei.it = it
 	lei.st = 0
+	return lei
 }
 
 // Next switches to the next LogEvent record

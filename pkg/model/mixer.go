@@ -59,7 +59,8 @@ func (mr *Mixer) Init(sf SelectF, it1, it2 Iterator) {
 	mr.le2 = LogEvent{}
 }
 
-// Next is the part of Iterator interface
+// Next is the
+// part of Iterator interface
 func (mr *Mixer) Next(ctx context.Context) {
 	mr.selectState(ctx)
 	switch mr.st {

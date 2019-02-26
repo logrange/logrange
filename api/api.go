@@ -33,22 +33,46 @@ type (
 	// Ingestor provides Wrtie method for sending log data into the storage. This intrface is exposed as
 	// a public API
 	Ingestor interface {
-		// Write sends log events into the stream src. It expects stream name (src), tags, associated with the write,
-		// a slice of events and the reference to the WriteResult. Tags field in LogEvents is ignored during the writing operation,
+		// Write sends log events into the stream identified by tags provided. It expects a slice of events and
+		// the reference to the WriteResult. Tags field in LogEvents are ignored during the writing operation,
 		// but tags param will be applied to all of the events.
-		Write(src, tags string, evs []*LogEvent, res *WriteResult) error
+		Write(tags string, evs []*LogEvent, res *WriteResult) error
+	}
+
+	// QueryRequest struct describes a request for reading records
+	QueryRequest struct {
+		// ReqId identifies the request on server side. The field should not be populated by client,
+		// but it can be returned with the structure in QueryResult.
+		ReqId uint64
+
+		// Tags line identifies the source of records. For example "name=app1 and ip like '123.2*'"
+		Tags string
+
+		// Where defines the filter for the records like "msg contains 'ERROR' AND ts > '2006-01-02T15:04:05'"
+		Where string
+
+		// Pos contains the next read record position.
+		Pos string
+
+		// Limit defines the maximum number of records which could be read from the sources
+		Limit int
 	}
 
 	// QeryResult is a result returned by the server in a response on LQL execution (see Querier.Query)
 	QueryResult struct {
-		Records []string
-		Err     error
+		// Events slice contains the result of the query execution
+		Events []*LogEvent
+		// NextQueryRequest contains the query for reading next porition of events. It makes sense only if Err is
+		// nil
+		NextQueryRequest QueryResult
+		// Err the operation error. If the Err is nil, the operation successfully executed
+		Err error
 	}
 
 	// Querier - executes a query agains logrange deatabase
 	Querier interface {
 		// Query runs lql to collect the server data and return it in the QueryResult. It returns an error which indicates
 		// that the query could not be delivered to the server, or it did not happen.
-		Query(lql string, res *QueryResult) error
+		Query(req QueryRequest, res *QueryResult) error
 	}
 )

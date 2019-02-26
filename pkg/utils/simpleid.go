@@ -11,14 +11,27 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
-package tindex
+
+package utils
 
 import (
-	"fmt"
-	"github.com/logrange/logrange/pkg/utils"
+	"github.com/logrange/range/pkg/cluster"
+	"sync/atomic"
+	"time"
 )
 
-func newSrc() string {
-	id := utils.NextSimpleId()
-	return fmt.Sprintf("%X", id)
+var lastTid uint64
+
+func init() {
+	lastTid = (uint64(time.Now().UnixNano()) & 0xFFFFFFFFFFFF0000) | uint64(cluster.HostId16&0xFFFF)
+}
+
+func NextSimpleId() uint64 {
+	for {
+		ltid := atomic.LoadUint64(&lastTid)
+		tid := ltid + 0x10000
+		if atomic.CompareAndSwapUint64(&lastTid, ltid, tid) {
+			return tid
+		}
+	}
 }

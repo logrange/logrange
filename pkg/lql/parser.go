@@ -123,6 +123,10 @@ func Parse(lql string) (*Select, error) {
 }
 
 func ParseExpr(where string) (*Expression, error) {
+	if len(where) == 0 {
+		return nil, nil
+	}
+
 	exp := &Expression{}
 	err := parserExpr.ParseString(where, exp)
 	if err != nil {

@@ -19,7 +19,7 @@ import (
 	"github.com/jrivets/log4g"
 	"github.com/logrange/linker"
 	"github.com/logrange/logrange/api/rpc"
-	"github.com/logrange/logrange/pkg/tindex2"
+	"github.com/logrange/logrange/pkg/tindex"
 	"github.com/logrange/range/pkg/cluster/model"
 	"github.com/logrange/range/pkg/kv/inmem"
 	"github.com/logrange/range/pkg/records/journal/ctrlr"
@@ -41,7 +41,7 @@ func Start(ctx context.Context, cfg *Config) error {
 		linker.Component{Name: "publicRpcTransport", Value: cfg.PublicApiRpc},
 		linker.Component{Name: "", Value: new(bytes.Pool)},
 		linker.Component{Name: "", Value: inmem.New()},
-		linker.Component{Name: "", Value: tindex2.NewInMemTagIndex()},
+		linker.Component{Name: "", Value: tindex.NewInmemService()},
 		linker.Component{Name: "", Value: model.NewHostRegistry()},
 		linker.Component{Name: "", Value: model.NewJournalCatalog()},
 		linker.Component{Name: "", Value: rpc.NewServerIngestor()},
