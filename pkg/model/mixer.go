@@ -27,13 +27,16 @@ type (
 
 	// Mixer allows to mix 2 Iterators to one. Mixer provides the Iterator interface
 	Mixer struct {
-		sf       SelectF
-		it1, it2 Iterator
-		st       byte
-		eof1     bool
-		eof2     bool
-		le1      LogEvent
-		le2      LogEvent
+		sf         SelectF
+		src1, src2 srcDesc
+		st         byte
+	}
+
+	srcDesc struct {
+		it   Iterator
+		eof  bool
+		le   LogEvent
+		tags TagLine
 	}
 )
 
@@ -50,13 +53,9 @@ func GetEarliest(ev1, ev2 LogEvent) bool {
 // Init initializes the mixer
 func (mr *Mixer) Init(sf SelectF, it1, it2 Iterator) {
 	mr.sf = sf
-	mr.it1 = it1
-	mr.it2 = it2
+	mr.src1 = srcDesc{it: it1, eof: false, le: LogEvent{}, tags: ""}
+	mr.src2 = srcDesc{it: it2, eof: false, le: LogEvent{}, tags: ""}
 	mr.st = 0
-	mr.eof1 = false
-	mr.eof2 = false
-	mr.le1 = LogEvent{}
-	mr.le2 = LogEvent{}
 }
 
 // Next is the
@@ -65,53 +64,67 @@ func (mr *Mixer) Next(ctx context.Context) {
 	mr.selectState(ctx)
 	switch mr.st {
 	case 1:
-		mr.it1.Next(ctx)
+		mr.src1.it.Next(ctx)
 	case 2:
-		mr.it2.Next(ctx)
+		mr.src2.it.Next(ctx)
 	}
 	mr.st = 0
 }
 
 // Get is the part of Iterator interface
-func (mr *Mixer) Get(ctx context.Context) (LogEvent, error) {
-	mr.selectState(ctx)
+func (mr *Mixer) Get(ctx context.Context) (LogEvent, TagLine, error) {
+	err := mr.selectState(ctx)
+	if err != nil {
+		return LogEvent{}, "", err
+	}
 	switch mr.st {
 	case 1:
-		return mr.le1, nil
+		return mr.src1.le, mr.src1.tags, nil
 	case 2:
-		return mr.le2, nil
+		return mr.src2.le, mr.src2.tags, nil
 	}
-	return LogEvent{}, io.EOF
+	return LogEvent{}, "", io.EOF
 }
 
-func (mr *Mixer) selectState(ctx context.Context) {
+func (mr *Mixer) selectState(ctx context.Context) error {
 	if mr.st != 0 {
-		return
+		return nil
 	}
 	var err error
-	if !mr.eof1 {
-		mr.le1, err = mr.it1.Get(ctx)
-		mr.eof1 = err == io.EOF
+	if !mr.src1.eof {
+		mr.src1.le, mr.src1.tags, err = mr.src1.it.Get(ctx)
+		if err != nil {
+			if err != io.EOF {
+				return err
+			}
+			mr.src1.eof = true
+		}
 	}
 
-	if !mr.eof2 {
-		mr.le2, err = mr.it2.Get(ctx)
-		mr.eof2 = err == io.EOF
+	if !mr.src2.eof {
+		mr.src2.le, mr.src2.tags, err = mr.src2.it.Get(ctx)
+		if err != nil {
+			if err != io.EOF {
+				return err
+			}
+			mr.src2.eof = true
+		}
 	}
 
-	if mr.eof1 && mr.eof2 {
+	if mr.src1.eof && mr.src2.eof {
 		mr.st = 3
-		return
+		return nil
 	}
 
-	if mr.eof1 {
+	if mr.src1.eof {
 		mr.st = 2
-		return
+		return nil
 	}
 
-	if mr.eof2 || mr.sf(mr.le1, mr.le2) {
+	if mr.src2.eof || mr.sf(mr.src1.le, mr.src2.le) {
 		mr.st = 1
-		return
+		return nil
 	}
 	mr.st = 2
+	return nil
 }

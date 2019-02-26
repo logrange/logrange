@@ -56,7 +56,7 @@ func (s *Server) Init(ctx context.Context) error {
 	s.logger.Info("Initializing...")
 
 	// register endpoints
-	s.rs.Register(cRpcEpIngestorWrite, s.SrvIngestor.ingestorWrite)
+	s.rs.Register(cRpcEpIngestorWrite, s.SrvIngestor.write)
 	s.rs.Register(cRpcEpQuerierQuery, s.SrvQuerier.query)
 
 	go s.listen()

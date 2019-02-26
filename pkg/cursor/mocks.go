@@ -17,21 +17,22 @@ import (
 	"context"
 	"fmt"
 	"github.com/logrange/logrange/pkg/lql"
+	"github.com/logrange/logrange/pkg/model"
 	"github.com/logrange/range/pkg/records"
 	"github.com/logrange/range/pkg/records/journal"
 )
 
 // test helpers
 type testTidxService struct {
-	getJournals []string
+	journals map[model.TagLine]string
 }
 
 func (tis *testTidxService) GetOrCreateJournal(tags string) (string, error) {
 	return "", nil
 }
 
-func (tis *testTidxService) GetJournals(exp *lql.Expression) ([]string, error) {
-	return tis.getJournals, nil
+func (tis *testTidxService) GetJournals(exp *lql.Expression) (map[model.TagLine]string, error) {
+	return tis.journals, nil
 }
 
 type testJrnlCtrlr struct {

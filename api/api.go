@@ -18,7 +18,7 @@ type (
 	// LogEvent struct describes one message
 	LogEvent struct {
 		// Timestamp contains the time-stamp for the message.
-		Timestamp int64
+		Timestamp uint64
 		// Message is the message itself
 		Message string
 		// Tag line for the message. It could be empty
@@ -64,7 +64,7 @@ type (
 		Events []*LogEvent
 		// NextQueryRequest contains the query for reading next porition of events. It makes sense only if Err is
 		// nil
-		NextQueryRequest QueryResult
+		NextQueryRequest QueryRequest
 		// Err the operation error. If the Err is nil, the operation successfully executed
 		Err error
 	}
@@ -73,6 +73,6 @@ type (
 	Querier interface {
 		// Query runs lql to collect the server data and return it in the QueryResult. It returns an error which indicates
 		// that the query could not be delivered to the server, or it did not happen.
-		Query(req QueryRequest, res *QueryResult) error
+		Query(req *QueryRequest, res *QueryResult) error
 	}
 )

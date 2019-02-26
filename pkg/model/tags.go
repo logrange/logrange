@@ -73,17 +73,17 @@ func (tl *TagLine) newTagMap() (TagMap, error) {
 	return m, nil
 }
 
-func CheckTags(tgs string) (TagLine, error) {
+func CheckTags(tgs string) error {
 	if len(tgs) == 0 {
-		return "", nil
+		return nil
 	}
 	vals := strings.Split(tgs, cTagSeparator)
 	for _, v := range vals {
 		if len(strings.Split(v, cTagValueSeparator)) != 2 {
-			return "", fmt.Errorf("Wrong tag format: \"%s\" expecting in a form key=value", v)
+			return fmt.Errorf("Wrong tag format: \"%s\" expecting in a form key=value", v)
 		}
 	}
-	return TagLine(tgs), nil
+	return nil
 }
 
 func NewTagMap(m map[string]string) (TagMap, error) {

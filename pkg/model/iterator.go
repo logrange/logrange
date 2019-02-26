@@ -26,20 +26,22 @@ type (
 		// Next switches to the next event, if any
 		Next(ctx context.Context)
 
-		// Get returns current LogEvent, or an error if any. It returns io.EOF when end of the collection is reached
-		Get(ctx context.Context) (LogEvent, error)
+		// Get returns current LogEvent, the Tags for the event or an error if any. It returns io.EOF when end of the collection is reached
+		Get(ctx context.Context) (LogEvent, TagLine, error)
 	}
 
 	// LogEventIterator struct wraps a records.Iterator and provides LogEvent Iterator interface over it.
 	LogEventIterator struct {
-		it records.Iterator
-		st int
-		le LogEvent
+		tags TagLine
+		it   records.Iterator
+		st   int
+		le   LogEvent
 	}
 )
 
 // Wrap sets the underlying records.Iterator it
-func (lei *LogEventIterator) Wrap(it records.Iterator) *LogEventIterator {
+func (lei *LogEventIterator) Wrap(tags TagLine, it records.Iterator) *LogEventIterator {
+	lei.tags = tags
 	lei.it = it
 	lei.st = 0
 	return lei
@@ -52,9 +54,9 @@ func (lei *LogEventIterator) Next(ctx context.Context) {
 }
 
 // Get returns current LogEvent record
-func (lei *LogEventIterator) Get(ctx context.Context) (LogEvent, error) {
+func (lei *LogEventIterator) Get(ctx context.Context) (LogEvent, TagLine, error) {
 	if lei.st == 1 {
-		return lei.le, nil
+		return lei.le, lei.tags, nil
 	}
 
 	rec, err := lei.it.Get(ctx)
@@ -62,7 +64,7 @@ func (lei *LogEventIterator) Get(ctx context.Context) (LogEvent, error) {
 		_, err = lei.le.Unmarshal(rec, false)
 
 	}
-	return lei.le, err
+	return lei.le, lei.tags, err
 }
 
 type testLogEventsWrapper struct {

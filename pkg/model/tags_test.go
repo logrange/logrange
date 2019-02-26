@@ -19,13 +19,13 @@ import (
 )
 
 func TestCheckTags(t *testing.T) {
-	if _, err := CheckTags(""); err != nil {
+	if err := CheckTags(""); err != nil {
 		t.Fatal("Expecting err=nil, but err=", err)
 	}
-	if _, err := CheckTags("a=b"); err != nil {
+	if err := CheckTags("a=b"); err != nil {
 		t.Fatal("Expecting err=nil, but err=", err)
 	}
-	if _, err := CheckTags("a=b|d=f"); err != nil {
+	if err := CheckTags("a=b|d=f"); err != nil {
 		t.Fatal("Expecting err=nil, but err=", err)
 	}
 }

@@ -16,6 +16,7 @@ package tindex
 
 import (
 	"github.com/logrange/logrange/pkg/lql"
+	"github.com/logrange/logrange/pkg/model"
 )
 
 type (
@@ -25,7 +26,7 @@ type (
 		// GetOrCreateJournal returns the journal name for the unique tags combination
 		GetOrCreateJournal(tags string) (string, error)
 
-		// GetJournals returns list of journals by the compiled tags source expression
-		GetJournals(exp *lql.Expression) ([]string, error)
+		// GetJournals returns map of matched tags to the journals they address by the source expression
+		GetJournals(exp *lql.Expression) (map[model.TagLine]string, error)
 	}
 )

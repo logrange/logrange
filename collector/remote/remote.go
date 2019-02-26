@@ -151,15 +151,14 @@ func (c *Client) send(ev *model.Event, sendRes *api.WriteResult) error {
 	}
 
 	c.logger.Debug("Sending event=", ev)
-	return c.rpc.Ingestor().Write(ev.Meta.SourceId,
-		string(tm.BuildTagLine()), toApiEvents(ev), sendRes)
+	return c.rpc.Ingestor().Write(string(tm.BuildTagLine()), toApiEvents(ev), sendRes)
 }
 
 func toApiEvents(ev *model.Event) []*api.LogEvent {
 	res := make([]*api.LogEvent, 0, len(ev.Records))
 	for _, r := range ev.Records {
 		res = append(res, &api.LogEvent{
-			Timestamp: r.Date.UnixNano(),
+			Timestamp: uint64(r.Date.UnixNano()),
 			Message:   *(*string)(unsafe.Pointer(&r.Data)),
 		})
 	}

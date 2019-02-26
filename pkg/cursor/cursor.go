@@ -54,8 +54,9 @@ type (
 	}
 
 	jrnlDesc struct {
-		j  journal.Journal
-		it journal.Iterator
+		tags model.TagLine
+		j    journal.Journal
+		it   journal.Iterator
 	}
 )
 
@@ -80,25 +81,30 @@ func newCursor(ctx context.Context, state State, tidx tindex.Service, jctrl jour
 	// create the iterators
 	var it model.Iterator
 	if len(srcs) == 1 {
-		jrnl, err := jctrl.GetOrCreate(ctx, srcs[0])
-		if err != nil {
-			return nil, errors.Wrapf(err, "Could not get the access to the journal %s, which's got for the \"%s\" expression ", srcs[0], state.Sources)
+		for tags, src := range srcs {
+			jrnl, err := jctrl.GetOrCreate(ctx, src)
+			if err != nil {
+				return nil, errors.Wrapf(err, "Could not get the access to the journal %s for tags %s, which's got for the \"%s\" expression ", src, tags, state.Sources)
+			}
+			jit := jrnl.Iterator()
+			it = (&model.LogEventIterator{}).Wrap(tags, jit)
+
+			jd[src] = &jrnlDesc{tags, jrnl, jit}
 		}
-		jit := jrnl.Iterator()
-		it = (&model.LogEventIterator{}).Wrap(jit)
-		jd[srcs[0]] = &jrnlDesc{jrnl, jit}
 	} else {
 		mxs := make([]model.Iterator, len(srcs))
 
-		for i, src := range srcs {
+		i := 0
+		for tags, src := range srcs {
 			jrnl, err := jctrl.GetOrCreate(ctx, src)
 			if err != nil {
 				return nil, errors.Wrapf(err, "Could not get the access to the journal %s, which's got for the \"%s\" expression ", src, state.Sources)
 			}
 
 			jit := jrnl.Iterator()
-			jd[src] = &jrnlDesc{jrnl, jit}
-			mxs[i] = (&model.LogEventIterator{}).Wrap(jit)
+			jd[src] = &jrnlDesc{tags, jrnl, jit}
+			mxs[i] = (&model.LogEventIterator{}).Wrap(tags, jit)
+			i++
 		}
 
 		// mixing them
@@ -146,8 +152,27 @@ func (cur *Cursor) Next(ctx context.Context) {
 }
 
 // Get part of the model.Iterator
-func (cur *Cursor) Get(ctx context.Context) (model.LogEvent, error) {
+func (cur *Cursor) Get(ctx context.Context) (model.LogEvent, model.TagLine, error) {
 	return cur.it.Get(ctx)
+}
+
+// ApplyState tries to apply state to the cursor. Returns an error, if the operation could not be completed.
+// Current implementation allows to apply position only
+func (cur *Cursor) ApplyState(state State) error {
+	if cur.state.Where != state.Where || cur.state.Sources != state.Sources || cur.state.Id != state.Id {
+		return errors.Errorf("Could not apply state %s to the current cursor state %s", state, cur.state)
+	}
+
+	if cur.state.Pos != state.Pos {
+		oldPos := cur.state.Pos
+		cur.state.Pos = state.Pos
+		err := cur.applyStatePos()
+		if err != nil {
+			cur.state.Pos = oldPos
+			return errors.Wrapf(err, "Could not apply position %s to the cursor state %s ", state.Pos, cur.state)
+		}
+	}
+	return nil
 }
 
 const cPosJrnlSplit = ":"

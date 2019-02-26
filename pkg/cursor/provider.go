@@ -88,19 +88,27 @@ func (p *Provider) GetOrCreate(ctx context.Context, state State) (*Cursor, error
 				p.lock.Unlock()
 				return nil, errors.Errorf("Cursor usage violation: concurrent request for id=%d", state.Id)
 			}
-			ch.busy = true
-			p.busy = p.busy.TearOff(e)
-			p.busy = e.Append(p.busy)
-			res = ch.cur
-			ch.expTime = time.Now().Add(p.busyTo)
+
+			if err := ch.cur.ApplyState(state); err != nil {
+				p.logger.Warn("Could not apply state ", state, " to the cursor ", ch.cur, ". Will try to create the new one. err=", err)
+				state.Id = 0
+			} else {
+				ch.busy = true
+				p.busy = p.busy.TearOff(e)
+				p.busy = e.Append(p.busy)
+				res = ch.cur
+				ch.expTime = time.Now().Add(p.busyTo)
+			}
 		}
 		p.lock.Unlock()
-	} else {
-		state.Id = utils.NextSimpleId()
 	}
 
 	if res != nil {
 		return res, nil
+	}
+
+	if state.Id == 0 {
+		state.Id = utils.NextSimpleId()
 	}
 
 	cur, err := newCursor(ctx, state, p.Tidx, p.JCtrl)

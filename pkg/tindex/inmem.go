@@ -36,6 +36,9 @@ type (
 
 	// InMemConfig struct contains configuration for inmemService
 	InMemConfig struct {
+		// DoNotSave flag indicates that the data should not be persisted. Used for testing.
+		DoNotSave bool
+
 		// WorkingDir contains path to the folder for persisting the index data
 		WorkingDir string
 
@@ -64,6 +67,12 @@ func NewInmemService() Service {
 	ims.logger = log4g.GetLogger("tindex.inmem")
 	ims.tmap = make(map[string]*tagsDesc)
 	return ims
+}
+
+func NewInmemServiceWithConfig(cfg InMemConfig) Service {
+	res := NewInmemService().(*inmemService)
+	res.Config = &cfg
+	return res
 }
 
 func (ims *inmemService) Init(ctx context.Context) error {
@@ -95,6 +104,10 @@ func (ims *inmemService) GetOrCreateJournal(tags string) (string, error) {
 			return "", fmt.Errorf("The line %s doesn't seem like properly formatted tag line: %s", tags, err)
 		}
 
+		if len(tgs.GetTagMap()) == 0 {
+			return "", fmt.Errorf("At least one tag value is expected to define the source")
+		}
+
 		if td2, ok := ims.tmap[string(tgs.GetTagLine())]; !ok {
 			td = &tagsDesc{tgs, newSrc()}
 			ims.tmap[string(tgs.GetTagLine())] = td
@@ -115,7 +128,7 @@ func (ims *inmemService) GetOrCreateJournal(tags string) (string, error) {
 	return res, nil
 }
 
-func (ims *inmemService) GetJournals(exp *lql.Expression) ([]string, error) {
+func (ims *inmemService) GetJournals(exp *lql.Expression) (map[model.TagLine]string, error) {
 	tef, err := lql.BuildTagsExpFunc(exp)
 	if err != nil {
 		return nil, err
@@ -127,10 +140,10 @@ func (ims *inmemService) GetJournals(exp *lql.Expression) ([]string, error) {
 		return nil, fmt.Errorf("Already shut-down.")
 	}
 
-	res := make([]string, 0, 5)
+	res := make(map[model.TagLine]string, 10)
 	for _, td := range ims.tmap {
 		if tef(td.tags.GetTagMap()) {
-			res = append(res, td.src)
+			res[td.tags.GetTagLine()] = td.src
 		}
 	}
 	ims.lock.Unlock()
@@ -139,6 +152,11 @@ func (ims *inmemService) GetJournals(exp *lql.Expression) ([]string, error) {
 }
 
 func (ims *inmemService) saveState() error {
+	if ims.Config.DoNotSave {
+		ims.logger.Warn("Will not save config, cause DoNotSave flag is set.")
+		return nil
+	}
+
 	fn := path.Join(ims.Config.WorkingDir, cIdxFileName)
 	_, err := os.Stat(fn)
 	var bFn string

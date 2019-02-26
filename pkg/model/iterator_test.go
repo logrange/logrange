@@ -25,14 +25,18 @@ func TestLogEventIterator(t *testing.T) {
 	lew := newTestLogEventsWrapper(les)
 
 	lei := &LogEventIterator{}
-	lei.Wrap(lew)
+	lei.Wrap("test", lew)
 	idx := 0
 	for {
-		le, err := lei.Get(nil)
+		le, tags, err := lei.Get(nil)
 		if err == io.EOF {
 			break
 		}
-		le2, err := lei.Get(nil)
+		if tags != "test" {
+			t.Fatal("tags are wrong ", tags)
+		}
+
+		le2, _, err := lei.Get(nil)
 		if !reflect.DeepEqual(le, le2) {
 			t.Fatal("expecting le=", le, " to be equal to ", le2)
 		}

@@ -16,6 +16,7 @@ package tindex
 
 import (
 	"github.com/logrange/logrange/pkg/lql"
+	"github.com/logrange/logrange/pkg/model"
 	"io/ioutil"
 	"os"
 	"testing"
@@ -115,7 +116,13 @@ func TestGetJournals(t *testing.T) {
 	ims.Init(nil)
 	tags := "dda=basdfasdf|c=asdfasdfasdf"
 	src, _ := ims.GetOrCreateJournal(tags)
-	src2, _ := ims.GetOrCreateJournal(tags + "ddd")
+	tags2 := tags + "ddd"
+	src2, _ := ims.GetOrCreateJournal(tags2)
+
+	t1, _ := model.NewTags(tags)
+	tl1 := t1.GetTagLine()
+	t2, _ := model.NewTags(tags2)
+	tl2 := t2.GetTagLine()
 
 	exp, err := lql.ParseExpr("dda=basdfasdf")
 	if err != nil {
@@ -123,13 +130,13 @@ func TestGetJournals(t *testing.T) {
 	}
 
 	res, err := ims.GetJournals(exp)
-	if err != nil || len(res) != 2 || !contains(res, src) || !contains(res, src2) {
+	if err != nil || len(res) != 2 || res[tl1] != src || res[tl2] != src2 {
 		t.Fatal("err=", err, " res=", res, ", src=", src, ", src2=", src2)
 	}
 
 	exp, _ = lql.ParseExpr("dda=basdfasdf  and c=asdfasdfasdf")
 	res, err = ims.GetJournals(exp)
-	if err != nil || len(res) != 1 || !contains(res, src) {
+	if err != nil || len(res) != 1 || res[tl1] != src {
 		t.Fatal("err=", err, " res=", res, ", src=", src)
 	}
 
@@ -139,13 +146,4 @@ func TestGetJournals(t *testing.T) {
 		t.Fatal("err=", err, " res=", res)
 	}
 
-}
-
-func contains(s []string, e string) bool {
-	for _, a := range s {
-		if a == e {
-			return true
-		}
-	}
-	return false
 }

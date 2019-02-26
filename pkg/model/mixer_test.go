@@ -50,9 +50,9 @@ func TestMixer(t *testing.T) {
 func testMix(t *testing.T, sf SelectF, i1, i2, res []LogEvent) {
 	m := &Mixer{}
 	it1 := &LogEventIterator{}
-	it1.Wrap(newTestLogEventsWrapper(i1))
+	it1.Wrap("t1", newTestLogEventsWrapper(i1))
 	it2 := &LogEventIterator{}
-	it2.Wrap(newTestLogEventsWrapper(i2))
+	it2.Wrap("t2", newTestLogEventsWrapper(i2))
 	m.Init(sf, it1, it2)
 	testIt(t, m, res)
 }
@@ -60,12 +60,12 @@ func testMix(t *testing.T, sf SelectF, i1, i2, res []LogEvent) {
 func testIt(t *testing.T, it Iterator, res []LogEvent) {
 	idx := 0
 	for {
-		le, err := it.Get(nil)
+		le, t1, err := it.Get(nil)
 		if err == io.EOF {
 			break
 		}
-		le2, err := it.Get(nil)
-		if !reflect.DeepEqual(le, le2) {
+		le2, t2, err := it.Get(nil)
+		if !reflect.DeepEqual(le, le2) || t1 != t2 {
 			t.Fatal("expecting le=", le, " to be equal to ", le2)
 		}
 		if !reflect.DeepEqual(le, res[idx]) {

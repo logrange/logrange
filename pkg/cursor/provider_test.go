@@ -16,6 +16,7 @@ package cursor
 
 import (
 	"github.com/jrivets/log4g"
+	"github.com/logrange/logrange/pkg/model"
 	"testing"
 	"time"
 )
@@ -24,7 +25,7 @@ func TestGetOrCreate(t *testing.T) {
 	p := NewProvider()
 	defer p.Shutdown()
 
-	p.Tidx = &testTidxService{[]string{"j1"}}
+	p.Tidx = &testTidxService{map[model.TagLine]string{"j1": "j1"}}
 	p.JCtrl = &testJrnlCtrlr{map[string]*testJrnl{"j1": &testJrnl{"j1"}}}
 	cur, err := p.GetOrCreate(nil, State{})
 	if err != nil {
@@ -53,7 +54,7 @@ func TestRelease(t *testing.T) {
 	p := NewProvider()
 	defer p.Shutdown()
 
-	p.Tidx = &testTidxService{[]string{"j1"}}
+	p.Tidx = &testTidxService{map[model.TagLine]string{"j1": "j1"}}
 	p.JCtrl = &testJrnlCtrlr{map[string]*testJrnl{"j1": &testJrnl{"j1"}}}
 	cur, err := p.GetOrCreate(nil, State{Id: 1})
 	if e, ok := p.curs[1]; !ok || e != p.busy || err != nil {
@@ -87,7 +88,7 @@ func TestSweepByTime(t *testing.T) {
 		t.Fatal("p.Init() == ", err)
 	}
 
-	p.Tidx = &testTidxService{[]string{"j1"}}
+	p.Tidx = &testTidxService{map[model.TagLine]string{"j1": "j1"}}
 	p.JCtrl = &testJrnlCtrlr{map[string]*testJrnl{"j1": &testJrnl{"j1"}}}
 	cur, err := p.GetOrCreate(nil, State{Id: 1})
 	if e, ok := p.curs[1]; !ok || e != p.busy || err != nil {
@@ -120,7 +121,7 @@ func TestSweepBySize(t *testing.T) {
 
 	log4g.SetLogLevel("", log4g.DEBUG)
 
-	p.Tidx = &testTidxService{[]string{"j1"}}
+	p.Tidx = &testTidxService{map[model.TagLine]string{"j1": "j1"}}
 	p.JCtrl = &testJrnlCtrlr{map[string]*testJrnl{"j1": &testJrnl{"j1"}}}
 	cur, err := p.GetOrCreate(nil, State{Id: 1})
 	if e, ok := p.curs[1]; !ok || e != p.busy || err != nil {
