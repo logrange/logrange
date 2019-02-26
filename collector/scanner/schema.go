@@ -26,15 +26,15 @@ import (
 
 type (
 	SchemaConfig struct {
-		PathMatcher string            `json:"pathMatcher"`
-		DataFormat  parser.DataFormat `json:"format"`
-		DateFormats []string          `json:"dateFormats"`
-		Meta        Meta              `json:"meta"`
+		PathMatcher string
+		DataFormat  parser.DataFormat
+		DateFormats []string
+		Meta        Meta
 	}
 
 	Meta struct {
-		SourceId string            `json:"sourceId"`
-		Tags     map[string]string `json:"tags"`
+		SourceId string
+		Tags     map[string]string
 	}
 
 	schema struct {
@@ -97,17 +97,17 @@ func (s *schema) subsVars(l string, vars map[string]string) string {
 
 func (sc *SchemaConfig) Check() error {
 	if strings.TrimSpace(sc.PathMatcher) == "" {
-		return errors.New("patchMatcher must be non-empty")
+		return errors.New("PatchMatcher must be non-empty")
 	}
 	_, err := syntax.Parse(sc.PathMatcher, syntax.Perl)
 	if err != nil {
-		return fmt.Errorf("pathMatcher is invalid; %v", err)
+		return fmt.Errorf("PathMatcher=%v is invalid; %v", sc.PathMatcher, err)
 	}
 	if strings.TrimSpace(sc.Meta.SourceId) == "" {
-		return errors.New("meta.sourceId must be non-empty")
+		return errors.New("Meta.SourceId must be non-empty")
 	}
 	if sc.DataFormat != parser.FmtK8Json && sc.DataFormat != parser.FmtText {
-		return fmt.Errorf("dataFormat is unknown=%v", sc.DataFormat)
+		return fmt.Errorf("DataFormat is unknown=%v", sc.DataFormat)
 	}
 	return nil
 }

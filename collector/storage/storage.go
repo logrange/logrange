@@ -20,24 +20,25 @@ import (
 	"github.com/logrange/logrange/collector/utils"
 	"io/ioutil"
 	"os"
+	"strings"
+	"sync"
 )
 
 type (
 	// Storage interface allows to read and write serialized data
 	Storage interface {
-		ReadData() ([]byte, error)
-		WriteData(buf []byte) error
+		ReadData(key string) ([]byte, error)
+		WriteData(key string, val []byte) error
 	}
 
 	// inmemStorage struct an in-mem Storage implementation
 	inmemStorage struct {
-		buf    []byte
 		logger log4g.Logger
 	}
 
 	// fileStorage stuct a file Storage implementation
 	fileStorage struct {
-		fileName string
+		location string
 		logger   log4g.Logger
 	}
 
@@ -49,92 +50,94 @@ const (
 	TypeInMem StorageType = "inmem"
 )
 
+var (
+	inMemStore sync.Map
+)
+
 //===================== storage =====================
 
 func NewStorage(cfg *Config) (Storage, error) {
 	if err := cfg.Check(); err != nil {
 		return nil, err
 	}
-
 	switch cfg.Type {
 	case TypeFile:
 		return newFileStorage(cfg.Location)
 	case TypeInMem:
 		return newInMemStorage(), nil
 	}
-
 	return nil, fmt.Errorf("unknown storage type=%v", cfg.Type)
 }
 
 func NewDefaultStorage() Storage {
-	s, _ := NewStorage(NewDefaultConfig())
-	return s
+	return newInMemStorage()
 }
 
 //===================== inmemStorage =====================
 
 func newInMemStorage() Storage {
-	logger := log4g.GetLogger("collector.storage").WithId("[inmem]").(log4g.Logger)
-	return &inmemStorage{buf: make([]byte, 0), logger: logger}
+	logger := log4g.GetLogger("storage").WithId("[inmem]").(log4g.Logger)
+	return &inmemStorage{logger: logger}
 }
 
-func (ms *inmemStorage) ReadData() ([]byte, error) {
-	if ms.buf == nil {
+func (ms *inmemStorage) ReadData(key string) ([]byte, error) {
+	v, ok := inMemStore.Load(key)
+	if !ok {
 		return nil, os.ErrNotExist
 	}
-	ms.logger.Debug("Read data=", string(ms.buf))
-	return ms.buf, nil
+
+	buf := v.([]byte)
+	ms.logger.Debug("Read key=", key, ", value=", string(buf))
+	return buf, nil
 }
 
-func (ms *inmemStorage) WriteData(buf []byte) error {
-	if buf == nil {
-		ms.buf = nil
+func (ms *inmemStorage) WriteData(key string, val []byte) error {
+	if val == nil {
 		return nil
 	}
-	ms.buf = utils.BytesCopy(buf)
-	ms.logger.Debug("Wrote data=", string(ms.buf))
+
+	buf := utils.BytesCopy(val)
+	inMemStore.Store(key, buf)
+	ms.logger.Debug("Wrote key=", key, ", value=", string(buf))
 	return nil
 }
 
 func (ms *inmemStorage) String() string {
-	return fmt.Sprintf("[inmem]")
+	return "[inmem]"
 }
 
 //===================== fileStorage =====================
 
-func newFileStorage(fn string) (Storage, error) {
-	if err := openOrCreate(fn); err != nil {
+func newFileStorage(location string) (Storage, error) {
+	err := os.MkdirAll(location, 0740)
+	if err != nil {
 		return nil, err
 	}
 
-	logger := log4g.GetLogger("collector.storage").WithId("[file]").(log4g.Logger)
-	return &fileStorage{fileName: fn, logger: logger}, nil
+	logger := log4g.GetLogger("storage").WithId("[file]").(log4g.Logger)
+	return &fileStorage{location: location, logger: logger}, nil
 }
 
-func (fs *fileStorage) ReadData() ([]byte, error) {
-	data, err := ioutil.ReadFile(fs.fileName)
+func (fs *fileStorage) ReadData(key string) ([]byte, error) {
+	data, err := ioutil.ReadFile(key)
 	if err == nil {
-		fs.logger.Debug("Read data=", string(data))
+		fs.logger.Debug("Read key=", key, ", value=", string(data))
 	}
 	return data, err
 }
 
-func (fs *fileStorage) WriteData(buf []byte) error {
-	err := ioutil.WriteFile(fs.fileName, buf, 0640)
+func (fs *fileStorage) WriteData(key string, val []byte) error {
+	err := ioutil.WriteFile(fs.filePath(key), val, 0640)
 	if err == nil {
-		fs.logger.Debug("Wrote data=", string(buf))
+		fs.logger.Debug("Wrote key=", key, ", value=", string(val))
 	}
 	return err
 }
 
-func (fs *fileStorage) String() string {
-	return fmt.Sprintf("[file:%v]", fs.fileName)
+func (fs *fileStorage) filePath(file string) string {
+	return fmt.Sprintf("%v/%v", strings.TrimRight(fs.location, "/"), file)
 }
 
-//===================== utils =====================
-
-func openOrCreate(fn string) error {
-	file, err := os.OpenFile(fn, os.O_RDWR|os.O_CREATE, 0640)
-	_ = file.Close()
-	return err
+func (fs *fileStorage) String() string {
+	return fmt.Sprintf("[file: location=%v]", fs.location)
 }
