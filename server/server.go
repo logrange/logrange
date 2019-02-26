@@ -19,6 +19,7 @@ import (
 	"github.com/jrivets/log4g"
 	"github.com/logrange/linker"
 	"github.com/logrange/logrange/api/rpc"
+	"github.com/logrange/logrange/pkg/cursor"
 	"github.com/logrange/logrange/pkg/tindex"
 	"github.com/logrange/range/pkg/cluster/model"
 	"github.com/logrange/range/pkg/kv/inmem"
@@ -32,6 +33,8 @@ func Start(ctx context.Context, cfg *Config) error {
 	log := log4g.GetLogger("server")
 	log.Info("Start with config:", cfg)
 
+	imsCfg := &tindex.InMemConfig{WorkingDir: cfg.JrnlCtrlConfig.JournalsDir, CreateNew: cfg.NewTIndexOk}
+
 	injector := linker.New()
 	injector.SetLogger(log4g.GetLogger("injector"))
 	injector.Register(
@@ -39,6 +42,7 @@ func Start(ctx context.Context, cfg *Config) error {
 		linker.Component{Name: "JournalControllerConfig", Value: &cfg.JrnlCtrlConfig},
 		linker.Component{Name: "tindexDir", Value: cfg.JrnlCtrlConfig.JournalsDir},
 		linker.Component{Name: "publicRpcTransport", Value: cfg.PublicApiRpc},
+		linker.Component{Name: "inmemServiceConfig", Value: imsCfg},
 		linker.Component{Name: "mainCtx", Value: ctx},
 		linker.Component{Name: "", Value: new(bytes.Pool)},
 		linker.Component{Name: "", Value: inmem.New()},
@@ -49,6 +53,7 @@ func Start(ctx context.Context, cfg *Config) error {
 		linker.Component{Name: "", Value: rpc.NewServerQuerier()},
 		linker.Component{Name: "", Value: rpc.NewServer()},
 		linker.Component{Name: "", Value: ctrlr.NewJournalController()},
+		linker.Component{Name: "", Value: cursor.NewProvider()},
 	)
 	injector.Init(ctx)
 
