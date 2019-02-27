@@ -93,7 +93,7 @@ type (
 		Count int
 
 		// Err the operaion error, if any
-		Err error
+		Err error `json:"-"`
 	}
 
 	// Querier - executes a query agains logrange database

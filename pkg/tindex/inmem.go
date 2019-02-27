@@ -30,8 +30,8 @@ import (
 
 type (
 	tagsDesc struct {
-		tags model.Tags
-		src  string
+		Tags model.Tags
+		Src  string
 	}
 
 	// InMemConfig struct contains configuration for inmemService
@@ -114,7 +114,7 @@ func (ims *inmemService) GetOrCreateJournal(tags string) (string, error) {
 			err = ims.saveState()
 			if err != nil {
 				delete(ims.tmap, string(tgs.GetTagLine()))
-				ims.logger.Error("Could not save state for the new source ", td.src, " formed for ", tgs.GetTagLine(), ", original tags=", tags, ", err=", err)
+				ims.logger.Error("Could not save state for the new source ", td.Src, " formed for ", tgs.GetTagLine(), ", original Tags=", tags, ", err=", err)
 				ims.lock.Unlock()
 				return "", err
 			}
@@ -123,7 +123,7 @@ func (ims *inmemService) GetOrCreateJournal(tags string) (string, error) {
 		}
 	}
 
-	res := td.src
+	res := td.Src
 	ims.lock.Unlock()
 	return res, nil
 }
@@ -143,10 +143,10 @@ func (ims *inmemService) GetJournals(exp *lql.Expression, maxSize int, checkAll 
 	count := 0
 	res := make(map[model.TagLine]string, 10)
 	for _, td := range ims.tmap {
-		if tef(td.tags.GetTagMap()) {
+		if tef(td.Tags.GetTagMap()) {
 			count++
 			if len(res) < maxSize {
-				res[td.tags.GetTagLine()] = td.src
+				res[td.Tags.GetTagLine()] = td.Src
 			} else if !checkAll {
 				break
 			}
@@ -158,6 +158,7 @@ func (ims *inmemService) GetJournals(exp *lql.Expression, maxSize int, checkAll 
 }
 
 func (ims *inmemService) saveState() error {
+	ims.logger.Debug("savingState()")
 	if ims.Config.DoNotSave {
 		ims.logger.Warn("Will not save config, cause DoNotSave flag is set.")
 		return nil
@@ -193,11 +194,13 @@ func (ims *inmemService) loadState() error {
 	fn := path.Join(ims.Config.WorkingDir, cIdxFileName)
 	_, err := os.Stat(fn)
 	if os.IsNotExist(err) {
+		ims.logger.Debug("loadState() file not found ", fn)
 		if !ims.Config.CreateNew {
 			return errors.Wrapf(err, "Could not find index file %s", fn)
 		}
 		return ims.saveState()
 	}
+	ims.logger.Debug("loadState() from ", fn)
 
 	data, err := ioutil.ReadFile(fn)
 	if err != nil {

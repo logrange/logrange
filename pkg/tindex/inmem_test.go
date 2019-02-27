@@ -15,6 +15,7 @@
 package tindex
 
 import (
+	"github.com/jrivets/log4g"
 	"github.com/logrange/logrange/pkg/lql"
 	"github.com/logrange/logrange/pkg/model"
 	"io/ioutil"
@@ -75,15 +76,19 @@ func TestCheckLoadReload(t *testing.T) {
 		t.Fatal("Could not create new dir err=", err)
 	}
 	defer os.RemoveAll(dir) // clean up
+	log4g.SetLogLevel("", log4g.DEBUG)
 
 	ims := NewInmemService().(*inmemService)
 	ims.Config = &InMemConfig{WorkingDir: dir, CreateNew: true}
-	ims.Init(nil)
+	err = ims.Init(nil)
+	if err != nil {
+		t.Fatal("Init() err=", err)
+	}
 	tags := "dda=basdfasdf|c=asdfasdfasdf"
 	src, _ := ims.GetOrCreateJournal(tags)
 	src2, _ := ims.GetOrCreateJournal(tags)
 	if src != src2 {
-		t.Fatal("src=", src, " must be equal to src2=", src2)
+		t.Fatal("Src=", src, " must be equal to src2=", src2)
 	}
 
 	ims.Shutdown()
@@ -91,15 +96,18 @@ func TestCheckLoadReload(t *testing.T) {
 	if err == nil {
 		t.Fatal("it must be an error here!")
 	}
-	ims.Init(nil)
+	err = ims.Init(nil)
+	if err != nil {
+		t.Fatal("Init() err=", err)
+	}
 	src2, err = ims.GetOrCreateJournal(tags)
 	if err != nil || src != src2 {
-		t.Fatal("err must be nil and src2==src but src2=", src2, ", src=", src)
+		t.Fatal("err must be nil and src2==Src but src2=", src2, ", Src=", src)
 	}
 
 	src2, err = ims.GetOrCreateJournal(tags + "D")
 	if err != nil || src == src2 {
-		t.Fatal("err must be nil and src2!=src but src2=", src2)
+		t.Fatal("err must be nil and src2!=Src but src2=", src2)
 	}
 
 }
@@ -131,13 +139,13 @@ func TestGetJournals(t *testing.T) {
 
 	res, _, err := ims.GetJournals(exp, 10, false)
 	if err != nil || len(res) != 2 || res[tl1] != src || res[tl2] != src2 {
-		t.Fatal("err=", err, " res=", res, ", src=", src, ", src2=", src2)
+		t.Fatal("err=", err, " res=", res, ", Src=", src, ", src2=", src2)
 	}
 
 	exp, _ = lql.ParseExpr("dda=basdfasdf  and c=asdfasdfasdf")
 	res, _, err = ims.GetJournals(exp, 10, false)
 	if err != nil || len(res) != 1 || res[tl1] != src {
-		t.Fatal("err=", err, " res=", res, ", src=", src)
+		t.Fatal("err=", err, " res=", res, ", Src=", src)
 	}
 
 	exp, _ = lql.ParseExpr("a=234")

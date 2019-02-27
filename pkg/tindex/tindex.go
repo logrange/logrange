@@ -20,13 +20,13 @@ import (
 )
 
 type (
-	// Service interface provides an access to the tags index. It is used for selecting
+	// Service interface provides an access to the Tags index. It is used for selecting
 	// a journal sources by the tag lines provided and by selecting journals by an expression.
 	Service interface {
-		// GetOrCreateJournal returns the journal name for the unique tags combination
+		// GetOrCreateJournal returns the journal name for the unique Tags combination
 		GetOrCreateJournal(tags string) (string, error)
 
-		// GetJournals returns map of matched tags to the journals they address by the source expression
+		// GetJournals returns map of matched Tags to the journals they address by the source expression
 		// the function receive maxSize of the result map and the flag checkAll which allows to count total matches found.
 		// It returns the result map, number or matches in total (if checkAll is provided) and an error if any
 		GetJournals(exp *lql.Expression, maxSize int, checkAll bool) (map[model.TagLine]string, int, error)
