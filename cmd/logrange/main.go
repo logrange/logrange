@@ -36,7 +36,6 @@ const (
 	argStartCfgFile    = "config-file"
 	argStartHostHostId = "host-id"
 	argStartJournalDir = "journals-dir"
-	argStartNewTIdxOk  = "new-tindex-ok"
 )
 
 var cfg = server.GetDefaultConfig()
@@ -71,10 +70,6 @@ func main() {
 						Name:  argStartJournalDir,
 						Usage: "Defines path to the journals database directory",
 						Value: cfg.JrnlCtrlConfig.JournalsDir,
-					},
-					&cli.BoolFlag{
-						Name:  argStartNewTIdxOk,
-						Usage: "Create a new tag-index if there is none",
 					},
 				},
 			},
@@ -120,9 +115,6 @@ func applyArgsToCfg(c *cli.Context, cfg *server.Config) {
 	}
 	if jd := c.String(argStartJournalDir); dc.JrnlCtrlConfig.JournalsDir != jd {
 		cfg.JrnlCtrlConfig.JournalsDir = jd
-	}
-	if newIdx := c.Bool(argStartNewTIdxOk); newIdx {
-		cfg.NewTIndexOk = true
 	}
 }
 

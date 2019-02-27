@@ -47,6 +47,14 @@ func (tjc *testJrnlCtrlr) GetOrCreate(ctx context.Context, jname string) (journa
 	return nil, fmt.Errorf("Journal %s is not found", jname)
 }
 
+func (tjc *testJrnlCtrlr) GetJournals(ctx context.Context) []string {
+	res := make([]string, 0, len(tjc.mp))
+	for src := range tjc.mp {
+		res = append(res, src)
+	}
+	return res
+}
+
 type testJrnl struct {
 	name string
 }
