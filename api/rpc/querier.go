@@ -16,10 +16,13 @@ package rpc
 
 import (
 	"context"
+	"encoding/json"
 	"github.com/jrivets/log4g"
 	"github.com/logrange/logrange/api"
 	"github.com/logrange/logrange/pkg/cursor"
+	"github.com/logrange/logrange/pkg/lql"
 	"github.com/logrange/logrange/pkg/model"
+	"github.com/logrange/logrange/pkg/tindex"
 	"github.com/logrange/range/pkg/records"
 	rrpc "github.com/logrange/range/pkg/rpc"
 	"github.com/logrange/range/pkg/utils/bytes"
@@ -32,6 +35,7 @@ type (
 		CurProvider *cursor.Provider `inject:""`
 		MainCtx     context.Context  `injext:"mainCtx"`
 		Pool        *bytes.Pool      `inject:""`
+		TIndex      tindex.Service   `inject:""`
 
 		logger log4g.Logger
 	}
@@ -66,6 +70,23 @@ func (cq *clntQuerier) Query(req *api.QueryRequest, res *api.QueryResult) error 
 	cq.rc.Collect(resp)
 
 	return nil
+}
+
+func (cq *clntQuerier) Sources(TagsCond string, res *api.SourcesResult) error {
+	resp, opErr, err := cq.rc.Call(context.Background(), cRpcEpQuerierSources, xbinary.WritableString(TagsCond))
+	if err != nil {
+		return err
+	}
+
+	if res != nil {
+		if opErr == nil {
+			err = json.Unmarshal(resp, res)
+		}
+		res.Err = opErr
+	}
+	cq.rc.Collect(resp)
+
+	return err
 }
 
 func NewServerQuerier() *ServerQuerier {
@@ -127,4 +148,43 @@ func (sq *ServerQuerier) query(reqId int32, reqBody []byte, sc *rrpc.ServerConn)
 		sc.SendResponse(reqId, err, cEmptyResponse)
 	}
 	qr.Close()
+}
+
+func (sq *ServerQuerier) sources(reqId int32, reqBody []byte, sc *rrpc.ServerConn) {
+	_, tagsCond, err := xbinary.UnmarshalString(reqBody, false)
+	if err != nil {
+		sq.logger.Warn("sources(): receive a request with unmarshalable body err=", err)
+		sc.SendResponse(reqId, err, cEmptyResponse)
+		return
+	}
+
+	se, err := lql.ParseExpr(tagsCond)
+	if err != nil {
+		sq.logger.Warn("sources(): could not parse ", tagsCond, " body err=", err)
+		sc.SendResponse(reqId, err, cEmptyResponse)
+		return
+	}
+
+	mp, count, err := sq.TIndex.GetJournals(se, 100, true)
+	if err != nil {
+		sq.logger.Warn("sources(): could not obtain sources err=", err)
+		sc.SendResponse(reqId, err, cEmptyResponse)
+		return
+	}
+
+	srcs := make([]api.Source, len(mp))
+	idx := 0
+	for tags := range mp {
+		srcs[idx].Tags = string(tags)
+		idx++
+	}
+
+	resp := api.SourcesResult{Sources: srcs, Count: count}
+	buf, err := json.Marshal(resp)
+	if err != nil {
+		sq.logger.Warn("sources(): could not marshal response err=", err)
+		sc.SendResponse(reqId, err, cEmptyResponse)
+		return
+	}
+	sc.SendResponse(reqId, nil, records.Record(buf))
 }

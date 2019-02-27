@@ -112,7 +112,7 @@ func TestGetJournals(t *testing.T) {
 	defer os.RemoveAll(dir) // clean up
 
 	ims := NewInmemService().(*inmemService)
-	ims.Config = &InMemConfig{WorkingDir: dir, CreateNew: true}
+	ims.Config = &InMemConfig{WorkingDir: dir, CreateNew: true, DoNotSave: true}
 	ims.Init(nil)
 	tags := "dda=basdfasdf|c=asdfasdfasdf"
 	src, _ := ims.GetOrCreateJournal(tags)
@@ -129,21 +129,57 @@ func TestGetJournals(t *testing.T) {
 		t.Fatal("err must be nil, but ", err)
 	}
 
-	res, err := ims.GetJournals(exp)
+	res, _, err := ims.GetJournals(exp, 10, false)
 	if err != nil || len(res) != 2 || res[tl1] != src || res[tl2] != src2 {
 		t.Fatal("err=", err, " res=", res, ", src=", src, ", src2=", src2)
 	}
 
 	exp, _ = lql.ParseExpr("dda=basdfasdf  and c=asdfasdfasdf")
-	res, err = ims.GetJournals(exp)
+	res, _, err = ims.GetJournals(exp, 10, false)
 	if err != nil || len(res) != 1 || res[tl1] != src {
 		t.Fatal("err=", err, " res=", res, ", src=", src)
 	}
 
 	exp, _ = lql.ParseExpr("a=234")
-	res, err = ims.GetJournals(exp)
+	res, _, err = ims.GetJournals(exp, 5, false)
 	if err != nil || len(res) != 0 {
 		t.Fatal("err=", err, " res=", res)
+	}
+
+}
+
+func TestGetJournalsLimits(t *testing.T) {
+	dir, err := ioutil.TempDir("", "GetJournals")
+	if err != nil {
+		t.Fatal("Could not create new dir err=", err)
+	}
+	defer os.RemoveAll(dir) // clean up
+
+	ims := NewInmemService().(*inmemService)
+	ims.Config = &InMemConfig{WorkingDir: dir, CreateNew: true, DoNotSave: true}
+	ims.Init(nil)
+	ims.GetOrCreateJournal("name=app1|ip=123")
+	ims.GetOrCreateJournal("name=app1|ip=1233")
+	ims.GetOrCreateJournal("name=app1|ip=12334")
+
+	exp, err := lql.ParseExpr("name=app1")
+	if err != nil {
+		t.Fatal("err must be nil, but ", err)
+	}
+
+	res, _, err := ims.GetJournals(exp, 1, false)
+	if err != nil || len(res) != 1 {
+		t.Fatal("err=", err, " res=", res)
+	}
+
+	res, cnt, err := ims.GetJournals(exp, 10, true)
+	if err != nil || len(res) != 3 || cnt != 3 {
+		t.Fatal("err=", err, " res=", res, ", cnt=", cnt)
+	}
+
+	res, cnt, err = ims.GetJournals(exp, 2, false)
+	if err != nil || len(res) != 2 || cnt != 3 {
+		t.Fatal("err=", err, " res=", res, ", cnt=", cnt)
 	}
 
 }

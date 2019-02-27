@@ -128,27 +128,33 @@ func (ims *inmemService) GetOrCreateJournal(tags string) (string, error) {
 	return res, nil
 }
 
-func (ims *inmemService) GetJournals(exp *lql.Expression) (map[model.TagLine]string, error) {
+func (ims *inmemService) GetJournals(exp *lql.Expression, maxSize int, checkAll bool) (map[model.TagLine]string, int, error) {
 	tef, err := lql.BuildTagsExpFunc(exp)
 	if err != nil {
-		return nil, err
+		return nil, 0, err
 	}
 
 	ims.lock.Lock()
 	if ims.done {
 		ims.lock.Unlock()
-		return nil, fmt.Errorf("Already shut-down.")
+		return nil, 0, fmt.Errorf("Already shut-down.")
 	}
 
+	count := 0
 	res := make(map[model.TagLine]string, 10)
 	for _, td := range ims.tmap {
 		if tef(td.tags.GetTagMap()) {
-			res[td.tags.GetTagLine()] = td.src
+			count++
+			if len(res) < maxSize {
+				res[td.tags.GetTagLine()] = td.src
+			} else if !checkAll {
+				break
+			}
 		}
 	}
 	ims.lock.Unlock()
 
-	return res, nil
+	return res, count, nil
 }
 
 func (ims *inmemService) saveState() error {
@@ -198,5 +204,5 @@ func (ims *inmemService) loadState() error {
 		return errors.Wrapf(err, "Cound not load index file %s. Wrong permissions?", fn)
 	}
 
-	return json.Unmarshal(data, ims.tmap)
+	return json.Unmarshal(data, &ims.tmap)
 }

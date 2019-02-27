@@ -60,6 +60,8 @@ type (
 	}
 )
 
+const cMaxSources = 50
+
 // newCursor creates the new cursor based on the state provided.
 func newCursor(ctx context.Context, state State, tidx tindex.Service, jctrl journal.Controller) (*Cursor, error) {
 	// figuring out the journals list
@@ -68,13 +70,17 @@ func newCursor(ctx context.Context, state State, tidx tindex.Service, jctrl jour
 		return nil, errors.Wrapf(err, "Could not parse expression \"%s\" ", state.Where)
 	}
 
-	srcs, err := tidx.GetJournals(se)
+	srcs, _, err := tidx.GetJournals(se, cMaxSources+1, false)
 	if err != nil {
 		return nil, errors.Wrapf(err, "Could not get a list of journals for the expression \"%s\"", state.Sources)
 	}
 
 	if len(srcs) == 0 {
 		return nil, errors.Errorf("No sources for the expression \"%s\"", state.Sources)
+	}
+
+	if len(srcs) > cMaxSources {
+		return nil, errors.Errorf("too many sources (greater than %d) correspond to the expresion \"%s\", more concreate condition is needed to reduce the number. ", cMaxSources, state.Sources)
 	}
 
 	jd := make(map[string]*jrnlDesc, len(srcs))

@@ -31,8 +31,8 @@ func (tis *testTidxService) GetOrCreateJournal(tags string) (string, error) {
 	return "", nil
 }
 
-func (tis *testTidxService) GetJournals(exp *lql.Expression) (map[model.TagLine]string, error) {
-	return tis.journals, nil
+func (tis *testTidxService) GetJournals(exp *lql.Expression, maxSize int, checkAll bool) (map[model.TagLine]string, int, error) {
+	return tis.journals, len(tis.journals), nil
 }
 
 type testJrnlCtrlr struct {
