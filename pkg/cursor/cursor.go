@@ -186,6 +186,7 @@ const cPosJrnlVal = "="
 
 // Commit is called by the cursor reader to indicate that the reading process is over and return the current state
 func (cur *Cursor) commit(ctx context.Context) State {
+	// calling cur.Get(ctx) to fix the cursor position in case of last call was cur.Next()
 	cur.Get(ctx)
 	cur.state.Pos = cur.collectPos()
 	return cur.state

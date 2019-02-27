@@ -16,6 +16,7 @@ package rpc
 
 import (
 	"github.com/logrange/logrange/api"
+	"github.com/logrange/range/pkg/context"
 	rrpc "github.com/logrange/range/pkg/rpc"
 	"github.com/logrange/range/pkg/transport"
 )
@@ -26,6 +27,7 @@ type (
 		rc     rrpc.Client
 		cing   *clntIngestor
 		cqrier *clntQuerier
+		clsCh  chan struct{}
 	}
 )
 
@@ -36,11 +38,15 @@ func NewClient(tcfg transport.Config) (*Client, error) {
 		return nil, err
 	}
 	c := new(Client)
+	c.clsCh = make(chan struct{})
+	ctx := context.WrapChannel(c.clsCh)
 	c.rc = rrpc.NewClient(conn)
 	c.cing = new(clntIngestor)
 	c.cing.rc = c.rc
+	c.cing.clsdCtx = ctx
 	c.cqrier = new(clntQuerier)
 	c.cqrier.rc = c.rc
+	c.cqrier.clsdCtx = ctx
 	return c, nil
 }
 
@@ -52,4 +58,10 @@ func (c *Client) Ingestor() api.Ingestor {
 // Ingestor return api.Querier interface for the client
 func (c *Client) Querier() api.Querier {
 	return c.cqrier
+}
+
+// Close closes the client
+func (c *Client) Close() error {
+	close(c.clsCh)
+	return nil
 }

@@ -74,7 +74,7 @@ func main() {
 					},
 					&cli.BoolFlag{
 						Name:  argStartNewTIdxOk,
-						Usage: "Create a new tag-index if there is no one's",
+						Usage: "Create a new tag-index if there is none",
 					},
 				},
 			},

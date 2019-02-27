@@ -20,8 +20,12 @@ import (
 	"testing"
 )
 
+func tstGetFirst(ev1, ev2 LogEvent) bool {
+	return true
+}
+
 func TestMixer(t *testing.T) {
-	testMix(t, GetFirst,
+	testMix(t, tstGetFirst,
 		[]LogEvent{{1, "1"}, {2, "2"}},
 		[]LogEvent{{3, "1"}, {4, "2"}},
 		[]LogEvent{{1, "1"}, {2, "2"}, {3, "1"}, {4, "2"}})

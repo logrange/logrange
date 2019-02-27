@@ -41,7 +41,8 @@ type (
 	}
 
 	clntIngestor struct {
-		rc rrpc.Client
+		rc      rrpc.Client
+		clsdCtx context.Context
 	}
 
 	writePacket struct {
@@ -92,7 +93,7 @@ func (ci *clntIngestor) Write(tags string, evs []*api.LogEvent, res *api.WriteRe
 	wp.tags = tags
 	wp.events = evs
 
-	buf, errOp, err := ci.rc.Call(context.Background(), cRpcEpIngestorWrite, &wp)
+	buf, errOp, err := ci.rc.Call(ci.clsdCtx, cRpcEpIngestorWrite, &wp)
 	if res != nil {
 		res.Err = errOp
 	}

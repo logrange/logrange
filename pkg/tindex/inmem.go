@@ -111,7 +111,7 @@ func (ims *inmemService) GetOrCreateJournal(tags string) (string, error) {
 		if td2, ok := ims.tmap[string(tgs.GetTagLine())]; !ok {
 			td = &tagsDesc{tgs, newSrc()}
 			ims.tmap[string(tgs.GetTagLine())] = td
-			err = ims.saveState()
+			err = ims.saveStateUnsafe()
 			if err != nil {
 				delete(ims.tmap, string(tgs.GetTagLine()))
 				ims.logger.Error("Could not save state for the new source ", td.Src, " formed for ", tgs.GetTagLine(), ", original Tags=", tags, ", err=", err)
@@ -157,8 +157,8 @@ func (ims *inmemService) GetJournals(exp *lql.Expression, maxSize int, checkAll 
 	return res, count, nil
 }
 
-func (ims *inmemService) saveState() error {
-	ims.logger.Debug("savingState()")
+func (ims *inmemService) saveStateUnsafe() error {
+	ims.logger.Debug("saveStateUnsafe()")
 	if ims.Config.DoNotSave {
 		ims.logger.Warn("Will not save config, cause DoNotSave flag is set.")
 		return nil
@@ -198,7 +198,7 @@ func (ims *inmemService) loadState() error {
 		if !ims.Config.CreateNew {
 			return errors.Wrapf(err, "Could not find index file %s", fn)
 		}
-		return ims.saveState()
+		return ims.saveStateUnsafe()
 	}
 	ims.logger.Debug("loadState() from ", fn)
 

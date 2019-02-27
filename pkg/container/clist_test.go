@@ -18,8 +18,6 @@ import (
 	"testing"
 )
 
-type __bchmrkVal int
-
 func BenchmarkCLElement_Append(b *testing.B) {
 	var l1, l *CLElement
 	for i := 0; i < 1000; i++ {
@@ -34,7 +32,6 @@ func BenchmarkCLElement_Append(b *testing.B) {
 		}
 		l2 := l1.next
 		l1 = l1.TearOff(l2)
-		//l2.Val = __bchmrkVal{i}
 		l = l.Append(l2)
 	}
 }

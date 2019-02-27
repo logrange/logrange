@@ -40,11 +40,6 @@ type (
 	}
 )
 
-// GetFirst returns whether the ev1 should be selected first
-func GetFirst(ev1, ev2 LogEvent) bool {
-	return true
-}
-
 // GetEarliest returns whether ev1 has lowest timestamp rather than ev2
 func GetEarliest(ev1, ev2 LogEvent) bool {
 	return ev1.Timestamp <= ev2.Timestamp

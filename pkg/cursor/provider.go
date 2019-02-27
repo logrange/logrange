@@ -59,6 +59,7 @@ func NewProvider() *Provider {
 	p.curs = make(map[uint64]*container.CLElement)
 	p.clsdCh = make(chan struct{})
 	p.logger = log4g.GetLogger("cursor.Provider")
+	// TODO, put some constants directly here, but may be we have to move it to the config later?
 	p.maxCurs = 50000
 	p.idleTo = time.Duration(60 * time.Second)
 	p.busyTo = time.Duration(5 * time.Minute)
