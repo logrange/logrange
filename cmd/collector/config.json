@@ -29,7 +29,6 @@
           "DD/MMM/YYYY:HH:mm:ss ZZZZ"
         ],
         "Meta": {
-          "SourceId": "{file}",
           "Tags": {
             "file": "{file}"
           }
@@ -39,7 +38,6 @@
         "PathMatcher": "/*(?:.+/)*(?P<pod>.+)_(?P<ns>.+)_(?P<cname>.+)-(?P<cid>.+)\\..+",
         "DataFormat": "k8json",
         "Meta": {
-          "SourceId": "{cname}",
           "Tags": {
             "pod": "{pod}",
             "ns": "{ns}",

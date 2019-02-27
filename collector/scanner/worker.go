@@ -128,8 +128,7 @@ func (w *worker) sendOrSleep(recs []*model.Record, events chan<- *model.Event, c
 	sm := w.schema.getMeta(w.desc)
 	ev := model.NewEvent(w.desc.File,
 		recs, model.Meta{
-			SourceId: sm.SourceId,
-			Tags:     sm.Tags,
+			Tags: sm.Tags,
 		}, w.confCh)
 
 	select {

@@ -48,7 +48,9 @@ func NewDefaultConfig() *Config {
 				PathMatcher: "/*(?:.+/)*(?P<file>.+\\..+)",
 				DataFormat:  parser.FmtText,
 				Meta: Meta{
-					SourceId: "{file}",
+					Tags: map[string]string{
+						"file": "{file}",
+					},
 				},
 			},
 		},

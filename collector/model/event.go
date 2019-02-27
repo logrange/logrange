@@ -38,8 +38,7 @@ type (
 	}
 
 	Meta struct {
-		SourceId string
-		Tags     map[string]string
+		Tags map[string]string
 	}
 )
 

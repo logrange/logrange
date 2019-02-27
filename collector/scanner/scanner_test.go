@@ -104,18 +104,19 @@ func config() *Config {
 		".*auth.log.*",
 	}
 
-	cfg.Schemas = append(cfg.Schemas, &SchemaConfig{
-		PathMatcher: "/*(?:.+/)*(?P<file>.+\\..+)",
-		DataFormat:  parser.FmtText,
-		DateFormats: []string{"DD/MMM/YYYY:HH:mm:ss ZZZZ"},
-		Meta: Meta{
-			SourceId: "{file}",
-			Tags: map[string]string{
-				"file": "test-{file}",
-				"note": "abc",
+	cfg.Schemas = []*SchemaConfig{
+		{
+			PathMatcher: "/*(?:.+/)*(?P<file>.+\\..+)",
+			DataFormat:  parser.FmtText,
+			DateFormats: []string{"DD/MMM/YYYY:HH:mm:ss ZZZZ"},
+			Meta: Meta{
+				Tags: map[string]string{
+					"file": "test-{file}",
+					"note": "abc",
+				},
 			},
 		},
-	})
+	}
 	return cfg
 }
 

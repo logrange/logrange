@@ -33,8 +33,7 @@ type (
 	}
 
 	Meta struct {
-		SourceId string
-		Tags     map[string]string
+		Tags map[string]string
 	}
 
 	schema struct {
@@ -59,8 +58,7 @@ func (s *schema) getMeta(d *desc) Meta {
 		tags[k] = s.subsVars(v, vars)
 	}
 	return Meta{
-		SourceId: s.subsVars(s.cfg.Meta.SourceId, vars),
-		Tags:     tags,
+		Tags: tags,
 	}
 }
 
@@ -102,9 +100,6 @@ func (sc *SchemaConfig) Check() error {
 	_, err := syntax.Parse(sc.PathMatcher, syntax.Perl)
 	if err != nil {
 		return fmt.Errorf("PathMatcher=%v is invalid; %v", sc.PathMatcher, err)
-	}
-	if strings.TrimSpace(sc.Meta.SourceId) == "" {
-		return errors.New("Meta.SourceId must be non-empty")
 	}
 	if sc.DataFormat != parser.FmtK8Json && sc.DataFormat != parser.FmtText {
 		return fmt.Errorf("DataFormat is unknown=%v", sc.DataFormat)
