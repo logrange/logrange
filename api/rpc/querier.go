@@ -83,7 +83,7 @@ func (sq *ServerQuerier) query(reqId int32, reqBody []byte, sc *rrpc.ServerConn)
 		return
 	}
 
-	state := cursor.State{Id: rq.ReqId, Where: rq.Where, Sources: rq.Tags, Pos: rq.Pos}
+	state := cursor.State{Id: rq.ReqId, Where: rq.Where, Sources: rq.TagsCond, Pos: rq.Pos}
 	cur, err := sq.CurProvider.GetOrCreate(sq.MainCtx, state)
 	if err != nil {
 		sq.logger.Warn("query(): Could not get/create a cursor, err=", err)
@@ -116,7 +116,7 @@ func (sq *ServerQuerier) query(reqId int32, reqBody []byte, sc *rrpc.ServerConn)
 
 	state = sq.CurProvider.Release(sq.MainCtx, cur)
 	if err == nil || err == io.EOF {
-		qryReq := &api.QueryRequest{ReqId: state.Id, Tags: state.Sources, Where: state.Where, Pos: state.Pos, Limit: lim}
+		qryReq := &api.QueryRequest{ReqId: state.Id, TagsCond: state.Sources, Where: state.Where, Pos: state.Pos, Limit: lim}
 		err = qr.writeQueryRequest(qryReq)
 		if err == nil {
 			sc.SendResponse(reqId, nil, records.Record(qr.buf()))

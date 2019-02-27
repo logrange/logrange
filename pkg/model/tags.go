@@ -29,7 +29,7 @@ type (
 	// TagMap is immutable storage where the key is the tag name and it is holded by its value
 	TagMap map[string]string
 
-	// Tags an immutable structure which holds a reference to the TagMap
+	// TagsCond an immutable structure which holds a reference to the TagMap
 	Tags struct {
 		tl TagLine
 		tm TagMap
@@ -45,7 +45,7 @@ var (
 	EmptyTagMap = TagMap(map[string]string{})
 )
 
-// NewTags expects a string line and transforms it to Tags structure
+// NewTags expects a string line and transforms it to TagsCond structure
 func NewTags(tgs string) (Tags, error) {
 	tl := TagLine(tgs)
 	if tgs == "" {

@@ -26,7 +26,7 @@ type (
 		// Next switches to the next event, if any
 		Next(ctx context.Context)
 
-		// Get returns current LogEvent, the Tags for the event or an error if any. It returns io.EOF when end of the collection is reached
+		// Get returns current LogEvent, the TagsCond for the event or an error if any. It returns io.EOF when end of the collection is reached
 		Get(ctx context.Context) (LogEvent, TagLine, error)
 	}
 

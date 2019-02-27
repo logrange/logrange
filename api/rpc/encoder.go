@@ -73,7 +73,7 @@ func writeQueryRequest(qr *api.QueryRequest, ow *xbinary.ObjectsWriter) (int, er
 	}
 	nn := n
 
-	n, err = ow.WriteString(qr.Tags)
+	n, err = ow.WriteString(qr.TagsCond)
 	nn += n
 	if err != nil {
 		return nn, err
@@ -97,7 +97,7 @@ func writeQueryRequest(qr *api.QueryRequest, ow *xbinary.ObjectsWriter) (int, er
 }
 
 func getQueryRequestSize(qr *api.QueryRequest) int {
-	return xbinary.WritableStringSize(qr.Tags) +
+	return xbinary.WritableStringSize(qr.TagsCond) +
 		xbinary.WritableStringSize(qr.Where) +
 		xbinary.WritableStringSize(qr.Pos) + 12
 }
@@ -115,7 +115,7 @@ func unmarshalQueryRequest(buf []byte, qr *api.QueryRequest, newBuf bool) (int, 
 	if err != nil {
 		return nn, err
 	}
-	qr.Tags = s
+	qr.TagsCond = s
 
 	n, s, err = xbinary.UnmarshalString(buf[nn:], newBuf)
 	nn += n
