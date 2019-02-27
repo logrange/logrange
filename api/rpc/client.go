@@ -23,8 +23,9 @@ import (
 type (
 	// Client is rpc client which provides the API interface for clients
 	Client struct {
-		rc   rrpc.Client
-		cing *clntIngestor
+		rc     rrpc.Client
+		cing   *clntIngestor
+		cqrier *clntQuerier
 	}
 )
 
@@ -38,9 +39,17 @@ func NewClient(tcfg transport.Config) (*Client, error) {
 	c.rc = rrpc.NewClient(conn)
 	c.cing = new(clntIngestor)
 	c.cing.rc = c.rc
+	c.cqrier = new(clntQuerier)
+	c.cqrier.rc = c.rc
 	return c, nil
 }
 
+// Ingestor return api.Ingestor interface for the client
 func (c *Client) Ingestor() api.Ingestor {
 	return c.cing
+}
+
+// Ingestor return api.Querier interface for the client
+func (c *Client) Querier() api.Querier {
+	return c.cqrier
 }

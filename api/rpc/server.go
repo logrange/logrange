@@ -27,6 +27,7 @@ type (
 	Server struct {
 		ConnConfig  transport.Config `inject:"publicRpcTransport"`
 		SrvIngestor *ServerIngestor  `inject:""`
+		SrvQuerier  *ServerQuerier   `inject:""`
 		rs          rrpc.Server
 		ln          net.Listener
 		logger      log4g.Logger
@@ -35,7 +36,9 @@ type (
 
 // RPC endpoints
 const (
-	cRpcEpIngestorWrite = 1
+	cRpcEpIngestorWrite  = 1
+	cRpcEpQuerierQuery   = 2
+	cRpcEpQuerierSources = 3
 )
 
 func NewServer() *Server {
@@ -54,7 +57,9 @@ func (s *Server) Init(ctx context.Context) error {
 	s.logger.Info("Initializing...")
 
 	// register endpoints
-	s.rs.Register(cRpcEpIngestorWrite, s.SrvIngestor.ingestorWrite)
+	s.rs.Register(cRpcEpIngestorWrite, s.SrvIngestor.write)
+	s.rs.Register(cRpcEpQuerierQuery, s.SrvQuerier.query)
+	s.rs.Register(cRpcEpQuerierSources, s.SrvQuerier.sources)
 
 	go s.listen()
 	return nil

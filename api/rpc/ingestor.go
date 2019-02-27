@@ -19,22 +19,25 @@ import (
 	"fmt"
 	"github.com/logrange/logrange/api"
 	"github.com/logrange/logrange/pkg/model"
+	"github.com/logrange/logrange/pkg/tindex"
 	"github.com/logrange/range/pkg/records"
 	"github.com/logrange/range/pkg/records/journal"
 	rrpc "github.com/logrange/range/pkg/rpc"
 	"github.com/logrange/range/pkg/utils/bytes"
 	"github.com/logrange/range/pkg/utils/encoding/xbinary"
 	"io"
+	"sync"
 )
 
 type (
 	// ServerIngestor is a struct, which provides the ingestor RPC functionality.
 	ServerIngestor struct {
-		Pool         *bytes.Pool        `inject:""`
-		TagIdGenSize int                `inject:"TagIdGenSize,optional:10000"`
-		JrnlCtrlr    journal.Controller `inject:""`
+		Pool      *bytes.Pool        `inject:""`
+		JrnlCtrlr journal.Controller `inject:""`
+		TIndex    tindex.Service     `inject:""`
+		MainCtx   context.Context    `inject:"mainCtx"`
 
-		tig *model.TagIdGenerator
+		wg sync.WaitGroup
 	}
 
 	clntIngestor struct {
@@ -42,7 +45,6 @@ type (
 	}
 
 	writePacket struct {
-		src    string
 		tags   string
 		events []*api.LogEvent
 	}
@@ -50,17 +52,14 @@ type (
 	// wpIterator is the struct which receives the slice of bytes and provides a xbinary.WIterator, sutable for
 	// writing the data directly to a journal
 	wpIterator struct {
-		pool   *bytes.Pool
-		tig    *model.TagIdGenerator
-		src    string
-		tags   string
-		tagsId uint64
-		buf    []byte
-		rec    []byte
-		read   bool
-		pos    int
-		recs   int
-		cur    int
+		pool *bytes.Pool
+		src  string
+		buf  []byte
+		rec  []byte
+		read bool
+		pos  int
+		recs int
+		cur  int
 	}
 )
 
@@ -81,38 +80,39 @@ func NewServerIngestor() *ServerIngestor {
 }
 
 func (si *ServerIngestor) Init(ctx context.Context) error {
-	if si.TagIdGenSize < 100 {
-		return fmt.Errorf("Too small Tag Id Generator buffer size=%d", si.TagIdGenSize)
-	}
-	si.tig = model.NewTagIdGenerator(si.TagIdGenSize)
-
 	return nil
 }
 
-func (ci *clntIngestor) Write(src, tags string, evs []*api.LogEvent, res *api.WriteResult) error {
+func (si *ServerIngestor) Shutdown() {
+	si.wg.Wait()
+}
+
+func (ci *clntIngestor) Write(tags string, evs []*api.LogEvent, res *api.WriteResult) error {
 	var wp writePacket
-	wp.src = src
 	wp.tags = tags
 	wp.events = evs
 
-	_, errOp, err := ci.rc.Call(context.Background(), cRpcEpIngestorWrite, &wp)
+	buf, errOp, err := ci.rc.Call(context.Background(), cRpcEpIngestorWrite, &wp)
 	if res != nil {
 		res.Err = errOp
 	}
+	ci.rc.Collect(buf)
 
 	return err
 }
 
-func (si *ServerIngestor) ingestorWrite(reqId int32, reqBody []byte, sc *rrpc.ServerConn) {
+func (si *ServerIngestor) write(reqId int32, reqBody []byte, sc *rrpc.ServerConn) {
+	si.wg.Add(1)
+	defer si.wg.Done()
+
 	var wpi wpIterator
 	wpi.pool = si.Pool
-	wpi.tig = si.tig
-	err := wpi.init(reqBody)
+	err := wpi.init(reqBody, si.TIndex)
 	if err == nil {
 		var jrnl journal.Journal
-		jrnl, err = si.JrnlCtrlr.GetOrCreate(context.Background(), wpi.src)
+		jrnl, err = si.JrnlCtrlr.GetOrCreate(si.MainCtx, wpi.src)
 		if err == nil {
-			_, _, err = jrnl.Write(context.Background(), &wpi)
+			_, _, err = jrnl.Write(si.MainCtx, &wpi)
 		}
 	}
 
@@ -121,7 +121,7 @@ func (si *ServerIngestor) ingestorWrite(reqId int32, reqBody []byte, sc *rrpc.Se
 
 // EncodedSize part of rrpc.Encoder interface
 func (wp *writePacket) WritableSize() int {
-	res := xbinary.WritableStringSize(wp.src) + xbinary.WritableStringSize(wp.tags)
+	res := xbinary.WritableStringSize(wp.tags)
 	// array size goes as well
 	res += 4
 	for _, ev := range wp.events {
@@ -132,14 +132,8 @@ func (wp *writePacket) WritableSize() int {
 
 // Encode part of rrpc.Encoder interface
 func (wp *writePacket) WriteTo(ow *xbinary.ObjectsWriter) (int, error) {
-	n, err := ow.WriteString(wp.src)
-	if err != nil {
-		return n, err
-	}
+	n, err := ow.WriteString(wp.tags)
 	nn := n
-
-	n, err = ow.WriteString(wp.tags)
-	nn += n
 	if err != nil {
 		return nn, err
 	}
@@ -157,75 +151,27 @@ func (wp *writePacket) WriteTo(ow *xbinary.ObjectsWriter) (int, error) {
 	return nn, nil
 }
 
-func writeLogEvent(ev *api.LogEvent, ow *xbinary.ObjectsWriter) (int, error) {
-	n, err := ow.WriteUint64(uint64(ev.Timestamp))
-	if err != nil {
-		return n, err
-	}
-	nn := n
-
-	n, err = ow.WriteString(ev.Message)
-	nn += n
-	if err != nil {
-		return nn, err
-	}
-
-	n, err = ow.WriteString(ev.Tags)
-	nn += n
-	return nn, err
-}
-
-func getLogEventSize(ev *api.LogEvent) int {
-	return xbinary.WritableStringSize(ev.Message) + xbinary.WritableStringSize(ev.Tags) + 8
-}
-
-func unmarshalLogEvent(res *api.LogEvent, buf []byte) (int, error) {
-	n, v, err := xbinary.UnmarshalInt64(buf)
-	if err != nil {
-		return 0, err
-	}
-	nn := n
-	res.Timestamp = v
-
-	n, msg, err := xbinary.UnmarshalString(buf[nn:], false)
-	nn += n
-	if err != nil {
-		return nn, err
-	}
-	res.Message = msg
-
-	n, tags, err := xbinary.UnmarshalString(buf[nn:], false)
-	nn += n
-	res.Tags = tags
-	return nn, err
-}
-
-func (wpi *wpIterator) init(buf []byte) (err error) {
+func (wpi *wpIterator) init(buf []byte, tidx tindex.Service) (err error) {
 	wpi.buf = buf
-	idx := 0
-	idx, wpi.src, err = xbinary.UnmarshalString(buf, false)
-	if err != nil {
-		return
-	}
-
-	idx2 := 0
-	idx2, wpi.tags, err = xbinary.UnmarshalString(buf[idx:], false)
-	if err != nil {
-		return
-	}
-	_, err = model.CheckTags(wpi.tags)
-	if err != nil {
-		return
-	}
-
-	idx += idx2
-	ln := uint32(0)
-	idx2, ln, err = xbinary.UnmarshalUint32(buf[idx:])
+	idx, tags, err := xbinary.UnmarshalString(buf, false)
 	if err != nil {
 		return err
 	}
+
+	wpi.src, err = tidx.GetOrCreateJournal(tags)
+	if err != nil {
+		return err
+	}
+
+	ln := uint32(0)
+	var n int
+	n, ln, err = xbinary.UnmarshalUint32(buf[idx:])
+	if err != nil {
+		return err
+	}
+
 	wpi.recs = int(ln)
-	wpi.pos = idx + idx2
+	wpi.pos = idx + n
 	wpi.cur = 0
 	wpi.read = false
 
@@ -250,7 +196,7 @@ func (wpi *wpIterator) Get(ctx context.Context) (records.Record, error) {
 	wpi.cur++
 
 	var le api.LogEvent
-	n, err := unmarshalLogEvent(&le, wpi.buf[wpi.pos:])
+	n, err := unmarshalLogEvent(wpi.buf[wpi.pos:], &le, false)
 	if err != nil {
 		return nil, err
 	}
@@ -260,14 +206,6 @@ func (wpi *wpIterator) Get(ctx context.Context) (records.Record, error) {
 	var lge model.LogEvent
 	lge.Timestamp = le.Timestamp
 	lge.Msg = le.Message
-	lge.Tags = le.Tags
-	if len(lge.Tags) == 0 && len(wpi.tags) > 0 {
-		if wpi.tagsId == 0 {
-			lge.Tags = wpi.tags
-			wpi.tagsId = wpi.tig.GetOrCreateId(wpi.tags)
-		}
-		lge.TgId = int64(wpi.tagsId)
-	}
 
 	sz := lge.WritableSize()
 	if cap(wpi.rec) < sz {
@@ -281,5 +219,5 @@ func (wpi *wpIterator) Get(ctx context.Context) (records.Record, error) {
 }
 
 func (wpi *wpIterator) String() string {
-	return fmt.Sprintf("buf len=%d, src=%s, tags=%s, read=%t, pos=%d, recs=%d, cur=%d", len(wpi.buf), wpi.src, wpi.tags, wpi.read, wpi.pos, wpi.recs, wpi.cur)
+	return fmt.Sprintf("buf len=%d, src=%s, read=%t, pos=%d, recs=%d, cur=%d", len(wpi.buf), wpi.src, wpi.read, wpi.pos, wpi.recs, wpi.cur)
 }

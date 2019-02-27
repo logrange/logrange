@@ -30,7 +30,7 @@ type (
 		// Records are the list of parsed records
 		Records []*Record
 
-		// Tags information, attached to the list of records
+		// TagsCond information, attached to the list of records
 		Meta Meta
 
 		// confCh is a signaling channel, to notify scanner that even was handled

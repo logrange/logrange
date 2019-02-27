@@ -18,6 +18,7 @@ import (
 	"bytes"
 	"github.com/logrange/logrange/api"
 	"github.com/logrange/logrange/pkg/model"
+	"github.com/logrange/logrange/pkg/tindex"
 	bytes2 "github.com/logrange/range/pkg/utils/bytes"
 	"github.com/logrange/range/pkg/utils/encoding/xbinary"
 	"io"
@@ -25,7 +26,7 @@ import (
 )
 
 func BenchmarkIterator(b *testing.B) {
-	wp := &writePacket{tags: "aaa=bbb", src: "journal", events: []*api.LogEvent{}}
+	wp := &writePacket{tags: "aaa=bbb", events: []*api.LogEvent{}}
 	for i := 0; i < 1000; i++ {
 		wp.events = append(wp.events, &api.LogEvent{2, "measdkjfhalskdfjhalkdfjhalkdfjaksdjflasjdfs2", "kjhasldkfjhaslkfjhasdkfj=hasdklfjhasdlfkjh"})
 	}
@@ -34,17 +35,18 @@ func BenchmarkIterator(b *testing.B) {
 	ow := &xbinary.ObjectsWriter{Writer: btb}
 	wp.WriteTo(ow)
 
+	tidx := tindex.NewInmemServiceWithConfig(tindex.InMemConfig{DoNotSave: true})
+
 	wpi := new(wpIterator)
 	wpi.pool = new(bytes2.Pool)
-	wpi.tig = model.NewTagIdGenerator(20000)
-	wpi.init(btb.Bytes())
+	wpi.init(btb.Bytes(), tidx)
 
 	b.ReportAllocs()
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		_, err := wpi.Get(nil)
 		if err == io.EOF {
-			wpi.init(btb.Bytes())
+			wpi.init(btb.Bytes(), tidx)
 		} else {
 			wpi.Next(nil)
 		}
@@ -52,7 +54,7 @@ func BenchmarkIterator(b *testing.B) {
 }
 
 func TestWritePacket(t *testing.T) {
-	wp := &writePacket{tags: "aaa=bbb", src: "journal", events: []*api.LogEvent{
+	wp := &writePacket{tags: "aaa=bbb", events: []*api.LogEvent{
 		&api.LogEvent{1, "mes1", ""},
 		&api.LogEvent{2, "mes2", "bbb=ttt"},
 	}}
@@ -64,13 +66,18 @@ func TestWritePacket(t *testing.T) {
 		t.Fatal("Expected size=", wp.WritableSize(), ", but real size is ", len(btb.Bytes()))
 	}
 
+	tidx := tindex.NewInmemServiceWithConfig(tindex.InMemConfig{DoNotSave: true})
+	src, err := tidx.GetOrCreateJournal("aaa=bbb")
+	if err != nil {
+		t.Fatal("err must be nil, but err=", err)
+	}
+
 	// now test the iterator
 	wpi := new(wpIterator)
 	wpi.pool = new(bytes2.Pool)
-	wpi.tig = model.NewTagIdGenerator(20000)
-	wpi.init(btb.Bytes())
+	wpi.init(btb.Bytes(), tidx)
 
-	if wpi.src != "journal" || wpi.tags != "aaa=bbb" || wpi.recs != 2 {
+	if wpi.src != src || wpi.recs != 2 {
 		t.Fatal("Wrong wpi=", wpi)
 	}
 
@@ -80,7 +87,7 @@ func TestWritePacket(t *testing.T) {
 	}
 	var le model.LogEvent
 	le.Unmarshal(rec, false)
-	if le.Timestamp != 1 || le.Tags != "aaa=bbb" || le.TgId == 0 || le.Msg != "mes1" {
+	if le.Timestamp != 1 || le.Msg != "mes1" {
 		t.Fatal("Something wrong with le=", le)
 	}
 
@@ -90,7 +97,62 @@ func TestWritePacket(t *testing.T) {
 		t.Fatal("err=", err)
 	}
 	le.Unmarshal(rec, false)
-	if le.Timestamp != 2 || le.Tags != "bbb=ttt" || le.TgId != 0 || le.Msg != "mes2" {
+	if le.Timestamp != 2 || le.Msg != "mes2" {
+		t.Fatal("Something wrong with le=", le)
+	}
+
+	wpi.Next(nil)
+	_, err = wpi.Get(nil)
+	if err != io.EOF {
+		t.Fatal("Expecting io.EOF, but err=", err)
+	}
+}
+
+func TestWritePacketWithTindex(t *testing.T) {
+	wp := &writePacket{tags: "aaa=bbb", events: []*api.LogEvent{
+		&api.LogEvent{1, "mes1", ""},
+		&api.LogEvent{2, "mes2", "bbb=ttt"},
+	}}
+
+	tidx := tindex.NewInmemServiceWithConfig(tindex.InMemConfig{DoNotSave: true})
+	src, err := tidx.GetOrCreateJournal("aaa=bbb")
+	if err != nil {
+		t.Fatal("err must be nil, but err=", err)
+	}
+
+	btb := &bytes.Buffer{}
+	ow := &xbinary.ObjectsWriter{Writer: btb}
+	wp.WriteTo(ow)
+	if len(btb.Bytes()) != wp.WritableSize() {
+		t.Fatal("Expected size=", wp.WritableSize(), ", but real size is ", len(btb.Bytes()))
+	}
+
+	// now test the iterator
+	wpi := new(wpIterator)
+	wpi.pool = new(bytes2.Pool)
+	wpi.init(btb.Bytes(), tidx)
+
+	if wpi.src != src || wpi.recs != 2 {
+		t.Fatal("Wrong wpi=", wpi)
+	}
+
+	rec, err := wpi.Get(nil)
+	if err != nil {
+		t.Fatal("err=", err)
+	}
+	var le model.LogEvent
+	le.Unmarshal(rec, false)
+	if le.Timestamp != 1 || le.Msg != "mes1" {
+		t.Fatal("Something wrong with le=", le)
+	}
+
+	wpi.Next(nil)
+	rec, err = wpi.Get(nil)
+	if err != nil {
+		t.Fatal("err=", err)
+	}
+	le.Unmarshal(rec, false)
+	if le.Timestamp != 2 || le.Msg != "mes2" {
 		t.Fatal("Something wrong with le=", le)
 	}
 

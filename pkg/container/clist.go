@@ -47,7 +47,13 @@ func (cle *CLElement) Append(chain *CLElement) *CLElement {
 	return cle
 }
 
+// Prev returns previous element (which comes before cle)
 func (cle *CLElement) Prev() *CLElement {
+	return cle.prev
+}
+
+// Next returns next element (which comes after cle)
+func (cle *CLElement) Next() *CLElement {
 	return cle.prev
 }
 

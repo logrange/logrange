@@ -52,6 +52,9 @@ type Config struct {
 
 	// JrnlCtrlConfig an implementation of
 	JrnlCtrlConfig JCtrlrConfig
+
+	// NewTIndexOk shows whether the new tindex file could be created if it doesn't exist
+	NewTIndexOk bool
 }
 
 type JCtrlrConfig struct {
@@ -100,6 +103,7 @@ func (c *Config) String() string {
 		"\n\tPublicApiRpc=", c.PublicApiRpc,
 		"\n\tPrivateApiRpc=", c.PrivateApiRpc,
 		"\n\tJrnlCtrlConfig=", c.JrnlCtrlConfig,
+		"\n\tNewTIndexOk=", c.NewTIndexOk,
 	)
 }
 

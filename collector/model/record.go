@@ -32,7 +32,7 @@ type Record struct {
 	// Record date
 	Date time.Time
 
-	// Tags, attached to the entry
+	// TagsCond, attached to the entry
 	Tags map[string]string
 }
 

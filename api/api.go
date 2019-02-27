@@ -18,7 +18,7 @@ type (
 	// LogEvent struct describes one message
 	LogEvent struct {
 		// Timestamp contains the time-stamp for the message.
-		Timestamp int64
+		Timestamp uint64
 		// Message is the message itself
 		Message string
 		// Tag line for the message. It could be empty
@@ -33,20 +33,76 @@ type (
 	// Ingestor provides Wrtie method for sending log data into the storage. This intrface is exposed as
 	// a public API
 	Ingestor interface {
-		// Write sends log events into the stream. It expects stream name (src), tags, associated with the write,
-		// a slice of events, and the reference to
-		Write(src, tags string, evs []*LogEvent, res *WriteResult) error
+		// Write sends log events into the stream identified by tags provided. It expects a slice of events and
+		// the reference to the WriteResult. TagsCond field in LogEvents are ignored during the writing operation,
+		// but tags param will be applied to all of the events.
+		Write(tags string, evs []*LogEvent, res *WriteResult) error
+	}
+
+	// QueryRequest struct describes a request for reading records
+	QueryRequest struct {
+		// ReqId identifies the request on server side. The field should not be populated by client,
+		// but it can be returned with the structure in QueryResult.
+		ReqId uint64
+
+		// TagsCond line identifies the source of records. For example "name=app1 and ip like '123.2*'"
+		TagsCond string
+
+		// Where defines the filter for the records like "msg contains 'ERROR' AND ts > '2006-01-02T15:04:05'"
+		Where string
+
+		// Pos contains the next read record position.
+		Pos string
+
+		// Limit defines the maximum number of records which could be read from the sources
+		Limit int
 	}
 
 	// QeryResult is a result returned by the server in a response on LQL execution (see Querier.Query)
 	QueryResult struct {
-		Records []string
+		// Events slice contains the result of the query execution
+		Events []*LogEvent
+		// NextQueryRequest contains the query for reading next porition of events. It makes sense only if Err is
+		// nil
+		NextQueryRequest QueryRequest
+		// Err the operation error. If the Err is nil, the operation successfully executed
+		Err error
 	}
 
-	// Querier - executes a query agains logrange deatabase
+	// Source struct describes a source structure
+	Source struct {
+		// The source identifier
+		Id string
+
+		// Tags contains tags for the source
+		Tags string
+
+		// Size contains data size (in bytes)
+		Size uint64
+
+		// Records contains number of records
+		Records uint64
+	}
+
+	// SourcesResult struct contains the result of queries of sources
+	SourcesResult struct {
+		// Sources found by the request
+		Sources []Source
+
+		// Count number of sources which meet the TagsCond criteria
+		Count int
+
+		// Err the operaion error, if any
+		Err error `json:"-"`
+	}
+
+	// Querier - executes a query agains logrange database
 	Querier interface {
 		// Query runs lql to collect the server data and return it in the QueryResult. It returns an error which indicates
 		// that the query could not be delivered to the server, or it did not happen.
-		Query(lql string, res *QueryResult) error
+		Query(req *QueryRequest, res *QueryResult) error
+
+		// Sources requests
+		Sources(TagsCond string, res *SourcesResult) error
 	}
 )

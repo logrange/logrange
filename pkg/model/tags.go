@@ -29,11 +29,10 @@ type (
 	// TagMap is immutable storage where the key is the tag name and it is holded by its value
 	TagMap map[string]string
 
-	// An immutable structure which holds a reference to the TagMap
+	// TagsCond an immutable structure which holds a reference to the TagMap
 	Tags struct {
-		gId uint64
-		tl  TagLine
-		tm  TagMap
+		tl TagLine
+		tm TagMap
 	}
 )
 
@@ -46,16 +45,19 @@ var (
 	EmptyTagMap = TagMap(map[string]string{})
 )
 
-func (tl *TagLine) NewTags(id uint64) (Tags, error) {
-	if *tl == "" {
-		return Tags{gId: id, tl: *tl, tm: EmptyTagMap}, nil
+// NewTags expects a string line and transforms it to TagsCond structure
+func NewTags(tgs string) (Tags, error) {
+	tl := TagLine(tgs)
+	if tgs == "" {
+		return Tags{tl: tl, tm: EmptyTagMap}, nil
 	}
+
 	m, err := tl.newTagMap()
 	if err != nil {
 		return Tags{}, err
 	}
 
-	return Tags{gId: id, tl: m.BuildTagLine(), tm: m}, nil
+	return Tags{tl: m.BuildTagLine(), tm: m}, nil
 }
 
 func (tl *TagLine) newTagMap() (TagMap, error) {
@@ -71,17 +73,17 @@ func (tl *TagLine) newTagMap() (TagMap, error) {
 	return m, nil
 }
 
-func CheckTags(tgs string) (TagLine, error) {
+func CheckTags(tgs string) error {
 	if len(tgs) == 0 {
-		return "", nil
+		return nil
 	}
 	vals := strings.Split(tgs, cTagSeparator)
 	for _, v := range vals {
 		if len(strings.Split(v, cTagValueSeparator)) != 2 {
-			return "", fmt.Errorf("Wrong tag format: \"%s\" expecting in a form key=value", v)
+			return fmt.Errorf("Wrong tag format: \"%s\" expecting in a form key=value", v)
 		}
 	}
-	return TagLine(tgs), nil
+	return nil
 }
 
 func NewTagMap(m map[string]string) (TagMap, error) {
@@ -96,8 +98,8 @@ func NewTagMap(m map[string]string) (TagMap, error) {
 	return tm, nil
 }
 
-func (tm *TagMap) NewTags(id uint64) (Tags, error) {
-	return Tags{gId: id, tl: tm.BuildTagLine(), tm: *tm}, nil
+func (tm *TagMap) NewTags() (Tags, error) {
+	return Tags{tl: tm.BuildTagLine(), tm: *tm}, nil
 }
 
 // BuildTagLine builds the TagLine from the map of values
@@ -127,39 +129,28 @@ func (tm *TagMap) BuildTagLine() TagLine {
 	return TagLine(b.String())
 }
 
-func (tags *Tags) GetId() uint64 {
-	return tags.gId
-}
-
 func (tags *Tags) GetTagLine() TagLine {
 	return tags.tl
 }
 
-func (tags *Tags) GetValue(key string) string {
-	return tags.tm[key]
-}
-
-type tagsJson struct {
-	GID     uint64  `json:"gid"`
-	TagLine TagLine `json:"tagLine"`
+func (tags *Tags) GetTagMap() TagMap {
+	return tags.tm
 }
 
 func (tags *Tags) MarshalJSON() ([]byte, error) {
-	return json.Marshal(&tagsJson{tags.gId, tags.tl})
+	return json.Marshal(string(tags.tl))
 }
 
 func (tags *Tags) UnmarshalJSON(data []byte) error {
-	var res tagsJson
+	var res string
 	err := json.Unmarshal(data, &res)
 	if err != nil {
 		return err
 	}
-	tags.gId = res.GID
-	tags.tl = TagLine(res.TagLine)
-	tags.tm, err = tags.tl.newTagMap()
+	*tags, err = NewTags(res)
 	return err
 }
 
 func (tags *Tags) String() string {
-	return fmt.Sprintf("{tid=%d, tl=%s}", tags.gId, tags.tl)
+	return fmt.Sprintf("{tl=%s}", tags.tl)
 }
