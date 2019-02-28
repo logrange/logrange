@@ -33,7 +33,7 @@ import (
 type (
 	ServerQuerier struct {
 		CurProvider *cursor.Provider `inject:""`
-		MainCtx     context.Context  `injext:"mainCtx"`
+		MainCtx     context.Context  `inject:"mainCtx"`
 		Pool        *bytes.Pool      `inject:""`
 		TIndex      tindex.Service   `inject:""`
 
@@ -133,6 +133,7 @@ func (sq *ServerQuerier) query(reqId int32, reqBody []byte, sc *rrpc.ServerConn)
 			le.Timestamp = lge.Timestamp
 			qr.writeLogEvent(&le)
 		}
+		limit--
 		cur.Next(sq.MainCtx)
 	}
 
