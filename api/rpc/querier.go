@@ -20,7 +20,6 @@ import (
 	"github.com/jrivets/log4g"
 	"github.com/logrange/logrange/api"
 	"github.com/logrange/logrange/pkg/cursor"
-	"github.com/logrange/logrange/pkg/lql"
 	"github.com/logrange/logrange/pkg/model"
 	"github.com/logrange/logrange/pkg/tindex"
 	"github.com/logrange/range/pkg/records"
@@ -159,14 +158,7 @@ func (sq *ServerQuerier) sources(reqId int32, reqBody []byte, sc *rrpc.ServerCon
 		return
 	}
 
-	se, err := lql.ParseExpr(tagsCond)
-	if err != nil {
-		sq.logger.Warn("sources(): could not parse ", tagsCond, " body err=", err)
-		sc.SendResponse(reqId, err, cEmptyResponse)
-		return
-	}
-
-	mp, count, err := sq.TIndex.GetJournals(se, 100, true)
+	mp, count, err := sq.TIndex.GetJournals(tagsCond, 100, true)
 	if err != nil {
 		sq.logger.Warn("sources(): could not obtain sources err=", err)
 		sc.SendResponse(reqId, err, cEmptyResponse)

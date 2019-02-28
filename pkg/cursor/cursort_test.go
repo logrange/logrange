@@ -21,7 +21,7 @@ import (
 )
 
 func TestNewCursor(t *testing.T) {
-	if _, err := newCursor(nil, State{Sources: "ddd"}, nil, nil); err == nil {
+	if _, err := newCursor(nil, State{Sources: "ddd"}, &testTidxService{}, nil); err == nil {
 		t.Fatal("err must not be nil, Source expression compilation must fail")
 	}
 

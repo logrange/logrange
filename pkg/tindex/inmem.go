@@ -126,8 +126,8 @@ func (ims *inmemService) GetOrCreateJournal(tags string) (string, error) {
 	return res, nil
 }
 
-func (ims *inmemService) GetJournals(exp *lql.Expression, maxSize int, checkAll bool) (map[model.TagLine]string, int, error) {
-	tef, err := lql.BuildTagsExpFunc(exp)
+func (ims *inmemService) GetJournals(tagsCond string, maxSize int, checkAll bool) (map[model.TagLine]string, int, error) {
+	tef, err := lql.BuildTagsExpFunc(tagsCond)
 	if err != nil {
 		return nil, 0, err
 	}
@@ -141,7 +141,7 @@ func (ims *inmemService) GetJournals(exp *lql.Expression, maxSize int, checkAll 
 	count := 0
 	res := make(map[model.TagLine]string, 10)
 	for _, td := range ims.tmap {
-		if tef(td.Tags.GetTagMap()) {
+		if tef(td.Tags) {
 			count++
 			if len(res) < maxSize {
 				res[td.Tags.GetTagLine()] = td.Src
