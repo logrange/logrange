@@ -45,8 +45,8 @@ type (
 	}
 
 	inmemService struct {
-		Config *InMemConfig       `inject:"inmemServiceConfig"`
-		JCtrlr journal.Controller `inject:""`
+		Config   *InMemConfig       `inject:"inmemServiceConfig"`
+		Journals journal.Controller `inject:""`
 
 		logger log4g.Logger
 		lock   sync.Mutex
@@ -195,7 +195,7 @@ func (ims *inmemService) checkConsistency(ctx context.Context) error {
 	}
 
 	ims.logger.Info("Checking the index and data consistency")
-	knwnJrnls := ims.JCtrlr.GetJournals(ctx)
+	knwnJrnls := ims.Journals.GetJournals(ctx)
 	fail := false
 	km := make(map[string]string, len(ims.tmap))
 	for _, d := range ims.tmap {

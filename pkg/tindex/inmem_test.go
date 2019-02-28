@@ -24,15 +24,15 @@ import (
 	"testing"
 )
 
-type testJrnlCtrlr struct {
+type testJournals struct {
 	js []string
 }
 
-func (tjc *testJrnlCtrlr) GetJournals(ctx context.Context) []string {
+func (tjc *testJournals) GetJournals(ctx context.Context) []string {
 	return tjc.js
 }
 
-func (tjc *testJrnlCtrlr) GetOrCreate(ctx context.Context, jname string) (journal.Journal, error) {
+func (tjc *testJournals) GetOrCreate(ctx context.Context, jname string) (journal.Journal, error) {
 	return nil, nil
 }
 
@@ -45,7 +45,7 @@ func BenchmarkFindIndex(b *testing.B) {
 
 	ims := NewInmemService().(*inmemService)
 	ims.Config = &InMemConfig{WorkingDir: dir}
-	ims.JCtrlr = &testJrnlCtrlr{}
+	ims.Journals = &testJournals{}
 	ims.Init(nil)
 	tags := "a=b|c=asdfasdfasdf"
 	src, err := ims.GetOrCreateJournal(tags)
@@ -71,7 +71,7 @@ func TestCheckInit(t *testing.T) {
 	defer os.RemoveAll(dir) // clean up
 
 	ims := NewInmemService().(*inmemService)
-	ims.JCtrlr = &testJrnlCtrlr{}
+	ims.Journals = &testJournals{}
 	ims.Config = &InMemConfig{WorkingDir: dir, DoNotSave: false}
 	err = ims.Init(nil)
 	if err != nil {
@@ -85,14 +85,14 @@ func TestCheckInit(t *testing.T) {
 	t.Log(jrnl)
 	ims.Shutdown()
 
-	ims.JCtrlr = &testJrnlCtrlr{[]string{jrnl}}
+	ims.Journals = &testJournals{[]string{jrnl}}
 	err = ims.Init(nil)
 	if err != nil {
 		t.Fatal("err must be nil, but err=", err)
 	}
 	ims.Shutdown()
 
-	ims.JCtrlr = &testJrnlCtrlr{[]string{jrnl, "1234"}}
+	ims.Journals = &testJournals{[]string{jrnl, "1234"}}
 	err = ims.Init(nil)
 	if err == nil {
 		t.Fatal("err is nil, but must not be")
@@ -108,7 +108,7 @@ func TestCheckLoadReload(t *testing.T) {
 	log4g.SetLogLevel("", log4g.DEBUG)
 
 	ims := NewInmemService().(*inmemService)
-	ims.JCtrlr = &testJrnlCtrlr{}
+	ims.Journals = &testJournals{}
 	ims.Config = &InMemConfig{WorkingDir: dir}
 	err = ims.Init(nil)
 	if err != nil {
@@ -150,7 +150,7 @@ func TestGetJournals(t *testing.T) {
 	defer os.RemoveAll(dir) // clean up
 
 	ims := NewInmemService().(*inmemService)
-	ims.JCtrlr = &testJrnlCtrlr{}
+	ims.Journals = &testJournals{}
 	ims.Config = &InMemConfig{WorkingDir: dir, DoNotSave: true}
 	ims.Init(nil)
 	tags := "dda=basdfasdf|c=asdfasdfasdf"
@@ -198,7 +198,7 @@ func TestGetJournalsLimits(t *testing.T) {
 	defer os.RemoveAll(dir) // clean up
 
 	ims := NewInmemService().(*inmemService)
-	ims.JCtrlr = &testJrnlCtrlr{}
+	ims.Journals = &testJournals{}
 	ims.Config = &InMemConfig{WorkingDir: dir, DoNotSave: true}
 	ims.Init(nil)
 	ims.GetOrCreateJournal("name=app1|ip=123")
