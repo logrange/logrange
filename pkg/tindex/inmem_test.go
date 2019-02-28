@@ -15,13 +15,27 @@
 package tindex
 
 import (
+	"context"
 	"github.com/jrivets/log4g"
 	"github.com/logrange/logrange/pkg/lql"
 	"github.com/logrange/logrange/pkg/model"
+	"github.com/logrange/range/pkg/records/journal"
 	"io/ioutil"
 	"os"
 	"testing"
 )
+
+type testJrnlCtrlr struct {
+	js []string
+}
+
+func (tjc *testJrnlCtrlr) GetJournals(ctx context.Context) []string {
+	return tjc.js
+}
+
+func (tjc *testJrnlCtrlr) GetOrCreate(ctx context.Context, jname string) (journal.Journal, error) {
+	return nil, nil
+}
 
 func BenchmarkFindIndex(b *testing.B) {
 	dir, err := ioutil.TempDir("", "benchmark")
@@ -31,7 +45,8 @@ func BenchmarkFindIndex(b *testing.B) {
 	defer os.RemoveAll(dir) // clean up
 
 	ims := NewInmemService().(*inmemService)
-	ims.Config = &InMemConfig{WorkingDir: dir, CreateNew: true}
+	ims.Config = &InMemConfig{WorkingDir: dir}
+	ims.JCtrlr = &testJrnlCtrlr{}
 	ims.Init(nil)
 	tags := "a=b|c=asdfasdfasdf"
 	src, err := ims.GetOrCreateJournal(tags)
@@ -57,16 +72,31 @@ func TestCheckInit(t *testing.T) {
 	defer os.RemoveAll(dir) // clean up
 
 	ims := NewInmemService().(*inmemService)
-	ims.Config = &InMemConfig{WorkingDir: dir, CreateNew: false}
-	err = ims.Init(nil)
-	if err == nil {
-		t.Fatal("it must return error for CreateNew == false")
-	}
-
-	ims.Config = &InMemConfig{WorkingDir: dir, CreateNew: true}
+	ims.JCtrlr = &testJrnlCtrlr{}
+	ims.Config = &InMemConfig{WorkingDir: dir, DoNotSave: false}
 	err = ims.Init(nil)
 	if err != nil {
 		t.Fatal("err must be nil, but err=", err)
+	}
+
+	jrnl, err := ims.GetOrCreateJournal("aaa=bbb")
+	if err != nil {
+		t.Fatal("Must be created, but err=", err)
+	}
+	t.Log(jrnl)
+	ims.Shutdown()
+
+	ims.JCtrlr = &testJrnlCtrlr{[]string{jrnl}}
+	err = ims.Init(nil)
+	if err != nil {
+		t.Fatal("err must be nil, but err=", err)
+	}
+	ims.Shutdown()
+
+	ims.JCtrlr = &testJrnlCtrlr{[]string{jrnl, "1234"}}
+	err = ims.Init(nil)
+	if err == nil {
+		t.Fatal("err is nil, but must not be")
 	}
 }
 
@@ -79,7 +109,8 @@ func TestCheckLoadReload(t *testing.T) {
 	log4g.SetLogLevel("", log4g.DEBUG)
 
 	ims := NewInmemService().(*inmemService)
-	ims.Config = &InMemConfig{WorkingDir: dir, CreateNew: true}
+	ims.JCtrlr = &testJrnlCtrlr{}
+	ims.Config = &InMemConfig{WorkingDir: dir}
 	err = ims.Init(nil)
 	if err != nil {
 		t.Fatal("Init() err=", err)
@@ -120,7 +151,8 @@ func TestGetJournals(t *testing.T) {
 	defer os.RemoveAll(dir) // clean up
 
 	ims := NewInmemService().(*inmemService)
-	ims.Config = &InMemConfig{WorkingDir: dir, CreateNew: true, DoNotSave: true}
+	ims.JCtrlr = &testJrnlCtrlr{}
+	ims.Config = &InMemConfig{WorkingDir: dir, DoNotSave: true}
 	ims.Init(nil)
 	tags := "dda=basdfasdf|c=asdfasdfasdf"
 	src, _ := ims.GetOrCreateJournal(tags)
@@ -164,7 +196,8 @@ func TestGetJournalsLimits(t *testing.T) {
 	defer os.RemoveAll(dir) // clean up
 
 	ims := NewInmemService().(*inmemService)
-	ims.Config = &InMemConfig{WorkingDir: dir, CreateNew: true, DoNotSave: true}
+	ims.JCtrlr = &testJrnlCtrlr{}
+	ims.Config = &InMemConfig{WorkingDir: dir, DoNotSave: true}
 	ims.Init(nil)
 	ims.GetOrCreateJournal("name=app1|ip=123")
 	ims.GetOrCreateJournal("name=app1|ip=1233")

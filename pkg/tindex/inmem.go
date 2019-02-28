@@ -21,6 +21,7 @@ import (
 	"github.com/jrivets/log4g"
 	"github.com/logrange/logrange/pkg/lql"
 	"github.com/logrange/logrange/pkg/model"
+	"github.com/logrange/range/pkg/records/journal"
 	"github.com/pkg/errors"
 	"io/ioutil"
 	"os"
@@ -41,14 +42,11 @@ type (
 
 		// WorkingDir contains path to the folder for persisting the index data
 		WorkingDir string
-
-		// CreateNew flag indicates that if there is no index, then new one should be created, rather than reporting
-		// an error on the initialization stage
-		CreateNew bool
 	}
 
 	inmemService struct {
-		Config *InMemConfig `inject:"inmemServiceConfig"`
+		Config *InMemConfig       `inject:"inmemServiceConfig"`
+		JCtrlr journal.Controller `inject:""`
 
 		logger log4g.Logger
 		lock   sync.Mutex
@@ -78,7 +76,7 @@ func NewInmemServiceWithConfig(cfg InMemConfig) Service {
 func (ims *inmemService) Init(ctx context.Context) error {
 	ims.logger.Info("Initializing...")
 	ims.done = false
-	return ims.loadState()
+	return ims.checkConsistency(ctx)
 }
 
 func (ims *inmemService) Shutdown() {
@@ -190,15 +188,48 @@ func (ims *inmemService) saveStateUnsafe() error {
 	return nil
 }
 
+func (ims *inmemService) checkConsistency(ctx context.Context) error {
+	err := ims.loadState()
+	if err != nil {
+		return err
+	}
+
+	ims.logger.Info("Checking the index and data consistency")
+	knwnJrnls := ims.JCtrlr.GetJournals(ctx)
+	fail := false
+	km := make(map[string]string, len(ims.tmap))
+	for _, d := range ims.tmap {
+		km[d.Src] = d.Src
+	}
+
+	for _, src := range knwnJrnls {
+		if _, ok := km[src]; !ok {
+			ims.logger.Error("Found journal ", src, ", but it is not in the tindex")
+			fail = true
+			continue
+		}
+		delete(km, src)
+	}
+
+	if len(km) > 0 {
+		ims.logger.Warn("tindex contains %d records, which don't have corresponding journals")
+	}
+
+	if fail {
+		ims.logger.Error("Consistency check failed. ", len(knwnJrnls), " sources found and ", len(ims.tmap), " records in tindex")
+		return errors.Errorf("Data is inconsistent. %d journals and %d tindex records found. Some journals don't have records in the tindex", len(knwnJrnls), len(ims.tmap))
+	}
+	ims.logger.Info("Consistency check passed. ", len(knwnJrnls), " sources found and all of them have correct tindex record. ",
+		len(ims.tmap), " index records in total.")
+	return ims.saveStateUnsafe()
+}
+
 func (ims *inmemService) loadState() error {
 	fn := path.Join(ims.Config.WorkingDir, cIdxFileName)
 	_, err := os.Stat(fn)
 	if os.IsNotExist(err) {
-		ims.logger.Debug("loadState() file not found ", fn)
-		if !ims.Config.CreateNew {
-			return errors.Wrapf(err, "Could not find index file %s", fn)
-		}
-		return ims.saveStateUnsafe()
+		ims.logger.Warn("loadState() file not found ", fn)
+		return nil
 	}
 	ims.logger.Debug("loadState() from ", fn)
 

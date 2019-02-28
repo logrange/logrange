@@ -33,7 +33,7 @@ func Start(ctx context.Context, cfg *Config) error {
 	log := log4g.GetLogger("server")
 	log.Info("Start with config:", cfg)
 
-	imsCfg := &tindex.InMemConfig{WorkingDir: cfg.JrnlCtrlConfig.JournalsDir, CreateNew: cfg.NewTIndexOk}
+	imsCfg := &tindex.InMemConfig{WorkingDir: cfg.JrnlCtrlConfig.JournalsDir}
 
 	injector := linker.New()
 	injector.SetLogger(log4g.GetLogger("injector"))
