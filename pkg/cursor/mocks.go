@@ -16,7 +16,6 @@ package cursor
 import (
 	"context"
 	"fmt"
-	"github.com/logrange/logrange/pkg/lql"
 	"github.com/logrange/logrange/pkg/model"
 	"github.com/logrange/range/pkg/records"
 	"github.com/logrange/range/pkg/records/journal"
@@ -31,7 +30,7 @@ func (tis *testTidxService) GetOrCreateJournal(tags string) (string, error) {
 	return "", nil
 }
 
-func (tis *testTidxService) GetJournals(exp *lql.Expression, maxSize int, checkAll bool) (map[model.TagLine]string, int, error) {
+func (tis *testTidxService) GetJournals(tagsCond string, maxSize int, checkAll bool) (map[model.TagLine]string, int, error) {
 	return tis.journals, len(tis.journals), nil
 }
 

@@ -20,9 +20,8 @@ import (
 )
 
 func BenchmarkTagsExpGeneral(b *testing.B) {
-	e, _ := ParseExpr("name=app1 and ip like 1*")
-	fn, _ := BuildTagsExpFunc(e)
-	tags := model.TagMap{"name": "app1", "ip": "1.2.3.4"}
+	fn, _ := BuildTagsExpFunc("name=app1 and ip like 1*")
+	tags, _ := (&model.TagMap{"name": "app1", "ip": "1.2.3.4"}).NewTags()
 	b.ReportAllocs()
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
@@ -31,12 +30,7 @@ func BenchmarkTagsExpGeneral(b *testing.B) {
 }
 
 func getTagsExpFunc(t *testing.T, exp string) TagsExpFunc {
-	e, err := ParseExpr(exp)
-	if err != nil {
-		t.Fatal("The expression '", exp, "' must be compiled, but err=", err)
-	}
-
-	res, err := BuildTagsExpFunc(e)
+	res, err := BuildTagsExpFunc(exp)
 	if err != nil {
 		t.Fatal("the expression '", exp, "' must be evaluated no problem, but err=", err)
 	}
@@ -44,7 +38,7 @@ func getTagsExpFunc(t *testing.T, exp string) TagsExpFunc {
 	return res
 }
 
-func testTagsExpGeneral(t *testing.T, exp string, tags model.TagMap, expRes bool) {
+func testTagsExpGeneral(t *testing.T, exp string, tags model.Tags, expRes bool) {
 	tef := getTagsExpFunc(t, exp)
 	if tef(tags) != expRes {
 		t.Fatal("Expected ", expRes, " for '", exp, "' expression, but got ", !expRes)
@@ -52,11 +46,16 @@ func testTagsExpGeneral(t *testing.T, exp string, tags model.TagMap, expRes bool
 }
 
 func TestTagsExpGeneral(t *testing.T) {
-	tags := model.TagMap{"name": "app1", "ip": "1.2.3.4"}
+	tags, _ := (&model.TagMap{"name": "app1", "ip": "1.2.3.4", "ttt": "ddfe"}).NewTags()
 	testTagsExpGeneral(t, "a=b", tags, false)
 	testTagsExpGeneral(t, "name='app1'", tags, true)
+	testTagsExpGeneral(t, "ip=1.2.3.4|name=app1", tags, true)
+	testTagsExpGeneral(t, "name=app1|ip=1.2.3.4", tags, true)
+	testTagsExpGeneral(t, "name=app1|ip=1.2.3.4|ttt=ddfe", tags, true)
+	testTagsExpGeneral(t, "name=app1|ip=1.2.3.4|ttt=ddeefe", tags, false)
+	testTagsExpGeneral(t, "name=app1", tags, true)
 	testTagsExpGeneral(t, "name=app1 and ip like 1*", tags, true)
 	testTagsExpGeneral(t, "name=app13 or ip=\"1.2.3.4\"", tags, true)
-	testTagsExpGeneral(t, "name=app13 or name=app1", tags, true)
+	testTagsExpGeneral(t, "name=app13 or name=app14 or ttt=ddfe", tags, true)
 	testTagsExpGeneral(t, "c=''", tags, true)
 }

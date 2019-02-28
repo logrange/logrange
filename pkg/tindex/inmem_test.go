@@ -17,7 +17,6 @@ package tindex
 import (
 	"context"
 	"github.com/jrivets/log4g"
-	"github.com/logrange/logrange/pkg/lql"
 	"github.com/logrange/logrange/pkg/model"
 	"github.com/logrange/range/pkg/records/journal"
 	"io/ioutil"
@@ -25,15 +24,15 @@ import (
 	"testing"
 )
 
-type testJrnlCtrlr struct {
+type testJournals struct {
 	js []string
 }
 
-func (tjc *testJrnlCtrlr) GetJournals(ctx context.Context) []string {
+func (tjc *testJournals) GetJournals(ctx context.Context) []string {
 	return tjc.js
 }
 
-func (tjc *testJrnlCtrlr) GetOrCreate(ctx context.Context, jname string) (journal.Journal, error) {
+func (tjc *testJournals) GetOrCreate(ctx context.Context, jname string) (journal.Journal, error) {
 	return nil, nil
 }
 
@@ -46,7 +45,7 @@ func BenchmarkFindIndex(b *testing.B) {
 
 	ims := NewInmemService().(*inmemService)
 	ims.Config = &InMemConfig{WorkingDir: dir}
-	ims.JCtrlr = &testJrnlCtrlr{}
+	ims.Journals = &testJournals{}
 	ims.Init(nil)
 	tags := "a=b|c=asdfasdfasdf"
 	src, err := ims.GetOrCreateJournal(tags)
@@ -72,7 +71,7 @@ func TestCheckInit(t *testing.T) {
 	defer os.RemoveAll(dir) // clean up
 
 	ims := NewInmemService().(*inmemService)
-	ims.JCtrlr = &testJrnlCtrlr{}
+	ims.Journals = &testJournals{}
 	ims.Config = &InMemConfig{WorkingDir: dir, DoNotSave: false}
 	err = ims.Init(nil)
 	if err != nil {
@@ -86,14 +85,14 @@ func TestCheckInit(t *testing.T) {
 	t.Log(jrnl)
 	ims.Shutdown()
 
-	ims.JCtrlr = &testJrnlCtrlr{[]string{jrnl}}
+	ims.Journals = &testJournals{[]string{jrnl}}
 	err = ims.Init(nil)
 	if err != nil {
 		t.Fatal("err must be nil, but err=", err)
 	}
 	ims.Shutdown()
 
-	ims.JCtrlr = &testJrnlCtrlr{[]string{jrnl, "1234"}}
+	ims.Journals = &testJournals{[]string{jrnl, "1234"}}
 	err = ims.Init(nil)
 	if err == nil {
 		t.Fatal("err is nil, but must not be")
@@ -109,7 +108,7 @@ func TestCheckLoadReload(t *testing.T) {
 	log4g.SetLogLevel("", log4g.DEBUG)
 
 	ims := NewInmemService().(*inmemService)
-	ims.JCtrlr = &testJrnlCtrlr{}
+	ims.Journals = &testJournals{}
 	ims.Config = &InMemConfig{WorkingDir: dir}
 	err = ims.Init(nil)
 	if err != nil {
@@ -151,7 +150,7 @@ func TestGetJournals(t *testing.T) {
 	defer os.RemoveAll(dir) // clean up
 
 	ims := NewInmemService().(*inmemService)
-	ims.JCtrlr = &testJrnlCtrlr{}
+	ims.Journals = &testJournals{}
 	ims.Config = &InMemConfig{WorkingDir: dir, DoNotSave: true}
 	ims.Init(nil)
 	tags := "dda=basdfasdf|c=asdfasdfasdf"
@@ -164,24 +163,27 @@ func TestGetJournals(t *testing.T) {
 	t2, _ := model.NewTags(tags2)
 	tl2 := t2.GetTagLine()
 
-	exp, err := lql.ParseExpr("dda=basdfasdf")
-	if err != nil {
-		t.Fatal("err must be nil, but ", err)
-	}
-
-	res, _, err := ims.GetJournals(exp, 10, false)
+	res, _, err := ims.GetJournals("dda=basdfasdf", 10, false)
 	if err != nil || len(res) != 2 || res[tl1] != src || res[tl2] != src2 {
 		t.Fatal("err=", err, " res=", res, ", Src=", src, ", src2=", src2)
 	}
 
-	exp, _ = lql.ParseExpr("dda=basdfasdf  and c=asdfasdfasdf")
-	res, _, err = ims.GetJournals(exp, 10, false)
+	res, _, err = ims.GetJournals("dda=basdfasdf  and c=asdfasdfasdf", 10, false)
 	if err != nil || len(res) != 1 || res[tl1] != src {
 		t.Fatal("err=", err, " res=", res, ", Src=", src)
 	}
 
-	exp, _ = lql.ParseExpr("a=234")
-	res, _, err = ims.GetJournals(exp, 5, false)
+	res, _, err = ims.GetJournals("c=asdfasdfasdf|dda=basdfasdf", 10, false)
+	if err != nil || len(res) != 1 || res[tl1] != src {
+		t.Fatal("err=", err, " res=", res, ", Src=", src)
+	}
+
+	res, _, err = ims.GetJournals(tags, 10, false)
+	if err != nil || len(res) != 1 || res[tl1] != src {
+		t.Fatal("err=", err, " res=", res, ", Src=", src)
+	}
+
+	res, _, err = ims.GetJournals("a=234", 5, false)
 	if err != nil || len(res) != 0 {
 		t.Fatal("err=", err, " res=", res)
 	}
@@ -196,29 +198,24 @@ func TestGetJournalsLimits(t *testing.T) {
 	defer os.RemoveAll(dir) // clean up
 
 	ims := NewInmemService().(*inmemService)
-	ims.JCtrlr = &testJrnlCtrlr{}
+	ims.Journals = &testJournals{}
 	ims.Config = &InMemConfig{WorkingDir: dir, DoNotSave: true}
 	ims.Init(nil)
 	ims.GetOrCreateJournal("name=app1|ip=123")
 	ims.GetOrCreateJournal("name=app1|ip=1233")
 	ims.GetOrCreateJournal("name=app1|ip=12334")
 
-	exp, err := lql.ParseExpr("name=app1")
-	if err != nil {
-		t.Fatal("err must be nil, but ", err)
-	}
-
-	res, _, err := ims.GetJournals(exp, 1, false)
+	res, _, err := ims.GetJournals("name=app1", 1, false)
 	if err != nil || len(res) != 1 {
 		t.Fatal("err=", err, " res=", res)
 	}
 
-	res, cnt, err := ims.GetJournals(exp, 10, true)
+	res, cnt, err := ims.GetJournals("name=app1", 10, true)
 	if err != nil || len(res) != 3 || cnt != 3 {
 		t.Fatal("err=", err, " res=", res, ", cnt=", cnt)
 	}
 
-	res, cnt, err = ims.GetJournals(exp, 2, false)
+	res, cnt, err = ims.GetJournals("name=app1", 2, false)
 	if err != nil || len(res) != 2 || cnt != 3 {
 		t.Fatal("err=", err, " res=", res, ", cnt=", cnt)
 	}

@@ -45,8 +45,8 @@ type (
 	}
 
 	inmemService struct {
-		Config *InMemConfig       `inject:"inmemServiceConfig"`
-		JCtrlr journal.Controller `inject:""`
+		Config   *InMemConfig       `inject:"inmemServiceConfig"`
+		Journals journal.Controller `inject:""`
 
 		logger log4g.Logger
 		lock   sync.Mutex
@@ -126,8 +126,8 @@ func (ims *inmemService) GetOrCreateJournal(tags string) (string, error) {
 	return res, nil
 }
 
-func (ims *inmemService) GetJournals(exp *lql.Expression, maxSize int, checkAll bool) (map[model.TagLine]string, int, error) {
-	tef, err := lql.BuildTagsExpFunc(exp)
+func (ims *inmemService) GetJournals(tagsCond string, maxSize int, checkAll bool) (map[model.TagLine]string, int, error) {
+	tef, err := lql.BuildTagsExpFunc(tagsCond)
 	if err != nil {
 		return nil, 0, err
 	}
@@ -141,7 +141,7 @@ func (ims *inmemService) GetJournals(exp *lql.Expression, maxSize int, checkAll 
 	count := 0
 	res := make(map[model.TagLine]string, 10)
 	for _, td := range ims.tmap {
-		if tef(td.Tags.GetTagMap()) {
+		if tef(td.Tags) {
 			count++
 			if len(res) < maxSize {
 				res[td.Tags.GetTagLine()] = td.Src
@@ -195,7 +195,7 @@ func (ims *inmemService) checkConsistency(ctx context.Context) error {
 	}
 
 	ims.logger.Info("Checking the index and data consistency")
-	knwnJrnls := ims.JCtrlr.GetJournals(ctx)
+	knwnJrnls := ims.Journals.GetJournals(ctx)
 	fail := false
 	km := make(map[string]string, len(ims.tmap))
 	for _, d := range ims.tmap {

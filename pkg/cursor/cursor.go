@@ -18,7 +18,6 @@ import (
 	"bytes"
 	"context"
 	"fmt"
-	"github.com/logrange/logrange/pkg/lql"
 	"github.com/logrange/logrange/pkg/model"
 	"github.com/logrange/logrange/pkg/tindex"
 	"github.com/logrange/range/pkg/records/journal"
@@ -64,13 +63,7 @@ const cMaxSources = 50
 
 // newCursor creates the new cursor based on the state provided.
 func newCursor(ctx context.Context, state State, tidx tindex.Service, jctrl journal.Controller) (*Cursor, error) {
-	// figuring out the journals list
-	se, err := lql.ParseExpr(state.Sources)
-	if err != nil {
-		return nil, errors.Wrapf(err, "Could not parse expression \"%s\" ", state.Where)
-	}
-
-	srcs, _, err := tidx.GetJournals(se, cMaxSources+1, false)
+	srcs, _, err := tidx.GetJournals(state.Sources, cMaxSources+1, false)
 	if err != nil {
 		return nil, errors.Wrapf(err, "Could not get a list of journals for the expression \"%s\"", state.Sources)
 	}
