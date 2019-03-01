@@ -12,46 +12,29 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package utils
+package cmd
 
 import (
-	"context"
-	"sync"
-	"time"
+	"os"
+	"os/signal"
+	"syscall"
 )
 
-func Wait(ticker *time.Ticker, ctx context.Context) bool {
-	select {
-	case <-ctx.Done():
-		return false
-	case <-ticker.C:
-		return true
-	}
-}
+type (
+	SignalCallbackFn func(s os.Signal)
+)
 
-func Sleep(ctx context.Context, t time.Duration) bool {
-	select {
-	case <-ctx.Done():
-		return false
-	case <-time.After(t):
-		return true
-	}
-}
+func NewNotifierOnIntTermSignal(callback SignalCallbackFn) {
+	if callback != nil {
+		go func() {
+			sigChan := make(chan os.Signal, 1)
+			defer signal.Stop(sigChan)
 
-func WaitDone(done chan bool, t time.Duration) bool {
-	select {
-	case <-done:
-		return true
-	case <-time.After(t):
-		return false
+			signal.Notify(sigChan, syscall.SIGINT, syscall.SIGTERM)
+			select {
+			case s := <-sigChan:
+				callback(s)
+			}
+		}()
 	}
-}
-
-func WaitWaitGroup(wg *sync.WaitGroup, t time.Duration) bool {
-	done := make(chan bool)
-	go func() {
-		wg.Wait()
-		close(done)
-	}()
-	return WaitDone(done, t)
 }

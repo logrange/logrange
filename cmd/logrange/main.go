@@ -16,15 +16,13 @@ package main
 
 import (
 	"context"
-	"os"
-	"os/signal"
-	"sort"
-	"syscall"
-
 	"github.com/jrivets/log4g"
+	"github.com/logrange/logrange/cmd"
 	"github.com/logrange/logrange/server"
 	"github.com/logrange/range/pkg/cluster"
 	"gopkg.in/urfave/cli.v2"
+	"os"
+	"sort"
 )
 
 const (
@@ -55,20 +53,20 @@ func main() {
 				Flags: []cli.Flag{
 					&cli.StringFlag{
 						Name:  argStartLogCfgFile,
-						Usage: "The log4g configuration file path",
+						Usage: "log4g configuration file path",
 					},
 					&cli.StringFlag{
 						Name:  argStartCfgFile,
-						Usage: "The logrange configuration file path",
+						Usage: "server configuration file path",
 					},
 					&cli.IntFlag{
 						Name:  argStartHostHostId,
-						Usage: "Unique host identifier, if 0 the id will be automatically assigned.",
+						Usage: "unique host id, if 0 the id will be automatically assigned",
 						Value: int(cfg.HostHostId),
 					},
 					&cli.StringFlag{
 						Name:  argStartJournalDir,
-						Usage: "Defines path to the journals database directory",
+						Usage: "path to the journals database directory",
 						Value: cfg.JrnlCtrlConfig.JournalsDir,
 					},
 				},
@@ -105,7 +103,12 @@ func runServer(c *cli.Context) error {
 	}
 
 	applyArgsToCfg(c, cfg)
-	return server.Start(ctxWithSignalHandler(), cfg)
+	ctx, cancel := context.WithCancel(context.Background())
+	cmd.NewNotifierOnIntTermSignal(func(s os.Signal) {
+		getLogger().Warn("Handling signal=", s)
+		cancel()
+	})
+	return server.Start(ctx, cfg)
 }
 
 func applyArgsToCfg(c *cli.Context, cfg *server.Config) {
@@ -116,20 +119,6 @@ func applyArgsToCfg(c *cli.Context, cfg *server.Config) {
 	if jd := c.String(argStartJournalDir); dc.JrnlCtrlConfig.JournalsDir != jd {
 		cfg.JrnlCtrlConfig.JournalsDir = jd
 	}
-}
-
-func ctxWithSignalHandler() context.Context {
-	ctx, cancel := context.WithCancel(context.Background())
-	go func() {
-		sigChan := make(chan os.Signal, 1)
-		signal.Notify(sigChan, syscall.SIGINT, syscall.SIGTERM)
-		select {
-		case s := <-sigChan:
-			getLogger().Warn("Handling signal=", s)
-			cancel()
-		}
-	}()
-	return ctx
 }
 
 func getLogger() log4g.Logger {
