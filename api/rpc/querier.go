@@ -20,7 +20,9 @@ import (
 	"github.com/jrivets/log4g"
 	"github.com/logrange/logrange/api"
 	"github.com/logrange/logrange/pkg/cursor"
+	"github.com/logrange/logrange/pkg/lql"
 	"github.com/logrange/logrange/pkg/model"
+	"github.com/logrange/logrange/pkg/model/tag"
 	"github.com/logrange/logrange/pkg/tindex"
 	"github.com/logrange/range/pkg/records"
 	rrpc "github.com/logrange/range/pkg/rpc"
@@ -104,7 +106,7 @@ func (sq *ServerQuerier) query(reqId int32, reqBody []byte, sc *rrpc.ServerConn)
 		return
 	}
 
-	state := cursor.State{Id: rq.ReqId, Where: rq.Where, Sources: rq.TagsCond, Pos: rq.Pos}
+	state := cursor.State{Id: rq.ReqId, Query: rq.Query, Pos: rq.Pos}
 	cur, err := sq.CurProvider.GetOrCreate(sq.MainCtx, state)
 	if err != nil {
 		sq.logger.Warn("query(): Could not get/create a cursor, err=", err)
@@ -121,7 +123,7 @@ func (sq *ServerQuerier) query(reqId int32, reqBody []byte, sc *rrpc.ServerConn)
 	var qr queryResultBuilder
 	var le api.LogEvent
 	var lge model.LogEvent
-	var tags model.TagLine
+	var tags tag.Line
 
 	qr.init(sq.Pool)
 	for limit > 0 && err == nil {
@@ -138,7 +140,7 @@ func (sq *ServerQuerier) query(reqId int32, reqBody []byte, sc *rrpc.ServerConn)
 
 	state = sq.CurProvider.Release(sq.MainCtx, cur)
 	if err == nil || err == io.EOF {
-		qryReq := &api.QueryRequest{ReqId: state.Id, TagsCond: state.Sources, Where: state.Where, Pos: state.Pos, Limit: lim}
+		qryReq := &api.QueryRequest{ReqId: state.Id, Query: state.Query, Pos: state.Pos, Limit: lim}
 		err = qr.writeQueryRequest(qryReq)
 		if err == nil {
 			sc.SendResponse(reqId, nil, records.Record(qr.buf()))
@@ -159,7 +161,14 @@ func (sq *ServerQuerier) sources(reqId int32, reqBody []byte, sc *rrpc.ServerCon
 		return
 	}
 
-	mp, count, err := sq.TIndex.GetJournals(tagsCond, 100, true)
+	src, err := lql.ParseSource(tagsCond)
+	if err != nil {
+		sq.logger.Warn("sources(): could not parse the source condition ", tagsCond, " err=", err)
+		sc.SendResponse(reqId, err, cEmptyResponse)
+		return
+	}
+
+	mp, count, err := sq.TIndex.GetJournals(src, 100, true)
 	if err != nil {
 		sq.logger.Warn("sources(): could not obtain sources err=", err)
 		sc.SendResponse(reqId, err, cEmptyResponse)

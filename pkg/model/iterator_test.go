@@ -33,7 +33,7 @@ func TestLogEventIterator(t *testing.T) {
 			break
 		}
 		if tags != "test" {
-			t.Fatal("tags are wrong ", tags)
+			t.Fatal("tag are wrong ", tags)
 		}
 
 		le2, _, err := lei.Get(nil)

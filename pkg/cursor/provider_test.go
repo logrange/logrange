@@ -16,7 +16,7 @@ package cursor
 
 import (
 	"github.com/jrivets/log4g"
-	"github.com/logrange/logrange/pkg/model"
+	"github.com/logrange/logrange/pkg/model/tag"
 	"testing"
 	"time"
 )
@@ -25,9 +25,9 @@ func TestGetOrCreate(t *testing.T) {
 	p := NewProvider()
 	defer p.Shutdown()
 
-	p.Tidx = &testTidxService{map[model.TagLine]string{"j1": "j1"}}
+	p.Tidx = &testTidxService{map[tag.Line]string{"j1=j1": "j1"}}
 	p.JCtrl = &testJrnlCtrlr{map[string]*testJrnl{"j1": &testJrnl{"j1"}}}
-	cur, err := p.GetOrCreate(nil, State{})
+	cur, err := p.GetOrCreate(nil, State{Query: "select limit 10"})
 	if err != nil {
 		t.Fatal("err must be nil, but err=", err)
 	}
@@ -54,14 +54,14 @@ func TestRelease(t *testing.T) {
 	p := NewProvider()
 	defer p.Shutdown()
 
-	p.Tidx = &testTidxService{map[model.TagLine]string{"j1": "j1"}}
+	p.Tidx = &testTidxService{map[tag.Line]string{"j1=j1": "j1"}}
 	p.JCtrl = &testJrnlCtrlr{map[string]*testJrnl{"j1": &testJrnl{"j1"}}}
-	cur, err := p.GetOrCreate(nil, State{Id: 1})
+	cur, err := p.GetOrCreate(nil, State{Id: 1, Query: "select limit 10"})
 	if e, ok := p.curs[1]; !ok || e != p.busy || err != nil {
 		t.Fatal("cur=", cur, ", was not found or err=", err)
 	}
 
-	cur2, err := p.GetOrCreate(nil, State{Id: 2})
+	cur2, err := p.GetOrCreate(nil, State{Id: 2, Query: "select limit 10"})
 	if e, ok := p.curs[2]; !ok || e != p.busy || err != nil {
 		t.Fatal("cur2=", cur2, ", was not found or err=", err)
 	}
@@ -88,14 +88,14 @@ func TestSweepByTime(t *testing.T) {
 		t.Fatal("p.Init() == ", err)
 	}
 
-	p.Tidx = &testTidxService{map[model.TagLine]string{"j1": "j1"}}
+	p.Tidx = &testTidxService{map[tag.Line]string{"j1=j1": "j1"}}
 	p.JCtrl = &testJrnlCtrlr{map[string]*testJrnl{"j1": &testJrnl{"j1"}}}
-	cur, err := p.GetOrCreate(nil, State{Id: 1})
+	cur, err := p.GetOrCreate(nil, State{Id: 1, Query: "select limit 10"})
 	if e, ok := p.curs[1]; !ok || e != p.busy || err != nil {
 		t.Fatal("cur=", cur, ", was not found or err=", err)
 	}
 
-	cur2, err := p.GetOrCreate(nil, State{Id: 2})
+	cur2, err := p.GetOrCreate(nil, State{Id: 2, Query: "select limit 10"})
 	if e, ok := p.curs[2]; !ok || e != p.busy || err != nil {
 		t.Fatal("cur2=", cur2, ", was not found or err=", err)
 	}
@@ -121,14 +121,14 @@ func TestSweepBySize(t *testing.T) {
 
 	log4g.SetLogLevel("", log4g.DEBUG)
 
-	p.Tidx = &testTidxService{map[model.TagLine]string{"j1": "j1"}}
+	p.Tidx = &testTidxService{map[tag.Line]string{"j1=j1": "j1"}}
 	p.JCtrl = &testJrnlCtrlr{map[string]*testJrnl{"j1": &testJrnl{"j1"}}}
-	cur, err := p.GetOrCreate(nil, State{Id: 1})
+	cur, err := p.GetOrCreate(nil, State{Id: 1, Query: "select limit 10"})
 	if e, ok := p.curs[1]; !ok || e != p.busy || err != nil {
 		t.Fatal("cur=", cur, ", was not found or err=", err)
 	}
 
-	cur2, err := p.GetOrCreate(nil, State{Id: 2})
+	cur2, err := p.GetOrCreate(nil, State{Id: 2, Query: "select limit 10"})
 	if e, ok := p.curs[2]; !ok || e != p.busy || err != nil {
 		t.Fatal("cur2=", cur2, ", was not found or err=", err)
 	}

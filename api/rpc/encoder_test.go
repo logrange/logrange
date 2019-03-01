@@ -25,12 +25,12 @@ import (
 
 func TestQueryRequest(t *testing.T) {
 	testQueryRequest(t, &api.QueryRequest{})
-	testQueryRequest(t, &api.QueryRequest{ReqId: 123412349182374, TagsCond: "a=b|c=d", Where: "adfasdfdsf", Pos: "ddd", Limit: 1234})
+	testQueryRequest(t, &api.QueryRequest{ReqId: 123412349182374, Query: "select limit 10", Pos: "ddd", Limit: 1234})
 }
 
 func TestQueryResult(t *testing.T) {
 	testQueryResult(t, &api.QueryResult{})
-	testQueryResult(t, &api.QueryResult{NextQueryRequest: api.QueryRequest{ReqId: 123412349182374, TagsCond: "a=b|c=d", Where: "adfasdfdsf", Pos: "ddd", Limit: 1234},
+	testQueryResult(t, &api.QueryResult{NextQueryRequest: api.QueryRequest{ReqId: 123412349182374, Query: "select limit 10", Pos: "ddd", Limit: 1234},
 		Events: []*api.LogEvent{
 			&api.LogEvent{1, "mes1", ""},
 			&api.LogEvent{2, "mes2", "bbb=ttt"},
@@ -42,12 +42,12 @@ func TestQueryResultBuilder(t *testing.T) {
 	qb.init(&bytes2.Pool{})
 	qb.writeLogEvent(&api.LogEvent{1, "mes1", ""})
 	qb.writeLogEvent(&api.LogEvent{2, "mes2", "aaa=bbb"})
-	qb.writeQueryRequest(&api.QueryRequest{ReqId: 123412349182374, TagsCond: "a=b|c=d", Where: "adfasdfdsf", Pos: "ddd", Limit: 1234})
+	qb.writeQueryRequest(&api.QueryRequest{ReqId: 123412349182374, Query: "select source {aaa=bbb} limit 10", Pos: "ddd", Limit: 1234})
 	var rqr api.QueryResult
 	unmarshalQueryResult(qb.buf(), &rqr, true)
 	qb.Close()
 
-	tqr := &api.QueryResult{NextQueryRequest: api.QueryRequest{ReqId: 123412349182374, TagsCond: "a=b|c=d", Where: "adfasdfdsf", Pos: "ddd", Limit: 1234},
+	tqr := &api.QueryResult{NextQueryRequest: api.QueryRequest{ReqId: 123412349182374, Query: "select source {aaa=bbb} limit 10", Pos: "ddd", Limit: 1234},
 		Events: []*api.LogEvent{
 			&api.LogEvent{1, "mes1", ""},
 			&api.LogEvent{2, "mes2", "aaa=bbb"},

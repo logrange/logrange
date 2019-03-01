@@ -15,6 +15,7 @@
 package lql
 
 import (
+	"github.com/logrange/logrange/pkg/model/tag"
 	"testing"
 )
 
@@ -37,18 +38,18 @@ func TestParse(t *testing.T) {
 	testOk(t, "select position asdf limit 100")
 	testOk(t, "select position 'hasdf123' limit 100")
 	testOk(t, "select WHERE NOT a='1234' limit 100")
-	testOk(t, "select WHERE NOT (a='1234' AND c=abc) limit 100")
+	testOk(t, "select WHERE NOT (a=\"12\\\\'34\" AND c=abc) limit 100")
 	testOk(t, "select WHERE NOT a='1234' AND c=abc limit 100")
 	testOk(t, "select WHERE NOT a='1234' AND not c=abc limit 100")
 	testOk(t, "select WHERE (NOT (a='1234' AND c=abc)) or x=123 limit 100")
 	testOk(t, "select WHERE (NOT (a='1234' AND c=abc)) or not x=123 limit 100")
 	testOk(t, "select WHERE (NOT (a='1234' AND c=abc)) or not (x=123) limit 100")
 	testOk(t, "select WHERE (NOT (a='1234' AND c=abc)) or not (x=123 or c = abc) limit 100")
-	testOk(t, "select WHERE a='1234' AND bbb>=adfadf234798* or xxx = yyy limit 100")
+	testOk(t, "select WHERE a='1234' AND bbb>=adfadf234798 or xxx = yyy limit 100")
 	testOk(t, "select WHERE a='1234' AND bbb like 'adfadf234798*' or xxx = yyy limit 10")
 	testOk(t, "SELECT source a=b OR b contains 'r' WHERE filename=\"system.log\" or filename=\"wifi.log\" OFFSET 0 LIMIT -1")
 	testOk(t, "SELECT Source a=b AND c=d WHERE filename=\"system.log\" or filename=\"wifi.log\" OFFSET 0 LIMIT -1")
-	testOk(t, "SELECT SOURCE a>b WHERE 'from'='this is tag value' or filename=\"wifi.log\" OFFSET 0 LIMIT -1")
+	testOk(t, "SELECT SOURCE a>b WHERE from='this is tag value' or filename=\"wifi.log\" OFFSET 0 LIMIT -1")
 }
 
 func TestParams(t *testing.T) {
@@ -76,25 +77,32 @@ func TestPosition(t *testing.T) {
 	}
 }
 
-func TestUnquote(t *testing.T) {
-	testUnquote(t, "'aaa", "'aaa")
-	testUnquote(t, "'aaa\"", "'aaa\"")
-	testUnquote(t, "aaa'", "aaa'")
-	testUnquote(t, "\"aaa'", "\"aaa'")
-	testUnquote(t, "   'aaa'", "aaa")
-	testUnquote(t, "\"aaa\"   ", "aaa")
-	testUnquote(t, "   'aaa\"", "   'aaa\"")
-	testUnquote(t, " aaa   ", " aaa   ")
-}
-
-func testUnquote(t *testing.T, in, out string) {
-	if unquote(in) != out {
-		t.Fatal("unqoute(", in, ") != ", out)
-	}
+func TestParseTagsSource(t *testing.T) {
+	testParseSource(t, `{ asdfd="sf ,\\=df" , d=d }`, true, false)
+	testParseSource(t, `{asdfd="sf,\\=df",c="",b=12\34.1234.1324.1234,d=asdf}`, true, false)
+	testParseSource(t, `a = b and c like 'asdf*'`, false, false)
 }
 
 func TestParseWhere(t *testing.T) {
 	testWhereOk(t, "a=adsf and b=adsf")
+}
+
+func testParseSource(t *testing.T, exp string, tags, errOk bool) {
+	s, err := ParseSource(exp)
+	if err == nil && errOk || err != nil && !errOk {
+		t.Fatal("Wrong source ", exp, ", err=", err, "errOk=", errOk)
+	}
+	if !tags {
+		return
+	}
+
+	if s == nil || s.Tags == nil {
+		t.Fatal("Tags must be present")
+	}
+	tgs, err := tag.Parse(exp)
+	if err != nil || !tgs.Equals(s.Tags.Tags) {
+		t.Fatal("Tags must be equal, but in=", tgs, ", parsed=", s.Tags.Tags)
+	}
 }
 
 func testWhereOk(t *testing.T, whr string) *Expression {

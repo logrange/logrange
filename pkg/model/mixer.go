@@ -16,6 +16,7 @@ package model
 
 import (
 	"context"
+	"github.com/logrange/logrange/pkg/model/tag"
 	"io"
 )
 
@@ -36,7 +37,7 @@ type (
 		it   Iterator
 		eof  bool
 		le   LogEvent
-		tags TagLine
+		tags tag.Line
 	}
 )
 
@@ -67,7 +68,7 @@ func (mr *Mixer) Next(ctx context.Context) {
 }
 
 // Get is the part of Iterator interface
-func (mr *Mixer) Get(ctx context.Context) (LogEvent, TagLine, error) {
+func (mr *Mixer) Get(ctx context.Context) (LogEvent, tag.Line, error) {
 	err := mr.selectState(ctx)
 	if err != nil {
 		return LogEvent{}, "", err

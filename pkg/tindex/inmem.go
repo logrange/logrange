@@ -20,7 +20,7 @@ import (
 	"fmt"
 	"github.com/jrivets/log4g"
 	"github.com/logrange/logrange/pkg/lql"
-	"github.com/logrange/logrange/pkg/model"
+	"github.com/logrange/logrange/pkg/model/tag"
 	"github.com/logrange/range/pkg/records/journal"
 	"github.com/pkg/errors"
 	"io/ioutil"
@@ -31,7 +31,7 @@ import (
 
 type (
 	tagsDesc struct {
-		Tags model.Tags
+		Tags tag.Set
 		Src  string
 	}
 
@@ -50,7 +50,7 @@ type (
 
 		logger log4g.Logger
 		lock   sync.Mutex
-		tmap   map[string]*tagsDesc
+		tmap   map[tag.Line]*tagsDesc
 		done   bool
 	}
 )
@@ -63,7 +63,7 @@ const (
 func NewInmemService() Service {
 	ims := new(inmemService)
 	ims.logger = log4g.GetLogger("tindex.inmem")
-	ims.tmap = make(map[string]*tagsDesc)
+	ims.tmap = make(map[tag.Line]*tagsDesc)
 	return ims
 }
 
@@ -91,28 +91,28 @@ func (ims *inmemService) GetOrCreateJournal(tags string) (string, error) {
 	ims.lock.Lock()
 	if ims.done {
 		ims.lock.Unlock()
-		return "", fmt.Errorf("Already shut-down.")
+		return "", fmt.Errorf("already shut-down.")
 	}
 
-	td, ok := ims.tmap[tags]
+	td, ok := ims.tmap[tag.Line(tags)]
 	if !ok {
-		tgs, err := model.NewTags(tags)
+		tgs, err := tag.Parse(tags)
 		if err != nil {
 			ims.lock.Unlock()
-			return "", fmt.Errorf("The line %s doesn't seem like properly formatted tag line: %s", tags, err)
+			return "", fmt.Errorf("the line %s doesn't seem like properly formatted tag line: %s", tags, err)
 		}
 
-		if len(tgs.GetTagMap()) == 0 {
-			return "", fmt.Errorf("At least one tag value is expected to define the source")
+		if tgs.IsEmpty() {
+			return "", fmt.Errorf("at least one tag value is expected to define the source")
 		}
 
-		if td2, ok := ims.tmap[string(tgs.GetTagLine())]; !ok {
+		if td2, ok := ims.tmap[tgs.Line()]; !ok {
 			td = &tagsDesc{tgs, newSrc()}
-			ims.tmap[string(tgs.GetTagLine())] = td
+			ims.tmap[tgs.Line()] = td
 			err = ims.saveStateUnsafe()
 			if err != nil {
-				delete(ims.tmap, string(tgs.GetTagLine()))
-				ims.logger.Error("Could not save state for the new source ", td.Src, " formed for ", tgs.GetTagLine(), ", original Tags=", tags, ", err=", err)
+				delete(ims.tmap, tgs.Line())
+				ims.logger.Error("could not save state for the new source ", td.Src, " formed for ", tgs.Line(), ", original Tags=", tags, ", err=", err)
 				ims.lock.Unlock()
 				return "", err
 			}
@@ -126,8 +126,8 @@ func (ims *inmemService) GetOrCreateJournal(tags string) (string, error) {
 	return res, nil
 }
 
-func (ims *inmemService) GetJournals(tagsCond string, maxSize int, checkAll bool) (map[model.TagLine]string, int, error) {
-	tef, err := lql.BuildTagsExpFunc(tagsCond)
+func (ims *inmemService) GetJournals(srcCond *lql.Source, maxSize int, checkAll bool) (map[tag.Line]string, int, error) {
+	tef, err := lql.BuildTagsExpFuncBySource(srcCond)
 	if err != nil {
 		return nil, 0, err
 	}
@@ -135,16 +135,16 @@ func (ims *inmemService) GetJournals(tagsCond string, maxSize int, checkAll bool
 	ims.lock.Lock()
 	if ims.done {
 		ims.lock.Unlock()
-		return nil, 0, fmt.Errorf("Already shut-down.")
+		return nil, 0, fmt.Errorf("already shut-down.")
 	}
 
 	count := 0
-	res := make(map[model.TagLine]string, 10)
+	res := make(map[tag.Line]string, 10)
 	for _, td := range ims.tmap {
 		if tef(td.Tags) {
 			count++
 			if len(res) < maxSize {
-				res[td.Tags.GetTagLine()] = td.Src
+				res[td.Tags.Line()] = td.Src
 			} else if !checkAll {
 				break
 			}
@@ -158,7 +158,7 @@ func (ims *inmemService) GetJournals(tagsCond string, maxSize int, checkAll bool
 func (ims *inmemService) saveStateUnsafe() error {
 	ims.logger.Debug("saveStateUnsafe()")
 	if ims.Config.DoNotSave {
-		ims.logger.Warn("Will not save config, cause DoNotSave flag is set.")
+		ims.logger.Warn("will not save config, cause DoNotSave flag is set.")
 		return nil
 	}
 
@@ -173,16 +173,16 @@ func (ims *inmemService) saveStateUnsafe() error {
 	}
 
 	if err != nil {
-		return errors.Wrapf(err, "Could not rename file %s to %s", fn, bFn)
+		return errors.Wrapf(err, "could not rename file %s to %s", fn, bFn)
 	}
 
 	data, err := json.Marshal(ims.tmap)
 	if err != nil {
-		return errors.Wrapf(err, "Could not marshal tmap ")
+		return errors.Wrapf(err, "could not marshal tmap ")
 	}
 
 	if err = ioutil.WriteFile(fn, data, 0640); err != nil {
-		return errors.Wrapf(err, "Could not write file %s ", fn)
+		return errors.Wrapf(err, "could not write file %s ", fn)
 	}
 
 	return nil
@@ -204,7 +204,7 @@ func (ims *inmemService) checkConsistency(ctx context.Context) error {
 
 	for _, src := range knwnJrnls {
 		if _, ok := km[src]; !ok {
-			ims.logger.Error("Found journal ", src, ", but it is not in the tindex")
+			ims.logger.Error("found journal ", src, ", but it is not in the tindex")
 			fail = true
 			continue
 		}
@@ -217,7 +217,7 @@ func (ims *inmemService) checkConsistency(ctx context.Context) error {
 
 	if fail {
 		ims.logger.Error("Consistency check failed. ", len(knwnJrnls), " sources found and ", len(ims.tmap), " records in tindex")
-		return errors.Errorf("Data is inconsistent. %d journals and %d tindex records found. Some journals don't have records in the tindex", len(knwnJrnls), len(ims.tmap))
+		return errors.Errorf("data is inconsistent. %d journals and %d tindex records found. Some journals don't have records in the tindex", len(knwnJrnls), len(ims.tmap))
 	}
 	ims.logger.Info("Consistency check passed. ", len(knwnJrnls), " sources found and all of them have correct tindex record. ",
 		len(ims.tmap), " index records in total.")
@@ -235,7 +235,7 @@ func (ims *inmemService) loadState() error {
 
 	data, err := ioutil.ReadFile(fn)
 	if err != nil {
-		return errors.Wrapf(err, "Cound not load index file %s. Wrong permissions?", fn)
+		return errors.Wrapf(err, "cound not load index file %s. Wrong permissions?", fn)
 	}
 
 	return json.Unmarshal(data, &ims.tmap)

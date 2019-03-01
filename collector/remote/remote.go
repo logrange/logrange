@@ -23,7 +23,7 @@ import (
 	"github.com/logrange/logrange/api/rpc"
 	"github.com/logrange/logrange/collector/model"
 	"github.com/logrange/logrange/collector/utils"
-	bemodel "github.com/logrange/logrange/pkg/model"
+	"github.com/logrange/logrange/pkg/model/tag"
 	"github.com/mohae/deepcopy"
 	"sync"
 	"time"
@@ -145,13 +145,10 @@ func (c *Client) send(ev *model.Event, sendRes *api.WriteResult) error {
 		return fmt.Errorf("rpc not initialized")
 	}
 
-	tm, err := bemodel.NewTagMap(ev.Meta.Tags)
-	if err != nil {
-		return err
-	}
+	set := tag.MapToSet(ev.Meta.Tags)
 
 	c.logger.Debug("Sending event=", ev)
-	return c.rpc.Ingestor().Write(string(tm.BuildTagLine()), toApiEvents(ev), sendRes)
+	return c.rpc.Ingestor().Write(string(set.Line()), toApiEvents(ev), sendRes)
 }
 
 func toApiEvents(ev *model.Event) []*api.LogEvent {

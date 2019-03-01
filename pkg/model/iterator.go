@@ -16,6 +16,7 @@ package model
 
 import (
 	"context"
+	"github.com/logrange/logrange/pkg/model/tag"
 	"github.com/logrange/range/pkg/records"
 	"io"
 )
@@ -27,12 +28,12 @@ type (
 		Next(ctx context.Context)
 
 		// Get returns current LogEvent, the TagsCond for the event or an error if any. It returns io.EOF when end of the collection is reached
-		Get(ctx context.Context) (LogEvent, TagLine, error)
+		Get(ctx context.Context) (LogEvent, tag.Line, error)
 	}
 
 	// LogEventIterator struct wraps a records.Iterator and provides LogEvent Iterator interface over it.
 	LogEventIterator struct {
-		tags TagLine
+		tags tag.Line
 		it   records.Iterator
 		st   int
 		le   LogEvent
@@ -40,7 +41,7 @@ type (
 )
 
 // Wrap sets the underlying records.Iterator it
-func (lei *LogEventIterator) Wrap(tags TagLine, it records.Iterator) *LogEventIterator {
+func (lei *LogEventIterator) Wrap(tags tag.Line, it records.Iterator) *LogEventIterator {
 	lei.tags = tags
 	lei.it = it
 	lei.st = 0
@@ -54,7 +55,7 @@ func (lei *LogEventIterator) Next(ctx context.Context) {
 }
 
 // Get returns current LogEvent record
-func (lei *LogEventIterator) Get(ctx context.Context) (LogEvent, TagLine, error) {
+func (lei *LogEventIterator) Get(ctx context.Context) (LogEvent, tag.Line, error) {
 	if lei.st == 1 {
 		return lei.le, lei.tags, nil
 	}

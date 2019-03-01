@@ -15,19 +15,9 @@
 package lql
 
 import (
-	"github.com/logrange/logrange/pkg/model"
+	"github.com/logrange/logrange/pkg/model/tag"
 	"testing"
 )
-
-func BenchmarkTagsExpGeneral(b *testing.B) {
-	fn, _ := BuildTagsExpFunc("name=app1 and ip like 1*")
-	tags, _ := (&model.TagMap{"name": "app1", "ip": "1.2.3.4"}).NewTags()
-	b.ReportAllocs()
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
-		fn(tags)
-	}
-}
 
 func getTagsExpFunc(t *testing.T, exp string) TagsExpFunc {
 	res, err := BuildTagsExpFunc(exp)
@@ -38,7 +28,7 @@ func getTagsExpFunc(t *testing.T, exp string) TagsExpFunc {
 	return res
 }
 
-func testTagsExpGeneral(t *testing.T, exp string, tags model.Tags, expRes bool) {
+func testTagsExpGeneral(t *testing.T, exp string, tags tag.Set, expRes bool) {
 	tef := getTagsExpFunc(t, exp)
 	if tef(tags) != expRes {
 		t.Fatal("Expected ", expRes, " for '", exp, "' expression, but got ", !expRes)
@@ -46,15 +36,15 @@ func testTagsExpGeneral(t *testing.T, exp string, tags model.Tags, expRes bool) 
 }
 
 func TestTagsExpGeneral(t *testing.T) {
-	tags, _ := (&model.TagMap{"name": "app1", "ip": "1.2.3.4", "ttt": "ddfe"}).NewTags()
-	testTagsExpGeneral(t, "a=b", tags, false)
-	testTagsExpGeneral(t, "name='app1'", tags, true)
-	testTagsExpGeneral(t, "ip=1.2.3.4|name=app1", tags, true)
-	testTagsExpGeneral(t, "name=app1|ip=1.2.3.4", tags, true)
-	testTagsExpGeneral(t, "name=app1|ip=1.2.3.4|ttt=ddfe", tags, true)
-	testTagsExpGeneral(t, "name=app1|ip=1.2.3.4|ttt=ddeefe", tags, false)
+	tags, _ := tag.Parse("name=app1,ip=1.2.3.4,ttt=ddfe")
+	testTagsExpGeneral(t, "{a=b}", tags, false)
+	testTagsExpGeneral(t, "{name=\"app1\"}", tags, true)
+	testTagsExpGeneral(t, "{ip=1.2.3.4,name=app1}", tags, true)
+	testTagsExpGeneral(t, "{name=app1,ip=1.2.3.4}", tags, true)
+	testTagsExpGeneral(t, "{name=app1,ip=1.2.3.4,ttt=ddfe}", tags, true)
+	testTagsExpGeneral(t, "{name=app1,ip=1.2.3.4,ttt=ddeefe}", tags, false)
 	testTagsExpGeneral(t, "name=app1", tags, true)
-	testTagsExpGeneral(t, "name=app1 and ip like 1*", tags, true)
+	testTagsExpGeneral(t, "name=app1 and ip like '1*'", tags, true)
 	testTagsExpGeneral(t, "name=app13 or ip=\"1.2.3.4\"", tags, true)
 	testTagsExpGeneral(t, "name=app13 or name=app14 or ttt=ddfe", tags, true)
 	testTagsExpGeneral(t, "c=''", tags, true)

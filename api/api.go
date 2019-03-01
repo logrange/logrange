@@ -33,9 +33,9 @@ type (
 	// Ingestor provides Wrtie method for sending log data into the storage. This intrface is exposed as
 	// a public API
 	Ingestor interface {
-		// Write sends log events into the stream identified by tags provided. It expects a slice of events and
+		// Write sends log events into the stream identified by tag provided. It expects a slice of events and
 		// the reference to the WriteResult. TagsCond field in LogEvents are ignored during the writing operation,
-		// but tags param will be applied to all of the events.
+		// but tag param will be applied to all of the events.
 		Write(tags string, evs []*LogEvent, res *WriteResult) error
 	}
 
@@ -45,11 +45,8 @@ type (
 		// but it can be returned with the structure in QueryResult.
 		ReqId uint64
 
-		// TagsCond line identifies the source of records. For example "name=app1 and ip like '123.2*'"
-		TagsCond string
-
-		// Where defines the filter for the records like "msg contains 'ERROR' AND ts > '2006-01-02T15:04:05'"
-		Where string
+		// the LQL line for selecting records
+		Query string
 
 		// Pos contains the next read record position.
 		Pos string
@@ -74,7 +71,7 @@ type (
 		// The source identifier
 		Id string
 
-		// Tags contains tags for the source
+		// Tags contains tag for the source
 		Tags string
 
 		// Size contains data size (in bytes)

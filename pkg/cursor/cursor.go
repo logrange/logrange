@@ -18,7 +18,9 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"github.com/logrange/logrange/pkg/lql"
 	"github.com/logrange/logrange/pkg/model"
+	"github.com/logrange/logrange/pkg/model/tag"
 	"github.com/logrange/logrange/pkg/tindex"
 	"github.com/logrange/range/pkg/records/journal"
 	"github.com/pkg/errors"
@@ -32,14 +34,11 @@ type (
 		// Id the cursor state Id
 		Id uint64
 
-		// Sources contains tags expressions for selecting journal sources.
-		Sources string
+		// The Query contains the initial query for the cursor.
+		Query string
 
-		// Where contains the expression over LogEvent fields (ts and msg) to filter them. Empty value
-		// indicates all records
-		Where string
-
-		// Pos indicates the position of the record which must be read next.
+		// Pos indicates the position of the record which must be read next. If it is not empty, it
+		// will be applied to the Query
 		Pos string
 	}
 
@@ -53,7 +52,7 @@ type (
 	}
 
 	jrnlDesc struct {
-		tags model.TagLine
+		tags tag.Line
 		j    journal.Journal
 		it   journal.Iterator
 	}
@@ -63,17 +62,22 @@ const cMaxSources = 50
 
 // newCursor creates the new cursor based on the state provided.
 func newCursor(ctx context.Context, state State, tidx tindex.Service, jctrl journal.Controller) (*Cursor, error) {
-	srcs, _, err := tidx.GetJournals(state.Sources, cMaxSources+1, false)
+	sel, err := lql.Parse(state.Query)
 	if err != nil {
-		return nil, errors.Wrapf(err, "Could not get a list of journals for the expression \"%s\"", state.Sources)
+		return nil, errors.Wrapf(err, "could not parse lql=%s", state.Query)
+	}
+
+	srcs, _, err := tidx.GetJournals(sel.Source, cMaxSources+1, false)
+	if err != nil {
+		return nil, errors.Wrapf(err, "could not get a list of journals for the query %s", state.Query)
 	}
 
 	if len(srcs) == 0 {
-		return nil, errors.Errorf("No sources for the expression \"%s\"", state.Sources)
+		return nil, errors.Errorf("no sources for the expression the query %s", state.Query)
 	}
 
 	if len(srcs) > cMaxSources {
-		return nil, errors.Errorf("too many sources (greater than %d) correspond to the expresion \"%s\", more concreate condition is needed to reduce the number. ", cMaxSources, state.Sources)
+		return nil, errors.Errorf("too many sources (greater than %d) correspond to the query \"%s\", more concreate condition is needed to reduce the number. ", cMaxSources, state.Query)
 	}
 
 	jd := make(map[string]*jrnlDesc, len(srcs))
@@ -83,7 +87,7 @@ func newCursor(ctx context.Context, state State, tidx tindex.Service, jctrl jour
 		for tags, src := range srcs {
 			jrnl, err := jctrl.GetOrCreate(ctx, src)
 			if err != nil {
-				return nil, errors.Wrapf(err, "Could not get the access to the journal %s for tags %s, which's got for the \"%s\" expression ", src, tags, state.Sources)
+				return nil, errors.Wrapf(err, "could not get the access to the journal %s for tag %s, which's got for the query \"%s\"", src, tags, state.Query)
 			}
 			jit := jrnl.Iterator()
 			it = (&model.LogEventIterator{}).Wrap(tags, jit)
@@ -97,7 +101,7 @@ func newCursor(ctx context.Context, state State, tidx tindex.Service, jctrl jour
 		for tags, src := range srcs {
 			jrnl, err := jctrl.GetOrCreate(ctx, src)
 			if err != nil {
-				return nil, errors.Wrapf(err, "Could not get the access to the journal %s, which's got for the \"%s\" expression ", src, state.Sources)
+				return nil, errors.Wrapf(err, "could not get the access to the journal %s, which's got for the query \"%s\" ", src, state.Query)
 			}
 
 			jit := jrnl.Iterator()
@@ -151,14 +155,14 @@ func (cur *Cursor) Next(ctx context.Context) {
 }
 
 // Get part of the model.Iterator
-func (cur *Cursor) Get(ctx context.Context) (model.LogEvent, model.TagLine, error) {
+func (cur *Cursor) Get(ctx context.Context) (model.LogEvent, tag.Line, error) {
 	return cur.it.Get(ctx)
 }
 
 // ApplyState tries to apply state to the cursor. Returns an error, if the operation could not be completed.
 // Current implementation allows to apply position only
 func (cur *Cursor) ApplyState(state State) error {
-	if cur.state.Where != state.Where || cur.state.Sources != state.Sources || cur.state.Id != state.Id {
+	if cur.state.Query != state.Query || cur.state.Id != state.Id {
 		return errors.Errorf("Could not apply state %s to the current cursor state %s", state, cur.state)
 	}
 
@@ -258,5 +262,5 @@ func (cur *Cursor) applyStatePos() error {
 }
 
 func (s State) String() string {
-	return fmt.Sprintf("{Id: %d, Sources:\"%s\", Where:\"%s\", Pos:%s}", s.Id, s.Sources, s.Where, s.Pos)
+	return fmt.Sprintf("{Id: %d, Query:\"%s\", Pos:%s}", s.Id, s.Query, s.Pos)
 }
