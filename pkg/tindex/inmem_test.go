@@ -17,6 +17,7 @@ package tindex
 import (
 	"context"
 	"github.com/jrivets/log4g"
+	"github.com/logrange/logrange/pkg/lql"
 	"github.com/logrange/logrange/pkg/model/tag"
 	"github.com/logrange/range/pkg/records/journal"
 	"io/ioutil"
@@ -47,8 +48,7 @@ func BenchmarkFindIndex(b *testing.B) {
 	ims.Config = &InMemConfig{WorkingDir: dir}
 	ims.Journals = &testJournals{}
 	ims.Init(nil)
-	tags := "a=b|c=asdfasdfasdf"
-	src, err := ims.GetOrCreateJournal(tags)
+	src, err := ims.GetOrCreateJournal("a=b,c=asdfasdfasdf")
 	if err != nil {
 		b.Fatal("Must be able to create new journal")
 	}
@@ -56,7 +56,7 @@ func BenchmarkFindIndex(b *testing.B) {
 	b.ReportAllocs()
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		s, err := ims.GetOrCreateJournal(tags)
+		s, err := ims.GetOrCreateJournal("a=b,c=asdfasdfasdf")
 		if err != nil || s != src {
 			b.Fatal("err must be nil, and s=", s, " must be ", src)
 		}
@@ -114,15 +114,16 @@ func TestCheckLoadReload(t *testing.T) {
 	if err != nil {
 		t.Fatal("Init() err=", err)
 	}
-	tags := "dda=basdfasdf|c=asdfasdfasdf"
-	src, _ := ims.GetOrCreateJournal(tags)
-	src2, _ := ims.GetOrCreateJournal(tags)
+	set, _ := tag.Parse("{dda=basdfasdf,c=asdfasdfasdf}")
+	tags := set.Line()
+	src, _ := ims.GetOrCreateJournal("dda=basdfasdf,c=asdfasdfasdf")
+	src2, _ := ims.GetOrCreateJournal("c=asdfasdfasdf,dda=basdfasdf")
 	if src != src2 {
 		t.Fatal("Src=", src, " must be equal to src2=", src2)
 	}
 
 	ims.Shutdown()
-	_, err = ims.GetOrCreateJournal(tags)
+	_, err = ims.GetOrCreateJournal(string(tags))
 	if err == nil {
 		t.Fatal("it must be an error here!")
 	}
@@ -130,12 +131,12 @@ func TestCheckLoadReload(t *testing.T) {
 	if err != nil {
 		t.Fatal("Init() err=", err)
 	}
-	src2, err = ims.GetOrCreateJournal(tags)
+	src2, err = ims.GetOrCreateJournal(string(tags))
 	if err != nil || src != src2 {
 		t.Fatal("err must be nil and src2==Src but src2=", src2, ", Src=", src)
 	}
 
-	src2, err = ims.GetOrCreateJournal(tags + "D")
+	src2, err = ims.GetOrCreateJournal("{dda=basdfasdf,c=asdfasdfasdfSSS}")
 	if err != nil || src == src2 {
 		t.Fatal("err must be nil and src2!=Src but src2=", src2)
 	}
@@ -153,37 +154,39 @@ func TestGetJournals(t *testing.T) {
 	ims.Journals = &testJournals{}
 	ims.Config = &InMemConfig{WorkingDir: dir, DoNotSave: true}
 	ims.Init(nil)
-	tags := "dda=basdfasdf,c=asdfasdfasdf"
-	src, _ := ims.GetOrCreateJournal(tags)
-	tags2 := tags + "ddd"
-	src2, _ := ims.GetOrCreateJournal(tags2)
+	set, _ := tag.Parse("{dda=basdfasdf,c=asdfasdfasdf}")
+	tags := set.Line()
+	src, _ := ims.GetOrCreateJournal("dda=basdfasdf,c=asdfasdfasdf")
+	set, _ = tag.Parse("{dda=basdfasdf,c=asdfasdfasdfddd}")
+	tags2 := set.Line()
+	src2, _ := ims.GetOrCreateJournal("dda=basdfasdf,c=asdfasdfasdfddd")
 
-	t1, _ := tag.Parse(tags)
-	tl1 := t1.Line()
-	t2, _ := tag.Parse(tags2)
-	tl2 := t2.Line()
-
-	res, _, err := ims.GetJournals("dda=basdfasdf", 10, false)
-	if err != nil || len(res) != 2 || res[tl1] != src || res[tl2] != src2 {
+	ps, _ := lql.ParseSource("{dda=basdfasdf}")
+	res, _, err := ims.GetJournals(ps, 10, false)
+	if err != nil || len(res) != 2 || res[tags] != src || res[tags2] != src2 {
 		t.Fatal("err=", err, " res=", res, ", Src=", src, ", src2=", src2)
 	}
 
-	res, _, err = ims.GetJournals("dda=basdfasdf  and c=asdfasdfasdf", 10, false)
-	if err != nil || len(res) != 1 || res[tl1] != src {
+	ps, _ = lql.ParseSource("dda=basdfasdf  and c=asdfasdfasdf")
+	res, _, err = ims.GetJournals(ps, 10, false)
+	if err != nil || len(res) != 1 || res[tags] != src {
 		t.Fatal("err=", err, " res=", res, ", Src=", src)
 	}
 
-	res, _, err = ims.GetJournals("c=asdfasdfasdf|dda=basdfasdf", 10, false)
-	if err != nil || len(res) != 1 || res[tl1] != src {
+	ps, _ = lql.ParseSource("{c=asdfasdfasdf,dda=basdfasdf}")
+	res, _, err = ims.GetJournals(ps, 10, false)
+	if err != nil || len(res) != 1 || res[tags] != src {
 		t.Fatal("err=", err, " res=", res, ", Src=", src)
 	}
 
-	res, _, err = ims.GetJournals(tags, 10, false)
-	if err != nil || len(res) != 1 || res[tl1] != src {
+	ps, _ = lql.ParseSource("{" + string(tags) + "}")
+	res, _, err = ims.GetJournals(ps, 10, false)
+	if err != nil || len(res) != 1 || res[tags] != src {
 		t.Fatal("err=", err, " res=", res, ", Src=", src)
 	}
 
-	res, _, err = ims.GetJournals("a=234", 5, false)
+	ps, _ = lql.ParseSource("a=234")
+	res, _, err = ims.GetJournals(ps, 5, false)
 	if err != nil || len(res) != 0 {
 		t.Fatal("err=", err, " res=", res)
 	}
@@ -201,21 +204,22 @@ func TestGetJournalsLimits(t *testing.T) {
 	ims.Journals = &testJournals{}
 	ims.Config = &InMemConfig{WorkingDir: dir, DoNotSave: true}
 	ims.Init(nil)
-	ims.GetOrCreateJournal("name=app1|ip=123")
-	ims.GetOrCreateJournal("name=app1|ip=1233")
-	ims.GetOrCreateJournal("name=app1|ip=12334")
+	ims.GetOrCreateJournal("{name=app1,ip=123}")
+	ims.GetOrCreateJournal("{name=app1,ip=1233}")
+	ims.GetOrCreateJournal("name=app1,ip=12334")
 
-	res, _, err := ims.GetJournals("name=app1", 1, false)
+	ps, _ := lql.ParseSource("name=app1")
+	res, _, err := ims.GetJournals(ps, 1, false)
 	if err != nil || len(res) != 1 {
 		t.Fatal("err=", err, " res=", res)
 	}
 
-	res, cnt, err := ims.GetJournals("name=app1", 10, true)
+	res, cnt, err := ims.GetJournals(ps, 10, true)
 	if err != nil || len(res) != 3 || cnt != 3 {
 		t.Fatal("err=", err, " res=", res, ", cnt=", cnt)
 	}
 
-	res, cnt, err = ims.GetJournals("name=app1", 2, false)
+	res, cnt, err = ims.GetJournals(ps, 2, false)
 	if err != nil || len(res) != 2 || cnt != 3 {
 		t.Fatal("err=", err, " res=", res, ", cnt=", cnt)
 	}

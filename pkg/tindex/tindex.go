@@ -15,6 +15,7 @@
 package tindex
 
 import (
+	"github.com/logrange/logrange/pkg/lql"
 	"github.com/logrange/logrange/pkg/model/tag"
 )
 
@@ -28,6 +29,6 @@ type (
 		// GetJournals returns map of matched Tags to the journals they address by the source expression
 		// the function receive maxSize of the result map and the flag checkAll which allows to count total matches found.
 		// It returns the resulted map, number or matches in total (if checkAll is provided) and an error if any
-		GetJournals(tagsCond string, maxSize int, checkAll bool) (map[tag.Line]string, int, error)
+		GetJournals(srcCond *lql.Source, maxSize int, checkAll bool) (map[tag.Line]string, int, error)
 	}
 )

@@ -16,12 +16,13 @@ package cursor
 
 import (
 	"github.com/logrange/logrange/pkg/model"
+	"github.com/logrange/logrange/pkg/model/tag"
 	"github.com/logrange/range/pkg/records/journal"
 	"testing"
 )
 
 func TestNewCursor(t *testing.T) {
-	if _, err := newCursor(nil, State{Sources: "ddd"}, &testTidxService{}, nil); err == nil {
+	if _, err := newCursor(nil, State{Query: "ddd"}, &testTidxService{}, nil); err == nil {
 		t.Fatal("err must not be nil, Source expression compilation must fail")
 	}
 
@@ -29,8 +30,8 @@ func TestNewCursor(t *testing.T) {
 		t.Fatal("err must not be nil, No sources are provided")
 	}
 
-	cur, err := newCursor(nil, State{},
-		&testTidxService{map[model.TagLine]string{"j1": "j1"}},
+	cur, err := newCursor(nil, State{Query: "select limit 10"},
+		&testTidxService{map[tag.Line]string{"j1=j1": "j1"}},
 		&testJrnlCtrlr{map[string]*testJrnl{"j1": &testJrnl{"j1"}}})
 	if err != nil {
 		t.Fatal("err must be nil, but err=", err)
@@ -42,8 +43,8 @@ func TestNewCursor(t *testing.T) {
 		t.Fatal("Expecting iterator composed from 1 journal")
 	}
 
-	cur, err = newCursor(nil, State{},
-		&testTidxService{map[model.TagLine]string{"j1": "j1", "j2": "j2"}},
+	cur, err = newCursor(nil, State{Query: "select limit 10"},
+		&testTidxService{map[tag.Line]string{"j1=j1": "j1", "j2": "j2"}},
 		&testJrnlCtrlr{map[string]*testJrnl{"j1": &testJrnl{"j1"}, "j2": &testJrnl{"j2"}}})
 	if err != nil {
 		t.Fatal("err must be nil, but err=", err)
@@ -57,8 +58,8 @@ func TestNewCursor(t *testing.T) {
 }
 
 func TestNewCursoreWithPos(t *testing.T) {
-	cur, err := newCursor(nil, State{Pos: "tail"},
-		&testTidxService{map[model.TagLine]string{"j1": "j1"}},
+	cur, err := newCursor(nil, State{Query: "select limit 10", Pos: "tail"},
+		&testTidxService{map[tag.Line]string{"j1=j1": "j1"}},
 		&testJrnlCtrlr{map[string]*testJrnl{"j1": &testJrnl{"j1"}}})
 	if err != nil {
 		t.Fatal("err must be nil, but err=", err)
@@ -68,8 +69,8 @@ func TestNewCursoreWithPos(t *testing.T) {
 	}
 
 	j1Pos := journal.Pos{0x1234D, 0xABC}
-	cur, err = newCursor(nil, State{Pos: "j1=" + j1Pos.String()},
-		&testTidxService{map[model.TagLine]string{"j1": "j1"}},
+	cur, err = newCursor(nil, State{Query: "select limit 10", Pos: "j1=" + j1Pos.String()},
+		&testTidxService{map[tag.Line]string{"j1=j1": "j1"}},
 		&testJrnlCtrlr{map[string]*testJrnl{"j1": &testJrnl{"j1"}}})
 	if err != nil {
 		t.Fatal("err must be nil, but err=", err)
@@ -78,8 +79,8 @@ func TestNewCursoreWithPos(t *testing.T) {
 		t.Fatal("Wrong pos initialized. Expected j1=000000000001234D00000ABC, but cur.collectPos=", cur.collectPos())
 	}
 
-	cur, err = newCursor(nil, State{Pos: "j1=" + j1Pos.String()},
-		&testTidxService{map[model.TagLine]string{"j1": "j1", "j2": "j2"}},
+	cur, err = newCursor(nil, State{Query: "select limit 10", Pos: "j1=" + j1Pos.String()},
+		&testTidxService{map[tag.Line]string{"j1=j1": "j1", "j2=j2": "j2"}},
 		&testJrnlCtrlr{map[string]*testJrnl{"j1": &testJrnl{"j1"}, "j2": &testJrnl{"j2"}}})
 	if err != nil {
 		t.Fatal("err must be nil, but err=", err)
@@ -90,8 +91,8 @@ func TestNewCursoreWithPos(t *testing.T) {
 }
 
 func TestApplyState(t *testing.T) {
-	cur, _ := newCursor(nil, State{Pos: "tail"},
-		&testTidxService{map[model.TagLine]string{"j1": "j1"}},
+	cur, _ := newCursor(nil, State{Query: "select limit 10", Pos: "tail"},
+		&testTidxService{map[tag.Line]string{"j1=j1": "j1"}},
 		&testJrnlCtrlr{map[string]*testJrnl{"j1": &testJrnl{"j1"}}})
 	state := cur.state
 	err := cur.ApplyState(State{Id: state.Id, Pos: "blah blah"})
@@ -99,17 +100,17 @@ func TestApplyState(t *testing.T) {
 		t.Fatal("err must not be nil and new state must not be applied err=", err, " state=", state, " cur.state=", cur.state)
 	}
 
-	err = cur.ApplyState(State{Id: state.Id, Sources: "a=b"})
+	err = cur.ApplyState(State{Id: state.Id, Query: "select limit 10"})
 	if err == nil || cur.state != state {
 		t.Fatal("err must not be nil and new state must not be applied err=", err, " state=", state, " cur.state=", cur.state)
 	}
 
-	err = cur.ApplyState(State{Id: state.Id, Where: "a=b"})
+	err = cur.ApplyState(State{Id: state.Id, Query: "select limit 10"})
 	if err == nil || cur.state != state {
 		t.Fatal("err must not be nil and new state must not be applied err=", err, " state=", state, " cur.state=", cur.state)
 	}
 
-	err = cur.ApplyState(State{Id: state.Id, Pos: "j1=000000000001234D00000ABC"})
+	err = cur.ApplyState(State{Id: state.Id, Query: "select limit 10", Pos: "j1=000000000001234D00000ABC"})
 	if err != nil || cur.state == state {
 		t.Fatal("err must be nil and new state must be applied err=", err, " state=", state, " cur.state=", cur.state)
 	}

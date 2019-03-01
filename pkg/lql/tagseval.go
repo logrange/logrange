@@ -39,21 +39,28 @@ var positiveTagsExpFunc = func(tag.Set) bool { return true }
 // BuildTagsExpFuncByCond receives a condition line and parses it to the TagsExpFunc
 // The tagCond could be provided in one of the following 2 forms:
 //	- conditions like: name=app1 and ip like '123.*'
-// 	- tag-line like: name=app1|ip=123.46.32.44
+// 	- tag-line like: {name=app1,ip=123.46.32.44}
 func BuildTagsExpFunc(tagsCond string) (TagsExpFunc, error) {
-	exp, err := ParseExpr(tagsCond)
-	if err == nil {
-		return buildTagsExpFunc(exp)
+	src, err := ParseSource(tagsCond)
+	if err != nil {
+		return nil, err
 	}
 
-	// check whether the tagCond is a TagLine
-	tags, err1 := tag.Parse(tagsCond)
-	if err1 == nil {
-		tc := &tagsCondExp{tags}
+	return BuildTagsExpFuncBySource(src)
+}
+
+// BuildTagsExpFuncBySource
+func BuildTagsExpFuncBySource(src *Source) (TagsExpFunc, error) {
+	if src == nil {
+		return positiveTagsExpFunc, nil
+	}
+
+	if src.Tags != nil {
+		tc := &tagsCondExp{src.Tags.Tags}
 		return tc.subsetOf, nil
 	}
 
-	return nil, err
+	return buildTagsExpFunc(src.Expr)
 }
 
 func (tc *tagsCondExp) subsetOf(tags tag.Set) bool {

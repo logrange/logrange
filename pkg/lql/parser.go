@@ -15,19 +15,19 @@
 package lql
 
 import (
-	"fmt"
 	"github.com/alecthomas/participle"
 	"github.com/alecthomas/participle/lexer"
-	"strconv"
+	"github.com/logrange/logrange/pkg/model/tag"
 )
 
 var (
 	lqlLexer = lexer.Must(getRegexpDefinition(`(\s+)` +
-		`|(?P<Keyword>(?i)SELECT|FORMAT|SOURCE|WHERE|POSITION|LIMIT|OFFSET|AND|OR|LIKE|CONTAINS|PREFIX|SUFFIX|NOT|{|})` +
-		`|(?P<Ident>[a-zA-Z_][a-zA-Z0-9_]*)` +
-		`|(?P<String>"([^\\"]|\\.)*"|'([^\\']|\\.)*')` +
+		`|(?P<Keyword>(?i)SELECT|FORMAT|SOURCE|WHERE|POSITION|LIMIT|OFFSET|AND|OR|LIKE|CONTAINS|PREFIX|SUFFIX|NOT)` +
+		`|(?P<Ident>[a-zA-Z_][a-z\./\-A-Z0-9_]*)` +
+		"|(?P<String>\"([^\\\"]|\\.)*\"|'([^\\']|\\.)*')" +
 		`|(?P<Operator><>|!=|<=|>=|[-+*/%,.=<>()])` +
-		`|(?P<Value>[a-zA-Z0-9_\-\\/!@|#$%^&\*+~\.]+)`,
+		`|(?P<Number>[-+]?\d*\.?\d+([eE][-+]?\d+)?)` +
+		`|(?P<Tags>\{.+\})`,
 	))
 	parser = participle.MustBuild(
 		&Select{},
@@ -65,7 +65,9 @@ const (
 )
 
 type (
-	Int int64
+	TagsVal struct {
+		Tags tag.Set
+	}
 
 	Select struct {
 		Tail     bool        `"SELECT" `
@@ -73,12 +75,12 @@ type (
 		Source   *Source     `("SOURCE" @@)?`
 		Where    *Expression `("WHERE" @@)?`
 		Position *Position   `("POSITION" @@)?`
-		Offset   *int64      `("OFFSET" @Value)?`
-		Limit    int64       `"LIMIT" @Value`
+		Offset   *int64      `("OFFSET" @Number)?`
+		Limit    int64       `"LIMIT" @Number`
 	}
 
 	Source struct {
-		Tags *Tags       `"{" @@ "}"`
+		Tags *TagsVal    ` @Tags`
 		Expr *Expression ` | @@ `
 	}
 
@@ -88,7 +90,7 @@ type (
 
 	Tag struct {
 		Key   string `@Ident `
-		Value string `"=" (@String|@Value|@Ident)`
+		Value string `"=" (@String|@Ident)`
 	}
 
 	Expression struct {
@@ -108,7 +110,7 @@ type (
 	Condition struct {
 		Operand string `  (@Ident)`
 		Op      string ` (@("<"|">"|">="|"<="|"!="|"="|"CONTAINS"|"PREFIX"|"SUFFIX"|"LIKE"))`
-		Value   string ` (@String|@Value|@Ident)`
+		Value   string ` (@String|@Ident|@Number)`
 	}
 
 	Position struct {
@@ -116,16 +118,12 @@ type (
 	}
 )
 
-func (i *Int) Capture(values []string) error {
-	v, err := strconv.ParseInt(values[0], 10, 64)
-	if err != nil {
-		return err
+func (tv *TagsVal) Capture(values []string) error {
+	tags, err := tag.Parse(values[0])
+	if err == nil {
+		tv.Tags = tags
 	}
-	if v < 0 {
-		return fmt.Errorf("expecting positive integer, but %d", v)
-	}
-	*i = Int(v)
-	return nil
+	return err
 }
 
 func Parse(lql string) (*Select, error) {

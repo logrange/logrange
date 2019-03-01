@@ -63,6 +63,20 @@ func Parse(tags string) (Set, error) {
 	return Set{tm.line(), tm}, nil
 }
 
+// MapToSet receives a map of values mp and returns the Set of tags, formed from there.
+func MapToSet(mp map[string]string) Set {
+	if len(mp) == 0 {
+		return emptySet
+	}
+
+	tm := make(tagMap, len(mp))
+	for k, v := range mp {
+		tm[k] = v
+	}
+
+	return Set{tm.line(), tm}
+}
+
 // Line returns formatted tags in sorted order
 func (s *Set) Line() Line {
 	return s.line
@@ -81,6 +95,11 @@ func (s *Set) IsEmpty() bool {
 // SubsetOf returns whether all tags from s present in s1
 func (s *Set) SubsetOf(s1 Set) bool {
 	return s.tmap.subsetOf(s1.tmap)
+}
+
+// Equals returns whether set s is equal to s1
+func (s *Set) Equals(s1 Set) bool {
+	return s.line == s1.line
 }
 
 // String returns line of tags
@@ -162,7 +181,7 @@ func parseTags(tags string) (tagMap, error) {
 			return nil, errors.Errorf("tag name (for value=%s) could not be empty: %s", tags, v)
 		}
 
-		if len(v) > 0 && v[0] == '"' {
+		if len(v) > 0 && (v[0] == '"' || v[0] == '`') {
 			v1 := v
 			v, err = strconv.Unquote(v)
 			if err != nil {
@@ -208,7 +227,7 @@ func splitString(str string, cc1, cc2 byte, buf []string) ([]string, error) {
 		}
 	}
 	if inStr {
-		return nil, fmt.Errorf("unexpected end of string %s", str)
+		return nil, fmt.Errorf("unexpected end of string %s. Quotation %t is not closed", str, inStr)
 	}
 
 	buf = append(buf, str[stIdx:endIdx])

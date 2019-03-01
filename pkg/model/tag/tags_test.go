@@ -71,6 +71,8 @@ func TestTagLine(t *testing.T) {
 	testTagLine(t, "{name=app}", "name=app")
 	testTagLine(t, "{ name=\"app\" }", "name=app")
 	testTagLine(t, "{ name=\"a\\\"p\\\"p\" }", "name=a\"p\"p")
+	testTagLine(t, "{ name=\"a\\\"pp\" }", "name=a\"pp")
+	testTagLine(t, "{ name=\"app\"}", "name=app")
 	testTagLine(t, "{ name=\"a==b\" }", "name=\"a==b\"")
 	testTagLine(t, "{ name=\"a,b\" }", "name=\"a,b\"")
 	testTagLine(t, "{ name=\"1.2.3.4\" }", "name=1.2.3.4")

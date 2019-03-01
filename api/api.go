@@ -45,11 +45,8 @@ type (
 		// but it can be returned with the structure in QueryResult.
 		ReqId uint64
 
-		// TagsCond line identifies the source of records. For example "name=app1 and ip like '123.2*'"
-		TagsCond string
-
-		// Where defines the filter for the records like "msg contains 'ERROR' AND ts > '2006-01-02T15:04:05'"
-		Where string
+		// the LQL line for selecting records
+		Query string
 
 		// Pos contains the next read record position.
 		Pos string
