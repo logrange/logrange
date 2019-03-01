@@ -16,25 +16,25 @@ package lql
 
 import (
 	"fmt"
-	"github.com/logrange/logrange/pkg/model"
+	"github.com/logrange/logrange/pkg/model/tag"
 	"path"
 	"strings"
 )
 
 type (
-	// TagsExpFunc returns true if the provided tags are matched with the expression
-	TagsExpFunc func(tags model.Tags) bool
+	// TagsExpFunc returns true if the provided tag are matched with the expression
+	TagsExpFunc func(tags tag.Set) bool
 
 	tagsExpFuncBuilder struct {
 		tef TagsExpFunc
 	}
 
 	tagsCondExp struct {
-		tags model.Tags
+		tags tag.Set
 	}
 )
 
-var positiveTagsExpFunc = func(model.Tags) bool { return true }
+var positiveTagsExpFunc = func(tag.Set) bool { return true }
 
 // BuildTagsExpFuncByCond receives a condition line and parses it to the TagsExpFunc
 // The tagCond could be provided in one of the following 2 forms:
@@ -47,7 +47,7 @@ func BuildTagsExpFunc(tagsCond string) (TagsExpFunc, error) {
 	}
 
 	// check whether the tagCond is a TagLine
-	tags, err1 := model.NewTags(tagsCond)
+	tags, err1 := tag.Parse(tagsCond)
 	if err1 == nil {
 		tc := &tagsCondExp{tags}
 		return tc.subsetOf, nil
@@ -56,21 +56,8 @@ func BuildTagsExpFunc(tagsCond string) (TagsExpFunc, error) {
 	return nil, err
 }
 
-func (tc *tagsCondExp) subsetOf(tags model.Tags) bool {
-	if tc.tags.GetTagLine() == tags.GetTagLine() {
-		return true
-	}
-	if len(tc.tags.GetTagMap()) > len(tags.GetTagMap()) {
-		return false
-	}
-
-	tm := tags.GetTagMap()
-	for t, v := range tc.tags.GetTagMap() {
-		if v != tm[t] {
-			return false
-		}
-	}
-	return true
+func (tc *tagsCondExp) subsetOf(tags tag.Set) bool {
+	return tc.tags.SubsetOf(tags)
 }
 
 // buildTagsExpFunc returns  TagsExpFunc by the expression provided
@@ -111,7 +98,7 @@ func (teb *tagsExpFuncBuilder) buildOrConds(ocn []*OrCondition) error {
 	}
 	efd1 := teb.tef
 
-	teb.tef = func(tags model.Tags) bool { return efd0(tags) || efd1(tags) }
+	teb.tef = func(tags tag.Set) bool { return efd0(tags) || efd1(tags) }
 	return nil
 }
 
@@ -137,7 +124,7 @@ func (teb *tagsExpFuncBuilder) buildXConds(cn []*XCondition) (err error) {
 	}
 	efd1 := teb.tef
 
-	teb.tef = func(tags model.Tags) bool { return efd0(tags) && efd1(tags) }
+	teb.tef = func(tags tag.Set) bool { return efd0(tags) && efd1(tags) }
 	return nil
 
 }
@@ -155,7 +142,7 @@ func (teb *tagsExpFuncBuilder) buildXCond(xc *XCondition) (err error) {
 
 	if xc.Not {
 		efd1 := teb.tef
-		teb.tef = func(tags model.Tags) bool { return !efd1(tags) }
+		teb.tef = func(tags tag.Set) bool { return !efd1(tags) }
 		return nil
 	}
 
@@ -166,28 +153,28 @@ func (teb *tagsExpFuncBuilder) buildTagCond(cn *Condition) (err error) {
 	op := strings.ToUpper(cn.Op)
 	switch op {
 	case "<":
-		teb.tef = func(tags model.Tags) bool {
-			return tags.GetTagMap()[cn.Operand] < cn.Value
+		teb.tef = func(tags tag.Set) bool {
+			return tags.Tag(cn.Operand) < cn.Value
 		}
 	case ">":
-		teb.tef = func(tags model.Tags) bool {
-			return tags.GetTagMap()[cn.Operand] > cn.Value
+		teb.tef = func(tags tag.Set) bool {
+			return tags.Tag(cn.Operand) > cn.Value
 		}
 	case "<=":
-		teb.tef = func(tags model.Tags) bool {
-			return tags.GetTagMap()[cn.Operand] <= cn.Value
+		teb.tef = func(tags tag.Set) bool {
+			return tags.Tag(cn.Operand) <= cn.Value
 		}
 	case ">=":
-		teb.tef = func(tags model.Tags) bool {
-			return tags.GetTagMap()[cn.Operand] >= cn.Value
+		teb.tef = func(tags tag.Set) bool {
+			return tags.Tag(cn.Operand) >= cn.Value
 		}
 	case "!=":
-		teb.tef = func(tags model.Tags) bool {
-			return tags.GetTagMap()[cn.Operand] != cn.Value
+		teb.tef = func(tags tag.Set) bool {
+			return tags.Tag(cn.Operand) != cn.Value
 		}
 	case "=":
-		teb.tef = func(tags model.Tags) bool {
-			return tags.GetTagMap()[cn.Operand] == cn.Value
+		teb.tef = func(tags tag.Set) bool {
+			return tags.Tag(cn.Operand) == cn.Value
 		}
 	case CMP_LIKE:
 		// test it first
@@ -195,25 +182,22 @@ func (teb *tagsExpFuncBuilder) buildTagCond(cn *Condition) (err error) {
 		if err != nil {
 			err = fmt.Errorf("Wrong 'like' expression for %s, err=%s", cn.Value, err.Error())
 		} else {
-			teb.tef = func(tags model.Tags) bool {
-				if v, ok := tags.GetTagMap()[cn.Operand]; ok {
-					res, _ := path.Match(cn.Value, v)
-					return res
-				}
-				return false
+			teb.tef = func(tags tag.Set) bool {
+				res, _ := path.Match(cn.Value, tags.Tag(cn.Operand))
+				return res
 			}
 		}
 	case CMP_CONTAINS:
-		teb.tef = func(tags model.Tags) bool {
-			return strings.Contains(tags.GetTagMap()[cn.Operand], cn.Value)
+		teb.tef = func(tags tag.Set) bool {
+			return strings.Contains(tags.Tag(cn.Operand), cn.Value)
 		}
 	case CMP_HAS_PREFIX:
-		teb.tef = func(tags model.Tags) bool {
-			return strings.HasPrefix(tags.GetTagMap()[cn.Operand], cn.Value)
+		teb.tef = func(tags tag.Set) bool {
+			return strings.HasPrefix(tags.Tag(cn.Operand), cn.Value)
 		}
 	case CMP_HAS_SUFFIX:
-		teb.tef = func(tags model.Tags) bool {
-			return strings.HasSuffix(tags.GetTagMap()[cn.Operand], cn.Value)
+		teb.tef = func(tags tag.Set) bool {
+			return strings.HasSuffix(tags.Tag(cn.Operand), cn.Value)
 		}
 	default:
 		err = fmt.Errorf("Unsupported operation %s for '%s' tag ", cn.Op, cn.Operand)

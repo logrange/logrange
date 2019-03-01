@@ -20,7 +20,7 @@ import (
 	"fmt"
 	"github.com/jrivets/log4g"
 	"github.com/logrange/logrange/pkg/lql"
-	"github.com/logrange/logrange/pkg/model"
+	"github.com/logrange/logrange/pkg/model/tag"
 	"github.com/logrange/range/pkg/records/journal"
 	"github.com/pkg/errors"
 	"io/ioutil"
@@ -31,7 +31,7 @@ import (
 
 type (
 	tagsDesc struct {
-		Tags model.Tags
+		Tags tag.Set
 		Src  string
 	}
 
@@ -96,23 +96,23 @@ func (ims *inmemService) GetOrCreateJournal(tags string) (string, error) {
 
 	td, ok := ims.tmap[tags]
 	if !ok {
-		tgs, err := model.NewTags(tags)
+		tgs, err := tag.Parse(tags)
 		if err != nil {
 			ims.lock.Unlock()
 			return "", fmt.Errorf("The line %s doesn't seem like properly formatted tag line: %s", tags, err)
 		}
 
-		if len(tgs.GetTagMap()) == 0 {
+		if tgs.IsEmpty() {
 			return "", fmt.Errorf("At least one tag value is expected to define the source")
 		}
 
-		if td2, ok := ims.tmap[string(tgs.GetTagLine())]; !ok {
+		if td2, ok := ims.tmap[string(tgs.Line())]; !ok {
 			td = &tagsDesc{tgs, newSrc()}
-			ims.tmap[string(tgs.GetTagLine())] = td
+			ims.tmap[string(tgs.Line())] = td
 			err = ims.saveStateUnsafe()
 			if err != nil {
-				delete(ims.tmap, string(tgs.GetTagLine()))
-				ims.logger.Error("Could not save state for the new source ", td.Src, " formed for ", tgs.GetTagLine(), ", original Tags=", tags, ", err=", err)
+				delete(ims.tmap, string(tgs.Line()))
+				ims.logger.Error("Could not save state for the new source ", td.Src, " formed for ", tgs.Line(), ", original Tags=", tags, ", err=", err)
 				ims.lock.Unlock()
 				return "", err
 			}
@@ -126,7 +126,7 @@ func (ims *inmemService) GetOrCreateJournal(tags string) (string, error) {
 	return res, nil
 }
 
-func (ims *inmemService) GetJournals(tagsCond string, maxSize int, checkAll bool) (map[model.TagLine]string, int, error) {
+func (ims *inmemService) GetJournals(tagsCond string, maxSize int, checkAll bool) (map[tag.Line]string, int, error) {
 	tef, err := lql.BuildTagsExpFunc(tagsCond)
 	if err != nil {
 		return nil, 0, err
@@ -139,12 +139,12 @@ func (ims *inmemService) GetJournals(tagsCond string, maxSize int, checkAll bool
 	}
 
 	count := 0
-	res := make(map[model.TagLine]string, 10)
+	res := make(map[tag.Line]string, 10)
 	for _, td := range ims.tmap {
 		if tef(td.Tags) {
 			count++
 			if len(res) < maxSize {
-				res[td.Tags.GetTagLine()] = td.Src
+				res[td.Tags.Line()] = td.Src
 			} else if !checkAll {
 				break
 			}

@@ -15,21 +15,19 @@
 package lql
 
 import (
-	"errors"
 	"fmt"
-	"strconv"
-	"strings"
-
 	"github.com/alecthomas/participle"
 	"github.com/alecthomas/participle/lexer"
+	"strconv"
 )
 
 var (
-	lqlLexer = lexer.Must(lexer.Regexp(`(\s+)` +
-		`|(?P<Keyword>(?i)SELECT|FORMAT|SOURCE|WHERE|POSITION|LIMIT|OFFSET|AND|OR|LIKE|CONTAINS|PREFIX|SUFFIX|NOT)` +
-		`|(?P<Ident>[a-zA-Z0-9-_@#$%?&*{}]+)` +
-		`|(?P<String>'[^']*'|"[^"]*")` +
-		`|(?P<Operator><>|!=|<=|>=|[-+*/%,.=<>()])`,
+	lqlLexer = lexer.Must(getRegexpDefinition(`(\s+)` +
+		`|(?P<Keyword>(?i)SELECT|FORMAT|SOURCE|WHERE|POSITION|LIMIT|OFFSET|AND|OR|LIKE|CONTAINS|PREFIX|SUFFIX|NOT|{|})` +
+		`|(?P<Ident>[a-zA-Z_][a-zA-Z0-9_]*)` +
+		`|(?P<String>"([^\\"]|\\.)*"|'([^\\']|\\.)*')` +
+		`|(?P<Operator><>|!=|<=|>=|[-+*/%,.=<>()])` +
+		`|(?P<Value>[a-zA-Z0-9_\-\\/!@|#$%^&\*+~\.]+)`,
 	))
 	parser = participle.MustBuild(
 		&Select{},
@@ -37,8 +35,16 @@ var (
 		participle.Unquote("String"),
 		participle.CaseInsensitive("Keyword"),
 	)
+
 	parserExpr = participle.MustBuild(
 		&Expression{},
+		participle.Lexer(lqlLexer),
+		participle.Unquote("String"),
+		participle.CaseInsensitive("Keyword"),
+	)
+
+	parserSource = participle.MustBuild(
+		&Source{},
 		participle.Lexer(lqlLexer),
 		participle.Unquote("String"),
 		participle.CaseInsensitive("Keyword"),
@@ -63,12 +69,26 @@ type (
 
 	Select struct {
 		Tail     bool        `"SELECT" `
-		Format   string      `["FORMAT" @String]`
-		Source   *Expression `["SOURCE" @@]`
-		Where    *Expression `["WHERE" @@]`
-		Position *Position   `["POSITION" @@]`
-		Offset   *int64      `["OFFSET" @Ident]`
-		Limit    int64       `"LIMIT" @Ident`
+		Format   string      `("FORMAT" @String)?`
+		Source   *Source     `("SOURCE" @@)?`
+		Where    *Expression `("WHERE" @@)?`
+		Position *Position   `("POSITION" @@)?`
+		Offset   *int64      `("OFFSET" @Value)?`
+		Limit    int64       `"LIMIT" @Value`
+	}
+
+	Source struct {
+		Tags *Tags       `"{" @@ "}"`
+		Expr *Expression ` | @@ `
+	}
+
+	Tags struct {
+		Tags []*Tag ` @@ ( "," @@ )* `
+	}
+
+	Tag struct {
+		Key   string `@Ident `
+		Value string `"=" (@String|@Value|@Ident)`
 	}
 
 	Expression struct {
@@ -86,9 +106,9 @@ type (
 	}
 
 	Condition struct {
-		Operand string `  (@String|@Ident)`
+		Operand string `  (@Ident)`
 		Op      string ` (@("<"|">"|">="|"<="|"!="|"="|"CONTAINS"|"PREFIX"|"SUFFIX"|"LIKE"))`
-		Value   string ` (@Ident|@String)`
+		Value   string ` (@String|@Value|@Ident)`
 	}
 
 	Position struct {
@@ -96,28 +116,13 @@ type (
 	}
 )
 
-// unquote receives a string and removes either single or double quotes if the
-// input has them:
-// unquote(" 'aaa'  ") => "aaa"
-// unquote(" 'aaa\"  ") => " 'aaa\"  "
-// unquote(" 'aaa'") => "aaa"
-func unquote(s string) string {
-	s1 := strings.Trim(s, " ")
-	if len(s1) >= 2 {
-		if c := s1[len(s1)-1]; s1[0] == c && (c == '"' || c == '\'') {
-			return s1[1 : len(s1)-1]
-		}
-	}
-	return s
-}
-
 func (i *Int) Capture(values []string) error {
 	v, err := strconv.ParseInt(values[0], 10, 64)
 	if err != nil {
 		return err
 	}
 	if v < 0 {
-		return errors.New(fmt.Sprint("Expecting positive integer, but ", v))
+		return fmt.Errorf("expecting positive integer, but %d", v)
 	}
 	*i = Int(v)
 	return nil
@@ -143,4 +148,17 @@ func ParseExpr(where string) (*Expression, error) {
 		return nil, err
 	}
 	return exp, err
+}
+
+func ParseSource(source string) (*Source, error) {
+	if len(source) == 0 {
+		return nil, nil
+	}
+
+	src := &Source{}
+	err := parserSource.ParseString(source, src)
+	if err != nil {
+		return nil, err
+	}
+	return src, err
 }

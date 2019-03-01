@@ -17,7 +17,7 @@ package tindex
 import (
 	"context"
 	"github.com/jrivets/log4g"
-	"github.com/logrange/logrange/pkg/model"
+	"github.com/logrange/logrange/pkg/model/tag"
 	"github.com/logrange/range/pkg/records/journal"
 	"io/ioutil"
 	"os"
@@ -153,15 +153,15 @@ func TestGetJournals(t *testing.T) {
 	ims.Journals = &testJournals{}
 	ims.Config = &InMemConfig{WorkingDir: dir, DoNotSave: true}
 	ims.Init(nil)
-	tags := "dda=basdfasdf|c=asdfasdfasdf"
+	tags := "dda=basdfasdf,c=asdfasdfasdf"
 	src, _ := ims.GetOrCreateJournal(tags)
 	tags2 := tags + "ddd"
 	src2, _ := ims.GetOrCreateJournal(tags2)
 
-	t1, _ := model.NewTags(tags)
-	tl1 := t1.GetTagLine()
-	t2, _ := model.NewTags(tags2)
-	tl2 := t2.GetTagLine()
+	t1, _ := tag.Parse(tags)
+	tl1 := t1.Line()
+	t2, _ := tag.Parse(tags2)
+	tl2 := t2.Line()
 
 	res, _, err := ims.GetJournals("dda=basdfasdf", 10, false)
 	if err != nil || len(res) != 2 || res[tl1] != src || res[tl2] != src2 {

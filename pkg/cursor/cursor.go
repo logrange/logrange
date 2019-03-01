@@ -32,7 +32,7 @@ type (
 		// Id the cursor state Id
 		Id uint64
 
-		// Sources contains tags expressions for selecting journal sources.
+		// Sources contains tag expressions for selecting journal sources.
 		Sources string
 
 		// Where contains the expression over LogEvent fields (ts and msg) to filter them. Empty value
@@ -83,7 +83,7 @@ func newCursor(ctx context.Context, state State, tidx tindex.Service, jctrl jour
 		for tags, src := range srcs {
 			jrnl, err := jctrl.GetOrCreate(ctx, src)
 			if err != nil {
-				return nil, errors.Wrapf(err, "Could not get the access to the journal %s for tags %s, which's got for the \"%s\" expression ", src, tags, state.Sources)
+				return nil, errors.Wrapf(err, "Could not get the access to the journal %s for tag %s, which's got for the \"%s\" expression ", src, tags, state.Sources)
 			}
 			jit := jrnl.Iterator()
 			it = (&model.LogEventIterator{}).Wrap(tags, jit)

@@ -33,9 +33,9 @@ type (
 	// Ingestor provides Wrtie method for sending log data into the storage. This intrface is exposed as
 	// a public API
 	Ingestor interface {
-		// Write sends log events into the stream identified by tags provided. It expects a slice of events and
+		// Write sends log events into the stream identified by tag provided. It expects a slice of events and
 		// the reference to the WriteResult. TagsCond field in LogEvents are ignored during the writing operation,
-		// but tags param will be applied to all of the events.
+		// but tag param will be applied to all of the events.
 		Write(tags string, evs []*LogEvent, res *WriteResult) error
 	}
 
@@ -74,7 +74,7 @@ type (
 		// The source identifier
 		Id string
 
-		// Tags contains tags for the source
+		// Tags contains tag for the source
 		Tags string
 
 		// Size contains data size (in bytes)
