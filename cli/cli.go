@@ -207,6 +207,7 @@ func (c *client) connect() error {
 func (c *client) doSelect(qr *api.QueryRequest, streamMode bool,
 	handler func(res *api.QueryResult), ctx context.Context) error {
 
+	limit := qr.Limit
 	for ctx.Err() == nil {
 		res, err := c.query(qr)
 		if err != nil {
@@ -219,10 +220,10 @@ func (c *client) doSelect(qr *api.QueryRequest, streamMode bool,
 		}
 
 		if !streamMode {
-			if qr.Limit <= 0 || len(res.Events) == 0 {
+			if limit <= 0 || len(res.Events) == 0 {
 				break
 			}
-			qr.Limit -= len(res.Events)
+			limit -= len(res.Events)
 			continue
 		}
 
