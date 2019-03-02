@@ -25,18 +25,17 @@ import (
 	"github.com/logrange/logrange/collector/utils"
 	"github.com/logrange/logrange/pkg/model/tag"
 	"github.com/mohae/deepcopy"
-	"sync"
 	"time"
 	"unsafe"
 )
 
 type (
 	Client struct {
-		cfg    *Config
-		rpc    *rpc.Client
+		cfg *Config
+		rpc *rpc.Client
+
 		done   chan bool
 		logger log4g.Logger
-		lock   sync.Mutex
 	}
 )
 
@@ -67,6 +66,9 @@ func (c *Client) Close() error {
 	var err error
 	if !utils.WaitDone(c.done, time.Minute) {
 		err = errors.New("close timeout")
+	}
+	if c.rpc != nil {
+		err = c.rpc.Close()
 	}
 	c.logger.Info("Closed, err=", err)
 	return err
@@ -111,15 +113,14 @@ func (c *Client) runSend(events <-chan *model.Event, ctx context.Context) {
 
 func (c *Client) connect(ctx context.Context) error {
 	var (
-		err    error
-		try    int
-		maxTry = c.cfg.ConnectMaxRetry
+		err error
+		try int
 	)
 
 	c.logger.Info("Connecting to ", c.cfg.Transport.ListenAddr)
 	retry := time.Duration(c.cfg.ConnectRetryIntervalSec) * time.Second
 
-	for try < maxTry {
+	for try < c.cfg.ConnectMaxRetry {
 		c.rpc, err = rpc.NewClient(*c.cfg.Transport)
 		if err == nil {
 			c.logger.Info("Connected!")
@@ -128,7 +129,7 @@ func (c *Client) connect(ctx context.Context) error {
 
 		try++
 		c.logger.Warn("Connection error (attempt: ", try,
-			" of ", maxTry, "), err=", err)
+			" of ", c.cfg.ConnectMaxRetry, "), err=", err)
 
 		select {
 		case <-ctx.Done():

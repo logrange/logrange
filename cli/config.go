@@ -12,46 +12,39 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package utils
+package cli
 
 import (
-	"context"
-	"sync"
-	"time"
+	"github.com/logrange/range/pkg/transport"
 )
 
-func Wait(ticker *time.Ticker, ctx context.Context) bool {
-	select {
-	case <-ctx.Done():
-		return false
-	case <-ticker.C:
-		return true
+type (
+	Config struct {
+		Transport  *transport.Config
+		StreamMode bool
+		Query      []string
 	}
+)
+
+//===================== config =====================
+
+func NewDefaultConfig() *Config {
+	cfg := new(Config)
+	cfg.Transport = &transport.Config{}
+	cfg.Transport.ListenAddr = "127.0.0.1:9966"
+	return cfg
 }
 
-func Sleep(ctx context.Context, t time.Duration) bool {
-	select {
-	case <-ctx.Done():
-		return false
-	case <-time.After(t):
-		return true
+func (c *Config) Apply(other *Config) {
+	if other == nil {
+		return
 	}
+	c.Transport.Apply(other.Transport)
 }
 
-func WaitDone(done chan bool, t time.Duration) bool {
-	select {
-	case <-done:
-		return true
-	case <-time.After(t):
-		return false
+func (c *Config) Check() error {
+	if err := c.Transport.Check(); err != nil {
+		return err
 	}
-}
-
-func WaitWaitGroup(wg *sync.WaitGroup, t time.Duration) bool {
-	done := make(chan bool)
-	go func() {
-		wg.Wait()
-		close(done)
-	}()
-	return WaitDone(done, t)
+	return nil
 }

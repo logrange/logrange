@@ -16,15 +16,13 @@ package main
 
 import (
 	"context"
+	"github.com/jrivets/log4g"
+	"github.com/logrange/logrange/cmd"
+	"github.com/logrange/logrange/collector"
 	"github.com/logrange/logrange/collector/storage"
 	"gopkg.in/urfave/cli.v2"
 	"os"
-	"os/signal"
 	"sort"
-	"syscall"
-
-	"github.com/jrivets/log4g"
-	"github.com/logrange/logrange/collector"
 )
 
 const (
@@ -32,9 +30,9 @@ const (
 )
 
 const (
-	argStartCfgFile     = "config-file"
-	argStartLogCfgFile  = "log-config-file"
-	argStartStorageFile = "storage-file"
+	argStartCfgFile    = "config-file"
+	argStartLogCfgFile = "log-config-file"
+	argStartStorageDir = "storage-dir"
 )
 
 func main() {
@@ -58,8 +56,8 @@ func main() {
 						Usage: "collector configuration file path",
 					},
 					&cli.StringFlag{
-						Name:  argStartStorageFile,
-						Usage: "collector storage file path",
+						Name:  argStartStorageDir,
+						Usage: "collector storage directory",
 					},
 				},
 			},
@@ -97,28 +95,19 @@ func runCollector(c *cli.Context) error {
 	}
 
 	applyArgsToCfg(c, cfg)
-	return collector.Run(cfg, ctxWithSignalHandler())
+	ctx, cancel := context.WithCancel(context.Background())
+	cmd.NewNotifierOnIntTermSignal(func(s os.Signal) {
+		getLogger().Warn("Handling signal=", s)
+		cancel()
+	})
+	return collector.Run(cfg, ctx)
 }
 
 func applyArgsToCfg(c *cli.Context, cfg *collector.Config) {
-	if sf := c.String(argStartStorageFile); sf != "" {
+	if sd := c.String(argStartStorageDir); sd != "" {
 		cfg.Storage.Type = storage.TypeFile
-		cfg.Storage.Location = sf
+		cfg.Storage.Location = sd
 	}
-}
-
-func ctxWithSignalHandler() context.Context {
-	ctx, cancel := context.WithCancel(context.Background())
-	go func() {
-		sigChan := make(chan os.Signal, 1)
-		signal.Notify(sigChan, syscall.SIGINT, syscall.SIGTERM)
-		select {
-		case s := <-sigChan:
-			getLogger().Warn("Handling signal=", s)
-			cancel()
-		}
-	}()
-	return ctx
 }
 
 func getLogger() log4g.Logger {
