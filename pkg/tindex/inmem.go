@@ -31,7 +31,7 @@ import (
 
 type (
 	tagsDesc struct {
-		Tags tag.Set
+		tags tag.Set
 		Src  string
 	}
 
@@ -141,10 +141,10 @@ func (ims *inmemService) GetJournals(srcCond *lql.Source, maxSize int, checkAll 
 	count := 0
 	res := make(map[tag.Line]string, 10)
 	for _, td := range ims.tmap {
-		if tef(td.Tags) {
+		if tef(td.tags) {
 			count++
 			if len(res) < maxSize {
-				res[td.Tags.Line()] = td.Src
+				res[td.tags.Line()] = td.Src
 			} else if !checkAll {
 				break
 			}
@@ -238,5 +238,16 @@ func (ims *inmemService) loadState() error {
 		return errors.Wrapf(err, "cound not load index file %s. Wrong permissions?", fn)
 	}
 
-	return json.Unmarshal(data, &ims.tmap)
+	err = json.Unmarshal(data, &ims.tmap)
+	if err == nil {
+		for tln, td := range ims.tmap {
+			td.tags, err = tag.Parse(string(tln))
+			if err != nil {
+				ims.logger.Error("Could not parse tags ", tln, " which read from the index file")
+				break
+			}
+		}
+	}
+
+	return err
 }

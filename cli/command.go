@@ -216,6 +216,10 @@ func descFn(cfg *config, _ context.Context) error {
 	for _, s := range res.Sources {
 		fmt.Printf("id=%v, tags=%v\n", s.Id, s.Tags)
 	}
+	if len(res.Sources) < res.Count {
+		fmt.Printf("... and more ...\n")
+	}
+	fmt.Printf("Total: %d\n", res.Count)
 	return nil
 }
 

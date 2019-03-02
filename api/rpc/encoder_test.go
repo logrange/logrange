@@ -49,9 +49,23 @@ func TestQueryResultBuilder(t *testing.T) {
 
 	tqr := &api.QueryResult{NextQueryRequest: api.QueryRequest{ReqId: 123412349182374, Query: "select source {aaa=bbb} limit 10", Pos: "ddd", Limit: 1234},
 		Events: []*api.LogEvent{
-			&api.LogEvent{1, "mes1", ""},
-			&api.LogEvent{2, "mes2", "aaa=bbb"},
+			{1, "mes1", ""},
+			{2, "mes2", "aaa=bbb"},
 		}}
+	if !reflect.DeepEqual(tqr, &rqr) {
+		t.Fatal("tqr=", tqr.Events, ", must be equal to ", rqr)
+	}
+}
+
+func TestQueryResultBuilderEmptyLogEvents(t *testing.T) {
+	qb := &queryResultBuilder{}
+	qb.init(&bytes2.Pool{})
+	qb.writeQueryRequest(&api.QueryRequest{ReqId: 123412349182374, Query: "select source {aaa=bbb} limit 10", Pos: "ddd", Limit: 1234})
+	var rqr api.QueryResult
+	unmarshalQueryResult(qb.buf(), &rqr, true)
+	qb.Close()
+
+	tqr := &api.QueryResult{NextQueryRequest: api.QueryRequest{ReqId: 123412349182374, Query: "select source {aaa=bbb} limit 10", Pos: "ddd", Limit: 1234}}
 	if !reflect.DeepEqual(tqr, &rqr) {
 		t.Fatal("tqr=", tqr.Events, ", must be equal to ", rqr)
 	}

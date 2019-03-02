@@ -17,6 +17,7 @@ package rpc
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"github.com/jrivets/log4g"
 	"github.com/logrange/logrange/api"
 	"github.com/logrange/logrange/pkg/cursor"
@@ -65,7 +66,8 @@ func (cq *clntQuerier) Query(req *api.QueryRequest, res *api.QueryResult) error 
 
 	if res != nil {
 		if opErr == nil {
-			unmarshalQueryResult(resp, res, true)
+			_, err = unmarshalQueryResult(resp, res, true)
+			return err
 		}
 		res.Err = opErr
 	}
@@ -109,13 +111,18 @@ func (sq *ServerQuerier) query(reqId int32, reqBody []byte, sc *rrpc.ServerConn)
 	state := cursor.State{Id: rq.ReqId, Query: rq.Query, Pos: rq.Pos}
 	cur, err := sq.CurProvider.GetOrCreate(sq.MainCtx, state)
 	if err != nil {
-		sq.logger.Warn("query(): Could not get/create a cursor, err=", err)
+		sq.logger.Warn("query(): Could not get/create a cursor, err=", err, " state=", state)
 		sc.SendResponse(reqId, err, cEmptyResponse)
 		return
 	}
 
 	limit := rq.Limit
-	if limit < 0 || limit > 10000 {
+	if limit < 0 {
+		sc.SendResponse(reqId, fmt.Errorf("limit is negative"), cEmptyResponse)
+		return
+	}
+
+	if limit > 10000 {
 		limit = 10000
 	}
 	lim := limit
@@ -139,6 +146,7 @@ func (sq *ServerQuerier) query(reqId int32, reqBody []byte, sc *rrpc.ServerConn)
 	}
 
 	state = sq.CurProvider.Release(sq.MainCtx, cur)
+
 	if err == nil || err == io.EOF {
 		qryReq := &api.QueryRequest{ReqId: state.Id, Query: state.Query, Pos: state.Pos, Limit: lim}
 		err = qr.writeQueryRequest(qryReq)
@@ -174,6 +182,8 @@ func (sq *ServerQuerier) sources(reqId int32, reqBody []byte, sc *rrpc.ServerCon
 		sc.SendResponse(reqId, err, cEmptyResponse)
 		return
 	}
+
+	sq.logger.Debug("Requested journals for ", tagsCond, ". returned ", len(mp), " in map with total count=", count)
 
 	srcs := make([]api.Source, len(mp))
 	idx := 0

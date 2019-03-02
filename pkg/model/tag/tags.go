@@ -16,6 +16,7 @@ package tag
 
 import (
 	"bytes"
+	"encoding/json"
 	"fmt"
 	"github.com/pkg/errors"
 	"sort"
@@ -105,6 +106,23 @@ func (s *Set) Equals(s1 Set) bool {
 // String returns line of tags
 func (s *Set) String() string {
 	return string(s.line)
+}
+
+// MarshalJSON to support json.Marshaller interface
+func (s *Set) MarshalJSON() ([]byte, error) {
+	return json.Marshal(string(s.line))
+}
+
+// UnmarshalJSON to support json.Unmarshaller interface
+func (s *Set) UnmarshalJSON(buf []byte) error {
+	var ln string
+	err := json.Unmarshal(buf, &ln)
+	if err == nil && len(ln) > 0 {
+		*s, err = Parse(ln)
+	} else {
+		*s = emptySet
+	}
+	return err
 }
 
 func (m tagMap) equalTo(m2 tagMap) bool {

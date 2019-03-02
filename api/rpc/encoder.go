@@ -207,5 +207,5 @@ func unmarshalQueryResult(buf []byte, res *api.QueryResult, newBuf bool) (int, e
 
 	n, err = unmarshalQueryRequest(buf[nn:], &res.NextQueryRequest, newBuf)
 	nn += n
-	return nn, nil
+	return nn, err
 }
