@@ -209,6 +209,8 @@ func (c *client) doSelect(qr *api.QueryRequest, streamMode bool,
 
 	limit := qr.Limit
 	for ctx.Err() == nil {
+		qr.Limit = limit
+
 		res, err := c.query(qr)
 		if err != nil {
 			return err
