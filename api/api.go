@@ -51,6 +51,11 @@ type (
 		// Pos contains the next read record position.
 		Pos string
 
+		// WaitTimeout in seconds provide waiting new data timeout in case of the request starts from
+		// the EOF. The timout cannot exceed 60 seconds. When the tiemout expires and no data is arrived
+		// response with no data will be returned.
+		WaitTimeout int
+
 		// Limit defines the maximum number of records which could be read from the sources
 		Limit int
 	}

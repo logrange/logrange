@@ -85,7 +85,7 @@ func TestNewCursoreWithPos(t *testing.T) {
 	if err != nil {
 		t.Fatal("err must be nil, but err=", err)
 	}
-	if cur.collectPos() != "j1=000000000001234D00000ABC:j2=000000000000000000000000" {
+	if cur.collectPos() != "j1=000000000001234D00000ABC:j2=000000000000000000000000" && cur.collectPos() != "j2=000000000000000000000000:j1=000000000001234D00000ABC" {
 		t.Fatal("Wrong pos initialized. Expected j1=000000000001234D00000ABC:j2=000000000000000000000000, but cur.collectPos=", cur.collectPos())
 	}
 }

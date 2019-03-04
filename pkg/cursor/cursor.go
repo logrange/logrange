@@ -178,6 +178,20 @@ func (cur *Cursor) ApplyState(state State) error {
 	return nil
 }
 
+// WaitNewData waits for the new data in the cursor. It returns nil if new data is arrived, or
+// ctx.Err() otherwise
+func (cur *Cursor) WaitNewData(ctx context.Context) error {
+	ctx2, cancel := context.WithCancel(ctx)
+	for _, it := range cur.jDescs {
+		go func(jrnl journal.Journal, pos journal.Pos) {
+			jrnl.WaitNewData(ctx2, pos)
+			cancel()
+		}(it.j, it.it.Pos())
+	}
+	<-ctx2.Done()
+	return ctx.Err()
+}
+
 const cPosJrnlSplit = ":"
 const cPosJrnlVal = "="
 

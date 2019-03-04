@@ -30,6 +30,7 @@ import (
 	"github.com/logrange/range/pkg/utils/bytes"
 	"github.com/logrange/range/pkg/utils/encoding/xbinary"
 	"io"
+	"time"
 )
 
 type (
@@ -49,6 +50,8 @@ type (
 
 	writableQueryRequest api.QueryRequest
 )
+
+const cMaxWaitTimeout = 60
 
 func (wqr *writableQueryRequest) WritableSize() int {
 	return getQueryRequestSize((*api.QueryRequest)(wqr))
@@ -108,6 +111,12 @@ func (sq *ServerQuerier) query(reqId int32, reqBody []byte, sc *rrpc.ServerConn)
 		return
 	}
 
+	if rq.WaitTimeout < 0 || rq.WaitTimeout > cMaxWaitTimeout {
+		sc.SendResponse(reqId, fmt.Errorf("wrong wait timeout. Must be in range [0..%d], but provided %d",
+			rq.WaitTimeout, cMaxWaitTimeout), cEmptyResponse)
+		return
+	}
+
 	state := cursor.State{Id: rq.ReqId, Query: rq.Query, Pos: rq.Pos}
 	cur, err := sq.CurProvider.GetOrCreate(sq.MainCtx, state)
 	if err != nil {
@@ -141,6 +150,17 @@ func (sq *ServerQuerier) query(reqId int32, reqBody []byte, sc *rrpc.ServerConn)
 			le.Timestamp = lge.Timestamp
 			qr.writeLogEvent(&le)
 		}
+
+		if err == io.EOF && limit == lim && rq.WaitTimeout > 0 {
+			ctx, _ := context.WithTimeout(sq.MainCtx, time.Duration(rq.WaitTimeout)*time.Second)
+			err = cur.WaitNewData(ctx)
+			if err != nil {
+				sq.logger.Debug("Waited for new data for ", rq.WaitTimeout, " seconds and expired. cur=", cur)
+				err = nil
+				break
+			}
+		}
+
 		limit--
 		cur.Next(sq.MainCtx)
 	}

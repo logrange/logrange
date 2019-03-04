@@ -79,6 +79,11 @@ func (tj *testJrnl) Iterator() journal.Iterator {
 	return &testJIterator{journal: tj.name}
 }
 
+func (tj *testJrnl) WaitNewData(ctx context.Context, pos journal.Pos) error {
+	panic("not supported")
+	return nil
+}
+
 // Sync could be called after a write to sync the written data with the
 // storage to be sure the read will be able to read the new added
 // data
