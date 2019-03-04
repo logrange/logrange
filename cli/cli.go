@@ -211,7 +211,7 @@ func (c *client) doSelect(qr *api.QueryRequest, streamMode bool,
 	for ctx.Err() == nil {
 		qr.Limit = limit
 
-		res, err := c.query(qr)
+		res, err := c.query(ctx, qr)
 		if err != nil {
 			return err
 		}
@@ -241,7 +241,7 @@ func (c *client) doSelect(qr *api.QueryRequest, streamMode bool,
 	return nil
 }
 
-func (c *client) doDescribe(tc string) (*api.SourcesResult, error) {
+func (c *client) doDescribe(ctx context.Context, tc string) (*api.SourcesResult, error) {
 	if c.rpc == nil {
 		err := c.connect()
 		if err != nil {
@@ -250,7 +250,7 @@ func (c *client) doDescribe(tc string) (*api.SourcesResult, error) {
 	}
 
 	res := &api.SourcesResult{}
-	err := c.rpc.Querier().Sources(tc, res)
+	err := c.rpc.Querier().Sources(ctx, tc, res)
 	if err != nil {
 		_ = c.close()
 		return nil, err
@@ -258,7 +258,7 @@ func (c *client) doDescribe(tc string) (*api.SourcesResult, error) {
 	return res, res.Err
 }
 
-func (c *client) query(qr *api.QueryRequest) (*api.QueryResult, error) {
+func (c *client) query(ctx context.Context, qr *api.QueryRequest) (*api.QueryResult, error) {
 	if c.rpc == nil {
 		err := c.connect()
 		if err != nil {
@@ -267,7 +267,7 @@ func (c *client) query(qr *api.QueryRequest) (*api.QueryResult, error) {
 	}
 
 	res := &api.QueryResult{}
-	err := c.rpc.Querier().Query(qr, res)
+	err := c.rpc.Querier().Query(ctx, qr, res)
 	if err != nil {
 		_ = c.close()
 		return nil, err

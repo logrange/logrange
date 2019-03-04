@@ -202,13 +202,13 @@ func buildReq(selStr string) (*api.QueryRequest, *template.Template, error) {
 
 //===================== describe =====================
 
-func descFn(cfg *config, _ context.Context) error {
+func descFn(cfg *config, ctx context.Context) error {
 	_, err := lql.ParseExpr(cfg.desc)
 	if err != nil {
 		return err
 	}
 
-	res, err := cfg.cli.doDescribe(cfg.desc)
+	res, err := cfg.cli.doDescribe(ctx, cfg.desc)
 	if err != nil {
 		return err
 	}
