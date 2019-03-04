@@ -97,7 +97,7 @@ func query(c *ucli.Context) error {
 	cmd.NewNotifierOnIntTermSignal(func(s os.Signal) {
 		cancel()
 	})
-	return cli.Query(cfg, ctx)
+	return cli.Query(ctx, cfg)
 }
 
 func shell(c *ucli.Context) error {

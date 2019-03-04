@@ -43,7 +43,7 @@ type (
 		cli        *client
 	}
 
-	cmdFn func(cfg *config, ctx context.Context) error
+	cmdFn func(ctx context.Context, cfg *config) error
 )
 
 const (
@@ -95,7 +95,7 @@ func init() {
 	}
 }
 
-func execCmd(input string, cfg *config, ctx context.Context) error {
+func execCmd(ctx context.Context, input string, cfg *config) error {
 	for _, d := range commands {
 		if !d.matcher.MatchString(input) {
 			continue
@@ -110,7 +110,7 @@ func execCmd(input string, cfg *config, ctx context.Context) error {
 		if opt, ok := vars[cmdSetOptName]; ok {
 			cfg.optKV = opt
 		}
-		return d.cmdFn(cfg, ctx)
+		return d.cmdFn(ctx, cfg)
 	}
 	return fmt.Errorf("unknown command=%v", input)
 }
@@ -133,7 +133,7 @@ var (
 		Parse("time={{.time}}, message={{.message}}, tags={{.tags}}\n"))
 )
 
-func selectFn(cfg *config, ctx context.Context) error {
+func selectFn(ctx context.Context, cfg *config) error {
 	for _, q := range cfg.query {
 		qr, frmt, err := buildReq(q, cfg.stream)
 		if err != nil {
@@ -141,11 +141,11 @@ func selectFn(cfg *config, ctx context.Context) error {
 		}
 
 		total := 0
-		err = cfg.cli.doSelect(qr, cfg.stream,
+		err = cfg.cli.doSelect(ctx, qr, cfg.stream,
 			func(res *api.QueryResult) {
 				printResults(res, frmt)
 				total += len(res.Events)
-			}, ctx)
+			})
 
 		if err != nil {
 			return err
@@ -211,7 +211,7 @@ func buildReq(selStr string, stream bool) (*api.QueryRequest, *template.Template
 
 //===================== describe =====================
 
-func descFn(cfg *config, ctx context.Context) error {
+func descFn(ctx context.Context, cfg *config) error {
 	_, err := lql.ParseExpr(cfg.desc)
 	if err != nil {
 		return err
@@ -235,7 +235,7 @@ func descFn(cfg *config, ctx context.Context) error {
 
 //===================== setopt =====================
 
-func setoptFn(cfg *config, _ context.Context) error {
+func setoptFn(_ context.Context, cfg *config) error {
 	var (
 		opt string
 		val string
@@ -267,7 +267,7 @@ func setoptFn(cfg *config, _ context.Context) error {
 
 //===================== quit =====================
 
-func quitFn(cfg *config, _ context.Context) error {
+func quitFn(_ context.Context, cfg *config) error {
 	cfg.beforeQuit()
 	os.Exit(0)
 	return nil
@@ -275,7 +275,7 @@ func quitFn(cfg *config, _ context.Context) error {
 
 //===================== help =====================
 
-func helpFn(_ *config, _ context.Context) error {
+func helpFn(_ context.Context, _ *config) error {
 	fmt.Printf("\n\t%-10s\n", "[HELP]")
 	for _, c := range commands {
 		fmt.Printf("\n\t%-15s %s", c.name, c.help)

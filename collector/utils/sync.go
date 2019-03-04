@@ -20,7 +20,7 @@ import (
 	"time"
 )
 
-func Wait(ticker *time.Ticker, ctx context.Context) bool {
+func Wait(ctx context.Context, ticker *time.Ticker) bool {
 	select {
 	case <-ctx.Done():
 		return false

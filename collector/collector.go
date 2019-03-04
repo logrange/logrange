@@ -28,7 +28,7 @@ var (
 	logger = log4g.GetLogger("collector")
 )
 
-func Run(cfg *Config, ctx context.Context) error {
+func Run(ctx context.Context, cfg *Config) error {
 	store, err := storage.NewStorage(cfg.Storage)
 	if err != nil {
 		return fmt.Errorf("failed to create storage, err=%v", err)
@@ -49,7 +49,7 @@ func Run(cfg *Config, ctx context.Context) error {
 	if err != nil {
 		return fmt.Errorf("failed to run client, err=%v", err)
 	}
-	err = scanr.Run(events, ctx)
+	err = scanr.Run(ctx, events)
 	if err != nil {
 		return fmt.Errorf("failed to run scanner, err=%v", err)
 	}

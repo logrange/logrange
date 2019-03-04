@@ -100,7 +100,7 @@ func runCollector(c *cli.Context) error {
 		getLogger().Warn("Handling signal=", s)
 		cancel()
 	})
-	return collector.Run(cfg, ctx)
+	return collector.Run(ctx, cfg)
 }
 
 func applyArgsToCfg(c *cli.Context, cfg *collector.Config) {
