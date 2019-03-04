@@ -12,6 +12,7 @@ type (
 		it    model.Iterator
 		fltF  lql.WhereExpFunc
 		le    model.LogEvent
+		ln    tag.Line
 		valid bool
 	}
 )
@@ -37,10 +38,9 @@ func (fit *fiterator) Next(ctx context.Context) {
 
 // Get returns current LogEvent, the TagsCond for the event or an error if any. It returns io.EOF when end of the collection is reached
 func (fit *fiterator) Get(ctx context.Context) (model.LogEvent, tag.Line, error) {
-	var ln tag.Line
 	var err error
 	for !fit.valid {
-		fit.le, ln, err = fit.it.Get(ctx)
+		fit.le, fit.ln, err = fit.it.Get(ctx)
 		if err != nil {
 			break
 		}
@@ -50,5 +50,5 @@ func (fit *fiterator) Get(ctx context.Context) (model.LogEvent, tag.Line, error)
 			fit.Next(ctx)
 		}
 	}
-	return fit.le, ln, err
+	return fit.le, fit.ln, err
 }
