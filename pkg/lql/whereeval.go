@@ -34,7 +34,7 @@ type (
 
 var positiveWhereExpFunc = func(*model.LogEvent) bool { return true }
 
-func buildWhereExpFunc(exp *Expression) (WhereExpFunc, error) {
+func BuildWhereExpFuncByExpression(exp *Expression) (WhereExpFunc, error) {
 	if exp == nil {
 		return positiveWhereExpFunc, nil
 	}

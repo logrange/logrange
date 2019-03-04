@@ -128,12 +128,19 @@ func newCursor(ctx context.Context, state State, tidx tindex.Service, jctrl jour
 		it = mxs[0]
 	}
 
+	if sel.Where != nil {
+		it, err = newFIterator(it, sel.Where)
+		if err != nil {
+			return nil, errors.Wrapf(err, "could not create filter for %s ", state.Query)
+		}
+	}
+
 	cur := new(Cursor)
 	cur.state = state
 	cur.it = it
 	cur.jDescs = jd
 	if err := cur.applyPos(); err != nil {
-		return nil, errors.Wrapf(err, "The position %s could not be applied ", state.Pos)
+		return nil, errors.Wrapf(err, "the position %s could not be applied ", state.Pos)
 	}
 
 	return cur, nil

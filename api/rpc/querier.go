@@ -168,7 +168,7 @@ func (sq *ServerQuerier) query(reqId int32, reqBody []byte, sc *rrpc.ServerConn)
 	state = sq.CurProvider.Release(sq.MainCtx, cur)
 
 	if err == nil || err == io.EOF {
-		qryReq := &api.QueryRequest{ReqId: state.Id, Query: state.Query, Pos: state.Pos, Limit: lim}
+		qryReq := &api.QueryRequest{ReqId: state.Id, Query: state.Query, Pos: state.Pos, Limit: lim, WaitTimeout: rq.WaitTimeout}
 		err = qr.writeQueryRequest(qryReq)
 		if err == nil {
 			sc.SendResponse(reqId, nil, records.Record(qr.buf()))

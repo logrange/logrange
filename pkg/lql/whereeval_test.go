@@ -25,7 +25,7 @@ func getWhereExpFunc(t *testing.T, exp string) WhereExpFunc {
 		t.Fatal("The expression '", exp, "' must be compiled, but err=", err)
 	}
 
-	res, err := buildWhereExpFunc(e)
+	res, err := BuildWhereExpFuncByExpression(e)
 	if err != nil {
 		t.Fatal("the expression '", exp, "' must be evaluated no problem, but err=", err)
 	}
@@ -54,7 +54,7 @@ func TestWhereExpGeneral(t *testing.T) {
 }
 
 func TestWhereExpPositive(t *testing.T) {
-	res, err := buildWhereExpFunc(nil)
+	res, err := BuildWhereExpFuncByExpression(nil)
 	if err != nil {
 		t.Fatal("Unexpected err=", err)
 	}
