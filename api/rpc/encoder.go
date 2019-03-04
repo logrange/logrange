@@ -125,6 +125,7 @@ func unmarshalQueryRequest(buf []byte, qr *api.QueryRequest, newBuf bool) (int, 
 
 	var wt uint16
 	n, wt, err = xbinary.UnmarshalUint16(buf[nn:])
+	nn += n
 	if err != nil {
 		return nn, err
 	}

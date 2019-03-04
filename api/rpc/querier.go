@@ -112,7 +112,7 @@ func (sq *ServerQuerier) query(reqId int32, reqBody []byte, sc *rrpc.ServerConn)
 
 	if rq.WaitTimeout < 0 || rq.WaitTimeout > cMaxWaitTimeout {
 		sc.SendResponse(reqId, fmt.Errorf("wrong wait timeout. Must be in range [0..%d], but provided %d",
-			rq.WaitTimeout, cMaxWaitTimeout), cEmptyResponse)
+			cMaxWaitTimeout, rq.WaitTimeout), cEmptyResponse)
 		return
 	}
 
