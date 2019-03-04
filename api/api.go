@@ -14,6 +14,8 @@
 
 package api
 
+import "context"
+
 type (
 	// LogEvent struct describes one message
 	LogEvent struct {
@@ -36,7 +38,7 @@ type (
 		// Write sends log events into the stream identified by tag provided. It expects a slice of events and
 		// the reference to the WriteResult. TagsCond field in LogEvents are ignored during the writing operation,
 		// but tag param will be applied to all of the events.
-		Write(tags string, evs []*LogEvent, res *WriteResult) error
+		Write(ctx context.Context, tags string, evs []*LogEvent, res *WriteResult) error
 	}
 
 	// QueryRequest struct describes a request for reading records
@@ -102,9 +104,9 @@ type (
 	Querier interface {
 		// Query runs lql to collect the server data and return it in the QueryResult. It returns an error which indicates
 		// that the query could not be delivered to the server, or it did not happen.
-		Query(req *QueryRequest, res *QueryResult) error
+		Query(ctx context.Context, req *QueryRequest, res *QueryResult) error
 
 		// Sources requests
-		Sources(TagsCond string, res *SourcesResult) error
+		Sources(ctx context.Context, TagsCond string, res *SourcesResult) error
 	}
 )

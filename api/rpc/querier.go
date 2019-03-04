@@ -44,8 +44,7 @@ type (
 	}
 
 	clntQuerier struct {
-		rc      rrpc.Client
-		clsdCtx context.Context
+		rc rrpc.Client
 	}
 
 	writableQueryRequest api.QueryRequest
@@ -61,8 +60,8 @@ func (wqr *writableQueryRequest) WriteTo(ow *xbinary.ObjectsWriter) (int, error)
 	return writeQueryRequest((*api.QueryRequest)(wqr), ow)
 }
 
-func (cq *clntQuerier) Query(req *api.QueryRequest, res *api.QueryResult) error {
-	resp, opErr, err := cq.rc.Call(cq.clsdCtx, cRpcEpQuerierQuery, (*writableQueryRequest)(req))
+func (cq *clntQuerier) Query(ctx context.Context, req *api.QueryRequest, res *api.QueryResult) error {
+	resp, opErr, err := cq.rc.Call(ctx, cRpcEpQuerierQuery, (*writableQueryRequest)(req))
 	if err != nil {
 		return err
 	}
@@ -79,8 +78,8 @@ func (cq *clntQuerier) Query(req *api.QueryRequest, res *api.QueryResult) error 
 	return nil
 }
 
-func (cq *clntQuerier) Sources(TagsCond string, res *api.SourcesResult) error {
-	resp, opErr, err := cq.rc.Call(cq.clsdCtx, cRpcEpQuerierSources, xbinary.WritableString(TagsCond))
+func (cq *clntQuerier) Sources(ctx context.Context, TagsCond string, res *api.SourcesResult) error {
+	resp, opErr, err := cq.rc.Call(ctx, cRpcEpQuerierSources, xbinary.WritableString(TagsCond))
 	if err != nil {
 		return err
 	}
