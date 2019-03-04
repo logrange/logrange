@@ -44,6 +44,7 @@ func main() {
 		Name:    "lr",
 		Version: Version,
 		Usage:   "Logrange Command Line Interface",
+		Action:  shell,
 		Commands: []*ucli.Command{
 			{
 				Name:      "query",

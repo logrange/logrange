@@ -28,7 +28,6 @@ import (
 	"os/user"
 	"path/filepath"
 	"strings"
-	"time"
 )
 
 type (
@@ -71,6 +70,7 @@ func Query(cfg *Config, ctx context.Context) error {
 }
 
 func Shell(cfg *Config) error {
+	printLogo()
 	cli, err := newClient(cfg.Transport)
 	if err != nil {
 		return err
@@ -89,6 +89,15 @@ func historyFilePath() string {
 		fileDir = usr.HomeDir
 	}
 	return filepath.Join(fileDir, shellHistoryFileName)
+}
+
+func printLogo() {
+	fmt.Print(
+		" _                                       \n" +
+			"| |___  __ _ _ _ __ _ _ _  __ _ ___      \n" +
+			"| / _ \\/ _` | '_/ _` | ' \\/ _` / -_)   \n" +
+			"|_\\___/\\__, |_| \\__,_|_|_|\\__, \\___|\n" +
+			"       |___/              |___/          \n\n")
 }
 
 func printError(err error) {
@@ -208,8 +217,10 @@ func (c *client) doSelect(qr *api.QueryRequest, streamMode bool,
 	handler func(res *api.QueryResult), ctx context.Context) error {
 
 	limit := qr.Limit
+	timeout := qr.WaitTimeout
 	for ctx.Err() == nil {
 		qr.Limit = limit
+		qr.WaitTimeout = timeout
 
 		res, err := c.query(ctx, qr)
 		if err != nil {
@@ -226,15 +237,6 @@ func (c *client) doSelect(qr *api.QueryRequest, streamMode bool,
 				break
 			}
 			limit -= len(res.Events)
-			continue
-		}
-
-		if len(res.Events) == 0 {
-			select {
-			case <-ctx.Done():
-				return ctx.Err()
-			case <-time.After(time.Second):
-			}
 		}
 	}
 

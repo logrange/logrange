@@ -64,21 +64,21 @@ func init() {
 			name:    cmdSelectName,
 			matcher: regexp.MustCompile("(?P<" + cmdSelectName + ">(?i)^(?:select$|select\\s.+$))"),
 			cmdFn:   selectFn,
-			help:    "run LQL queries, e.g. select limit 1",
+			help:    "run LQL queries, e.g. 'select limit 1'",
 		},
 		{
 			name: cmdDescName,
 			matcher: regexp.MustCompile("(?i)^(?:(?:describe$|desc$)|(?:describe|desc)\\s+(?P<" +
 				cmdDescName + ">.+))"),
 			cmdFn: descFn,
-			help:  "describe LQL sources, e.g. desc tag like *a*",
+			help:  "describe LQL sources, e.g. 'desc tag like \"*a*\"'",
 		},
 		{
 			name: cmdSetOptName,
 			matcher: regexp.MustCompile("(?i)^(?:(setoption$|setopt$)|(setoption|setopt)\\s+(?P<" +
 				cmdSetOptName + ">.+))"),
 			cmdFn: setoptFn,
-			help:  "set options, e.g. setopt stream-mode on",
+			help:  "set options, e.g. 'setopt stream-mode on'",
 		},
 		{
 			name:    cmdQuitName,
@@ -135,21 +135,24 @@ var (
 
 func selectFn(cfg *config, ctx context.Context) error {
 	for _, q := range cfg.query {
-		qr, frmt, err := buildReq(q)
+		qr, frmt, err := buildReq(q, cfg.stream)
 		if err != nil {
 			return err
 		}
 
+		total := 0
 		err = cfg.cli.doSelect(qr, cfg.stream,
 			func(res *api.QueryResult) {
 				printResults(res, frmt)
+				total += len(res.Events)
 			}, ctx)
 
 		if err != nil {
 			return err
 		}
-	}
 
+		fmt.Printf("\ntotal: %d\n\n", total)
+	}
 	return nil
 }
 
@@ -167,7 +170,7 @@ func printResults(res *api.QueryResult, frmt *template.Template) {
 	}
 }
 
-func buildReq(selStr string) (*api.QueryRequest, *template.Template, error) {
+func buildReq(selStr string, stream bool) (*api.QueryRequest, *template.Template, error) {
 	s, err := lql.Parse(selStr)
 	if err != nil {
 		return nil, nil, err
@@ -191,10 +194,16 @@ func buildReq(selStr string) (*api.QueryRequest, *template.Template, error) {
 		lim = math.MaxInt32
 	}
 
+	waitSec := 0
+	if stream {
+		waitSec = 1
+	}
+
 	qr := &api.QueryRequest{
-		Query: selStr,
-		Pos:   pos,
-		Limit: int(lim),
+		Query:       selStr,
+		Pos:         pos,
+		Limit:       int(lim),
+		WaitTimeout: waitSec,
 	}
 
 	return qr, fmtt, nil
@@ -214,12 +223,13 @@ func descFn(cfg *config, ctx context.Context) error {
 	}
 
 	for _, s := range res.Sources {
-		fmt.Printf("id=%v, tags=%v\n", s.Id, s.Tags)
+		fmt.Printf("%v: %v\n", s.Id, s.Tags)
 	}
 	if len(res.Sources) < res.Count {
 		fmt.Printf("... and more ...\n")
 	}
-	fmt.Printf("Total: %d\n", res.Count)
+
+	fmt.Printf("\ntotal: %d\n\n", res.Count)
 	return nil
 }
 
@@ -266,9 +276,9 @@ func quitFn(cfg *config, _ context.Context) error {
 //===================== help =====================
 
 func helpFn(_ *config, _ context.Context) error {
-	fmt.Printf("\n%20s\n", "[HELP]")
+	fmt.Printf("\n\t%-10s\n", "[HELP]")
 	for _, c := range commands {
-		fmt.Printf("\n%20s: %-20s", c.name, c.help)
+		fmt.Printf("\n\t%-15s %s", c.name, c.help)
 	}
 	fmt.Print("\n\n")
 	return nil
