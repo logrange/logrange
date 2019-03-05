@@ -28,6 +28,7 @@ import (
 )
 
 type (
+	// Admin is a backend structure used by an api implementation
 	Admin struct {
 		TIndex   tindex.Service     `inject:""`
 		Journals journal.Controller `inject:""`
@@ -52,6 +53,7 @@ func removeChunkFile(cid chunk.Id, filename string, err error) {
 	os.Remove(chunkfs.SetChunkIdxFileExt(filename))
 }
 
+// Truncate provides implementation of api.Admin.Truncate() function
 func (ad *Admin) Truncate(tagsCond string, maxSize uint64) (api.TruncateResult, error) {
 	se, err := lql.ParseSource(tagsCond)
 	if err != nil {

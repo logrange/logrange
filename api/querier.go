@@ -47,7 +47,7 @@ type (
 		// nil
 		NextQueryRequest QueryRequest
 		// Err the operation error. If the Err is nil, the operation successfully executed
-		Err error
+		Err error `json:"-"`
 	}
 
 	// Source struct describes a source structure

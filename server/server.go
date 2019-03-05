@@ -57,6 +57,7 @@ func Start(ctx context.Context, cfg *Config) error {
 		linker.Component{Name: "", Value: ctrlr.NewJournalController()},
 		linker.Component{Name: "", Value: cursor.NewProvider()},
 		linker.Component{Name: "", Value: backend.NewAdmin()},
+		linker.Component{Name: "", Value: backend.NewQuerier()},
 	)
 	injector.Init(ctx)
 

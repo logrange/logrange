@@ -20,11 +20,10 @@ import (
 	"fmt"
 	"github.com/jrivets/log4g"
 	"github.com/logrange/logrange/api"
+	"github.com/logrange/logrange/pkg/backend"
 	"github.com/logrange/logrange/pkg/cursor"
-	"github.com/logrange/logrange/pkg/lql"
 	"github.com/logrange/logrange/pkg/model"
 	"github.com/logrange/logrange/pkg/model/tag"
-	"github.com/logrange/logrange/pkg/tindex"
 	"github.com/logrange/range/pkg/records"
 	rrpc "github.com/logrange/range/pkg/rpc"
 	"github.com/logrange/range/pkg/utils/bytes"
@@ -38,7 +37,7 @@ type (
 		CurProvider *cursor.Provider `inject:""`
 		MainCtx     context.Context  `inject:"mainCtx"`
 		Pool        *bytes.Pool      `inject:""`
-		TIndex      tindex.Service   `inject:""`
+		Querier     *backend.Querier `inject:""`
 
 		logger log4g.Logger
 	}
@@ -49,8 +48,6 @@ type (
 
 	writableQueryRequest api.QueryRequest
 )
-
-const cMaxWaitTimeout = 60
 
 func (wqr *writableQueryRequest) WritableSize() int {
 	return getQueryRequestSize((*api.QueryRequest)(wqr))
@@ -101,6 +98,8 @@ func NewServerQuerier() *ServerQuerier {
 	return sq
 }
 
+// query is the server version of api.Querier.Query(). It is optimized to produce high performance records read
+// for general API purpoces backend.Querier could be used instead
 func (sq *ServerQuerier) query(reqId int32, reqBody []byte, sc *rrpc.ServerConn) {
 	var rq api.QueryRequest
 	_, err := unmarshalQueryRequest(reqBody, &rq, false)
@@ -110,9 +109,9 @@ func (sq *ServerQuerier) query(reqId int32, reqBody []byte, sc *rrpc.ServerConn)
 		return
 	}
 
-	if rq.WaitTimeout < 0 || rq.WaitTimeout > cMaxWaitTimeout {
+	if rq.WaitTimeout < 0 || rq.WaitTimeout > backend.QueryMaxWaitTimeout {
 		sc.SendResponse(reqId, fmt.Errorf("wrong wait timeout. Must be in range [0..%d], but provided %d",
-			cMaxWaitTimeout, rq.WaitTimeout), cEmptyResponse)
+			backend.QueryMaxWaitTimeout, rq.WaitTimeout), cEmptyResponse)
 		return
 	}
 
@@ -130,8 +129,8 @@ func (sq *ServerQuerier) query(reqId int32, reqBody []byte, sc *rrpc.ServerConn)
 		return
 	}
 
-	if limit > 10000 {
-		limit = 10000
+	if limit > backend.QueryMaxLimit {
+		limit = backend.QueryMaxLimit
 	}
 	lim := limit
 
@@ -188,30 +187,12 @@ func (sq *ServerQuerier) sources(reqId int32, reqBody []byte, sc *rrpc.ServerCon
 		return
 	}
 
-	src, err := lql.ParseSource(tagsCond)
+	resp, err := sq.Querier.Sources(sq.MainCtx, tagsCond)
 	if err != nil {
-		sq.logger.Warn("sources(): could not parse the source condition ", tagsCond, " err=", err)
 		sc.SendResponse(reqId, err, cEmptyResponse)
 		return
 	}
 
-	mp, count, err := sq.TIndex.GetJournals(src, 100, true)
-	if err != nil {
-		sq.logger.Warn("sources(): could not obtain sources err=", err)
-		sc.SendResponse(reqId, err, cEmptyResponse)
-		return
-	}
-
-	sq.logger.Debug("Requested journals for ", tagsCond, ". returned ", len(mp), " in map with total count=", count)
-
-	srcs := make([]api.Source, len(mp))
-	idx := 0
-	for tags := range mp {
-		srcs[idx].Tags = string(tags)
-		idx++
-	}
-
-	resp := api.SourcesResult{Sources: srcs, Count: count}
 	buf, err := json.Marshal(resp)
 	if err != nil {
 		sq.logger.Warn("sources(): could not marshal response err=", err)
