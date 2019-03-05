@@ -19,6 +19,7 @@ import (
 	"fmt"
 	"github.com/logrange/logrange/api"
 	"github.com/logrange/logrange/pkg/lql"
+	"io"
 	"math"
 	"os"
 	"regexp"
@@ -130,7 +131,7 @@ func getInputVars(re *regexp.Regexp, input string) map[string]string {
 
 var (
 	defaultEvFmtTemplate = template.Must(template.New("default").
-		Parse("time={{.time}}, message={{.message}}, tags={{.tags}}\n"))
+		Parse("time={{.Timestamp}}, message={{.Message}}, tags={{.Tags}}\n"))
 )
 
 func selectFn(ctx context.Context, cfg *config) error {
@@ -143,7 +144,7 @@ func selectFn(ctx context.Context, cfg *config) error {
 		total := 0
 		err = cfg.cli.doSelect(ctx, qr, cfg.stream,
 			func(res *api.QueryResult) {
-				printResults(res, frmt)
+				printResults(res, frmt, os.Stdout)
 				total += len(res.Events)
 			})
 
@@ -156,17 +157,15 @@ func selectFn(ctx context.Context, cfg *config) error {
 	return nil
 }
 
-func printResults(res *api.QueryResult, frmt *template.Template) {
+func printResults(res *api.QueryResult, frmt *template.Template, w io.Writer) {
 	empty := &api.LogEvent{}
 	for _, e := range res.Events {
 		if e == nil {
 			e = empty
 		}
-		_ = frmt.Execute(os.Stdout, map[string]interface{}{
-			"time":    e.Timestamp,
-			"message": strings.Trim(e.Message, "\r\n"),
-			"tags":    e.Tags,
-		})
+
+		e.Message = strings.Trim(e.Message, "\n")
+		_ = frmt.Execute(w, e)
 	}
 }
 
@@ -223,7 +222,7 @@ func descFn(ctx context.Context, cfg *config) error {
 	}
 
 	for _, s := range res.Sources {
-		fmt.Printf("%v: %v\n", s.Id, s.Tags)
+		fmt.Printf("id: %v, tags: %v\n", s.Id, s.Tags)
 	}
 	if len(res.Sources) < res.Count {
 		fmt.Printf("... and more ...\n")
