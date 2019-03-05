@@ -37,7 +37,7 @@ type (
 		Sources []*SourceTruncateResult
 
 		// Err contains the operation error, if any
-		Err error `josn:"-"`
+		Err error `json:"-"`
 	}
 
 	// Admin interface allows to perform some administrative actions
