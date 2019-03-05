@@ -19,6 +19,7 @@ import (
 	"github.com/jrivets/log4g"
 	"github.com/logrange/linker"
 	"github.com/logrange/logrange/api/rpc"
+	"github.com/logrange/logrange/pkg/backend"
 	"github.com/logrange/logrange/pkg/cursor"
 	"github.com/logrange/logrange/pkg/tindex"
 	"github.com/logrange/range/pkg/cluster/model"
@@ -51,9 +52,11 @@ func Start(ctx context.Context, cfg *Config) error {
 		linker.Component{Name: "", Value: model.NewJournalCatalog()},
 		linker.Component{Name: "", Value: rpc.NewServerIngestor()},
 		linker.Component{Name: "", Value: rpc.NewServerQuerier()},
+		linker.Component{Name: "", Value: rpc.NewServerAdmin()},
 		linker.Component{Name: "", Value: rpc.NewServer()},
 		linker.Component{Name: "", Value: ctrlr.NewJournalController()},
 		linker.Component{Name: "", Value: cursor.NewProvider()},
+		linker.Component{Name: "", Value: backend.NewAdmin()},
 	)
 	injector.Init(ctx)
 

@@ -28,6 +28,7 @@ type (
 		ConnConfig  transport.Config `inject:"publicRpcTransport"`
 		SrvIngestor *ServerIngestor  `inject:""`
 		SrvQuerier  *ServerQuerier   `inject:""`
+		SrvAdmin    *ServerAdmin     `inject:""`
 		rs          rrpc.Server
 		ln          net.Listener
 		logger      log4g.Logger
@@ -36,9 +37,10 @@ type (
 
 // RPC endpoints
 const (
-	cRpcEpIngestorWrite  = 1
-	cRpcEpQuerierQuery   = 2
-	cRpcEpQuerierSources = 3
+	cRpcEpIngestorWrite  = 100
+	cRpcEpQuerierQuery   = 200
+	cRpcEpQuerierSources = 201
+	cRpcEpAdminTruncate  = 300
 )
 
 func NewServer() *Server {
@@ -60,6 +62,7 @@ func (s *Server) Init(ctx context.Context) error {
 	s.rs.Register(cRpcEpIngestorWrite, s.SrvIngestor.write)
 	s.rs.Register(cRpcEpQuerierQuery, s.SrvQuerier.query)
 	s.rs.Register(cRpcEpQuerierSources, s.SrvQuerier.sources)
+	s.rs.Register(cRpcEpAdminTruncate, s.SrvAdmin.truncate)
 
 	go s.listen()
 	return nil

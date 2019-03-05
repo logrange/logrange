@@ -74,6 +74,10 @@ func (tj *testJrnl) Size() int64 {
 	return 0
 }
 
+func (tj *testJrnl) Count() uint64 {
+	return 0
+}
+
 // Iterator returns an iterator to walk through the journal records
 func (tj *testJrnl) Iterator() journal.Iterator {
 	return &testJIterator{journal: tj.name}
@@ -82,6 +86,11 @@ func (tj *testJrnl) Iterator() journal.Iterator {
 func (tj *testJrnl) WaitNewData(ctx context.Context, pos journal.Pos) error {
 	panic("not supported")
 	return nil
+}
+
+func (tj *testJrnl) Truncate(ctx context.Context, maxSize uint64, otf journal.OnTrunkF) (int, error) {
+	panic("not supported")
+	return 0, nil
 }
 
 // Sync could be called after a write to sync the written data with the

@@ -213,9 +213,6 @@ func descFn(cfg *config, ctx context.Context) error {
 		return err
 	}
 
-	for _, s := range res.Sources {
-		fmt.Printf("id=%v, tags=%v\n", s.Id, s.Tags)
-	}
 	if len(res.Sources) < res.Count {
 		fmt.Printf("... and more ...\n")
 	}

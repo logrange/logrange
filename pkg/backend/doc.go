@@ -12,16 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package api
-
-type (
-	// LogEvent struct describes one message
-	LogEvent struct {
-		// Timestamp contains the time-stamp for the message.
-		Timestamp uint64
-		// Message is the message itself
-		Message string
-		// Tag line for the message. It could be empty
-		Tags string
-	}
-)
+/*
+Package backend contains some code for serving API endpoints (refer to the logrange/api package)
+*/
+package backend

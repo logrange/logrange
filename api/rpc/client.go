@@ -26,6 +26,7 @@ type (
 		rc     rrpc.Client
 		cing   *clntIngestor
 		cqrier *clntQuerier
+		admin  *clntAdmin
 	}
 )
 
@@ -41,6 +42,8 @@ func NewClient(tcfg transport.Config) (*Client, error) {
 	c.cing.rc = c.rc
 	c.cqrier = new(clntQuerier)
 	c.cqrier.rc = c.rc
+	c.admin = new(clntAdmin)
+	c.admin.rc = c.rc
 	return c, nil
 }
 
@@ -49,9 +52,14 @@ func (c *Client) Ingestor() api.Ingestor {
 	return c.cing
 }
 
-// Ingestor return api.Querier interface for the client
+// Querier returns api.Querier interface for the client
 func (c *Client) Querier() api.Querier {
 	return c.cqrier
+}
+
+// Admin returns api.Admin interface for the client
+func (c *Client) Admin() api.Admin {
+	return c.admin
 }
 
 // Close closes the client
