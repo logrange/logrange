@@ -28,7 +28,6 @@ import (
 	"os/user"
 	"path/filepath"
 	"strings"
-	"time"
 )
 
 type (
@@ -47,7 +46,7 @@ const (
 	shellHistoryFileName = ".lr_history"
 )
 
-func Query(cfg *Config, ctx context.Context) error {
+func Query(ctx context.Context, cfg *Config) error {
 	cli, err := newClient(cfg.Transport)
 	if err != nil {
 		return err
@@ -56,11 +55,11 @@ func Query(cfg *Config, ctx context.Context) error {
 		return err
 	}
 
-	err = selectFn(&config{
+	err = selectFn(ctx, &config{
 		query:  cfg.Query,
 		stream: cfg.StreamMode,
 		cli:    cli,
-	}, ctx)
+	})
 
 	if err != nil {
 		printError(err)
@@ -71,6 +70,7 @@ func Query(cfg *Config, ctx context.Context) error {
 }
 
 func Shell(cfg *Config) error {
+	printLogo()
 	cli, err := newClient(cfg.Transport)
 	if err != nil {
 		return err
@@ -89,6 +89,15 @@ func historyFilePath() string {
 		fileDir = usr.HomeDir
 	}
 	return filepath.Join(fileDir, shellHistoryFileName)
+}
+
+func printLogo() {
+	fmt.Print("" +
+		" _                                       \n" +
+		"| |___  __ _ _ _ __ _ _ _  __ _ ___      \n" +
+		"| / _ \\/ _` | '_/ _` | ' \\/ _` / -_)   \n" +
+		"|_\\___/\\__, |_| \\__,_|_|_|\\__, \\___|\n" +
+		"       |___/              |___/          \n\n")
 }
 
 func printError(err error) {
@@ -142,7 +151,7 @@ func (s *shell) run() {
 			cancel()
 		})
 
-		err = execCmd(inp, cfg, ctx)
+		err = execCmd(ctx, inp, cfg)
 		if err != nil {
 			printError(err)
 		}
@@ -204,12 +213,14 @@ func (c *client) connect() error {
 	return err
 }
 
-func (c *client) doSelect(qr *api.QueryRequest, streamMode bool,
-	handler func(res *api.QueryResult), ctx context.Context) error {
+func (c *client) doSelect(ctx context.Context, qr *api.QueryRequest, streamMode bool,
+	handler func(res *api.QueryResult)) error {
 
 	limit := qr.Limit
+	timeout := qr.WaitTimeout
 	for ctx.Err() == nil {
 		qr.Limit = limit
+		qr.WaitTimeout = timeout
 
 		res, err := c.query(ctx, qr)
 		if err != nil {
@@ -226,15 +237,6 @@ func (c *client) doSelect(qr *api.QueryRequest, streamMode bool,
 				break
 			}
 			limit -= len(res.Events)
-			continue
-		}
-
-		if len(res.Events) == 0 {
-			select {
-			case <-ctx.Done():
-				return ctx.Err()
-			case <-time.After(time.Second):
-			}
 		}
 	}
 

@@ -67,7 +67,7 @@ func TestIntegration(t *testing.T) {
 	events := make(chan *model.Event)
 	ctx, cancel := context.WithCancel(context.Background())
 
-	if err := cl.Run(events, ctx); err != nil {
+	if err := cl.Run(ctx, events); err != nil {
 		t.Fatal(err)
 	}
 

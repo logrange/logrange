@@ -98,13 +98,13 @@ func NewScanner(cfg *Config, storage storage.Storage) (*Scanner, error) {
 	return s, nil
 }
 
-func (s *Scanner) Run(events chan<- *model.Event, ctx context.Context) error {
+func (s *Scanner) Run(ctx context.Context, events chan<- *model.Event) error {
 	s.logger.Info("Running, config=", s.cfg)
-	if err := s.init(events, ctx); err != nil {
+	if err := s.init(ctx, events); err != nil {
 		return err
 	}
 
-	s.runScanPaths(events, ctx)
+	s.runScanPaths(ctx, events)
 	s.runPersistState(ctx)
 	return nil
 }
@@ -118,18 +118,18 @@ func (s *Scanner) Close() error {
 	return nil
 }
 
-func (s *Scanner) init(events chan<- *model.Event, ctx context.Context) error {
+func (s *Scanner) init(ctx context.Context, events chan<- *model.Event) error {
 	err := s.loadState()
 	if err == nil {
-		s.scan(events, ctx)
+		s.scan(ctx, events)
 	}
 	return err
 }
 
-func (s *Scanner) scan(events chan<- *model.Event, ctx context.Context) {
+func (s *Scanner) scan(ctx context.Context, events chan<- *model.Event) {
 	nd := s.scanPaths()
 	md := s.mergeDescs(s.getDescs(), nd)
-	s.syncWorkers(md, events, ctx)
+	s.syncWorkers(ctx, md, events)
 	s.setDescs(md)
 }
 
@@ -143,15 +143,15 @@ func (s *Scanner) setDescs(d descs) {
 
 //===================== scanner.jobs =====================
 
-func (s *Scanner) runScanPaths(events chan<- *model.Event, ctx context.Context) {
+func (s *Scanner) runScanPaths(ctx context.Context, events chan<- *model.Event) {
 	s.logger.Info("Running scan paths every ", s.cfg.ScanPathsIntervalSec, " seconds...")
 	ticker := time.NewTicker(time.Second *
 		time.Duration(s.cfg.ScanPathsIntervalSec))
 
 	s.waitWg.Add(1)
 	go func() {
-		for utils.Wait(ticker, ctx) {
-			s.scan(events, ctx)
+		for utils.Wait(ctx, ticker) {
+			s.scan(ctx, events)
 		}
 		s.logger.Warn("Scan paths stopped.")
 		s.waitWg.Done()
@@ -165,7 +165,7 @@ func (s *Scanner) runPersistState(ctx context.Context) {
 
 	s.waitWg.Add(1)
 	go func() {
-		for utils.Wait(ticker, ctx) {
+		for utils.Wait(ctx, ticker) {
 			if err := s.persistState(); err != nil {
 				s.logger.Error("Unable to persist state, cause=", err)
 			}
@@ -178,7 +178,7 @@ func (s *Scanner) runPersistState(ctx context.Context) {
 
 //===================== scanner.workers =====================
 
-func (s *Scanner) syncWorkers(ds descs, events chan<- *model.Event, ctx context.Context) {
+func (s *Scanner) syncWorkers(ctx context.Context, ds descs, events chan<- *model.Event) {
 	newWks := make(workers)
 	oldWks := s.workers.Load().(workers)
 
@@ -190,7 +190,7 @@ func (s *Scanner) syncWorkers(ds descs, events chan<- *model.Event, ctx context.
 		}
 		var err error
 		if !ok || w.isStopped() { //start new and rotated (new)
-			if w, err = s.runWorker(d, events, ctx); err != nil {
+			if w, err = s.runWorker(ctx, d, events); err != nil {
 				s.logger.Error("Failed to run worker, desc=", d, ", err=", err)
 				continue
 			}
@@ -235,7 +235,7 @@ func (s *Scanner) newWorkerConfig(d *desc) (*workerConfig, error) {
 	}, nil
 }
 
-func (s *Scanner) runWorker(d *desc, events chan<- *model.Event, ctx context.Context) (*worker, error) {
+func (s *Scanner) runWorker(ctx context.Context, d *desc, events chan<- *model.Event) (*worker, error) {
 	wcfg, err := s.newWorkerConfig(d)
 	if err != nil {
 		return nil, err

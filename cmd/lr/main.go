@@ -44,6 +44,7 @@ func main() {
 		Name:    "lr",
 		Version: Version,
 		Usage:   "Logrange Command Line Interface",
+		Action:  shell,
 		Commands: []*ucli.Command{
 			{
 				Name:      "query",
@@ -96,7 +97,7 @@ func query(c *ucli.Context) error {
 	cmd.NewNotifierOnIntTermSignal(func(s os.Signal) {
 		cancel()
 	})
-	return cli.Query(cfg, ctx)
+	return cli.Query(ctx, cfg)
 }
 
 func shell(c *ucli.Context) error {

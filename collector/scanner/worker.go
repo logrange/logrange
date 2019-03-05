@@ -84,7 +84,7 @@ func (w *worker) run(ctx context.Context, events chan<- *model.Event) error {
 
 			eof := err == io.EOF
 			if eof || len(recs) == w.recsPerEvent {
-				err = w.sendOrSleep(recs, events, ctx)
+				err = w.sendOrSleep(ctx, recs, events)
 				recs = w.recycle(recs)
 			}
 
@@ -119,7 +119,7 @@ func (w *worker) recycle(recs []*model.Record) []*model.Record {
 	return recs[:0]
 }
 
-func (w *worker) sendOrSleep(recs []*model.Record, events chan<- *model.Event, ctx context.Context) error {
+func (w *worker) sendOrSleep(ctx context.Context, recs []*model.Record, events chan<- *model.Event) error {
 	if len(recs) == 0 {
 		utils.Sleep(ctx, time.Second)
 		return nil

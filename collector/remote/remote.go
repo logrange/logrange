@@ -58,7 +58,7 @@ func (c *Client) Run(ctx context.Context, events <-chan *model.Event) error {
 		return err
 	}
 
-	c.runSend(events, ctx)
+	c.runSend(ctx, events)
 	return nil
 }
 
@@ -74,7 +74,7 @@ func (c *Client) Close() error {
 	return err
 }
 
-func (c *Client) runSend(events <-chan *model.Event, ctx context.Context) {
+func (c *Client) runSend(ctx context.Context, events <-chan *model.Event) {
 	c.done = make(chan bool)
 	go func() {
 		defer close(c.done)
