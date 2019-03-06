@@ -17,14 +17,17 @@ package cli
 import (
 	"context"
 	"fmt"
+	"github.com/dustin/go-humanize"
 	"github.com/logrange/logrange/api"
 	"github.com/logrange/logrange/pkg/lql"
+	"github.com/logrange/logrange/pkg/model"
+	"github.com/logrange/range/pkg/utils/bytes"
 	"io"
 	"math"
 	"os"
 	"regexp"
 	"strings"
-	"text/template"
+	"time"
 )
 
 type (
@@ -38,7 +41,8 @@ type (
 	config struct {
 		query      []string
 		stream     bool
-		desc       string
+		tagsCond   string
+		size       string
 		optKV      string
 		beforeQuit func()
 		cli        *client
@@ -50,11 +54,15 @@ type (
 const (
 	cmdSelectName = "select"
 	cmdDescName   = "describe"
+	cmdTruncName  = "truncate"
 	cmdSetOptName = "setoption"
 	cmdQuitName   = "quit"
 	cmdHelpName   = "help"
 
 	optStreamMode = "stream-mode"
+
+	rgTagsGrp = "tagsCond"
+	rgSizeGrp = "size"
 )
 
 var commands []command
@@ -70,9 +78,15 @@ func init() {
 		{
 			name: cmdDescName,
 			matcher: regexp.MustCompile("(?i)^(?:(?:describe$|desc$)|(?:describe|desc)\\s+(?P<" +
-				cmdDescName + ">.+))"),
+				rgTagsGrp + ">.+))"),
 			cmdFn: descFn,
-			help:  "describe LQL sources, e.g. 'desc tag like \"*a*\"'",
+			help:  "describe sources, e.g. 'describe tag like \"*a*\"'",
+		},
+		{
+			name:    cmdTruncName,
+			matcher: regexp.MustCompile(`(?i)^(?:truncate$|truncate)(?:(?P<rgTagsCond>\s+.*)|)\s+(?:if-greater\s+(?P<size>\d[0-9.,]+\s*[a-zA-Z]{0,3}))`),
+			cmdFn:   truncFn,
+			help:    "truncate source if size exceeds a value, e.g. 'truncate nam=app,ip=123 if-greater 10.5G'",
 		},
 		{
 			name: cmdSetOptName,
@@ -99,14 +113,20 @@ func init() {
 func execCmd(ctx context.Context, input string, cfg *config) error {
 	for _, d := range commands {
 		if !d.matcher.MatchString(input) {
+			if strings.HasPrefix(input, d.name) {
+				return fmt.Errorf("command %s - invalid syntax", d.name)
+			}
 			continue
 		}
 		vars := getInputVars(d.matcher, input)
 		if s, ok := vars[cmdSelectName]; ok {
 			cfg.query = []string{s}
 		}
-		if d, ok := vars[cmdDescName]; ok {
-			cfg.desc = d
+		if d, ok := vars[rgTagsGrp]; ok {
+			cfg.tagsCond = d
+		}
+		if sz, ok := vars[rgSizeGrp]; ok {
+			cfg.size = sz
 		}
 		if opt, ok := vars[cmdSetOptName]; ok {
 			cfg.optKV = opt
@@ -130,8 +150,7 @@ func getInputVars(re *regexp.Regexp, input string) map[string]string {
 //===================== select =====================
 
 var (
-	defaultEvFmtTemplate = template.Must(template.New("default").
-		Parse("time={{.Timestamp}}, message={{.Message}}, tags={{.Tags}}\n"))
+	defaultEvFmtTemplate, _ = model.NewFormatParser("{msg}\n")
 )
 
 func selectFn(ctx context.Context, cfg *config) error {
@@ -142,6 +161,7 @@ func selectFn(ctx context.Context, cfg *config) error {
 		}
 
 		total := 0
+		start := time.Now()
 		err = cfg.cli.doSelect(ctx, qr, cfg.stream,
 			func(res *api.QueryResult) {
 				printResults(res, frmt, os.Stdout)
@@ -152,24 +172,26 @@ func selectFn(ctx context.Context, cfg *config) error {
 			return err
 		}
 
-		fmt.Printf("\ntotal: %d\n\n", total)
+		fmt.Printf("\ntotal: %d, exec. time %s\n\n", total, time.Now().Sub(start))
 	}
 	return nil
 }
 
-func printResults(res *api.QueryResult, frmt *template.Template, w io.Writer) {
+func printResults(res *api.QueryResult, frmt *model.FormatParser, w io.Writer) {
+	var le model.LogEvent
 	empty := &api.LogEvent{}
 	for _, e := range res.Events {
 		if e == nil {
 			e = empty
 		}
 
-		e.Message = strings.Trim(e.Message, "\n")
-		_ = frmt.Execute(w, e)
+		le.Msg = strings.Trim(e.Message, "\n")
+		le.Timestamp = e.Timestamp
+		w.Write(bytes.StringToByteArray(frmt.FormatStr(&le, e.Tags)))
 	}
 }
 
-func buildReq(selStr string, stream bool) (*api.QueryRequest, *template.Template, error) {
+func buildReq(selStr string, stream bool) (*api.QueryRequest, *model.FormatParser, error) {
 	s, err := lql.Parse(selStr)
 	if err != nil {
 		return nil, nil, err
@@ -177,7 +199,7 @@ func buildReq(selStr string, stream bool) (*api.QueryRequest, *template.Template
 
 	fmtt := defaultEvFmtTemplate
 	if s.Format != "" {
-		fmtt, err = template.New("").Parse(s.Format)
+		fmtt, err = model.NewFormatParser(s.Format)
 		if err != nil {
 			return nil, nil, err
 		}
@@ -211,21 +233,80 @@ func buildReq(selStr string, stream bool) (*api.QueryRequest, *template.Template
 //===================== describe =====================
 
 func descFn(ctx context.Context, cfg *config) error {
-	_, err := lql.ParseExpr(cfg.desc)
+	_, err := lql.ParseSource(cfg.tagsCond)
 	if err != nil {
 		return err
 	}
 
-	res, err := cfg.cli.doDescribe(ctx, cfg.desc)
+	res, err := cfg.cli.doDescribe(ctx, cfg.tagsCond)
 	if err != nil {
 		return err
 	}
 
-	if len(res.Sources) < res.Count {
-		fmt.Printf("... and more ...\n")
+	ts := uint64(0)
+	tr := uint64(0)
+	first := true
+	for _, s := range res.Sources {
+		if first {
+			fmt.Printf("\n%10s  %13s  %s", "SIZE", "RECORDS", "TAGS")
+			fmt.Printf("\n----------  -------------  ----")
+			first = false
+		}
+
+		fmt.Printf("\n%10s %13s  %s", humanize.Bytes(s.Size), humanize.Comma(int64(s.Records)), s.Tags)
+		ts += s.Size
+		tr += s.Records
 	}
 
-	fmt.Printf("\ntotal: %d\n\n", res.Count)
+	if !first {
+		if len(res.Sources) < res.Count {
+			fmt.Printf("... and more ...\n")
+		} else if res.Count > 1 {
+			fmt.Printf("\n----------  -------------")
+			fmt.Printf("\n%10s  %13s\n", humanize.Bytes(ts), humanize.Comma(int64(tr)))
+		}
+	}
+
+	fmt.Printf("\ntotal: %d sources match the criteria\n\n", res.Count)
+	return nil
+}
+
+//===================== truncate =====================
+
+func truncFn(ctx context.Context, cfg *config) error {
+	sz, err := humanize.ParseBytes(cfg.size)
+	if err != nil {
+		return err
+	}
+
+	if _, err = lql.ParseSource(cfg.tagsCond); err != nil {
+		return err
+	}
+
+	res, err := cfg.cli.truncate(ctx, cfg.tagsCond, sz)
+	if err != nil {
+		return err
+	}
+
+	if res.Err != nil {
+		return fmt.Errorf("server returned the error: ", res.Err)
+	}
+
+	first := true
+	for _, s := range res.Sources {
+		if first {
+			fmt.Printf("\n%12s  %15s  %s", "SIZE(diff)", "RECORDS(diff)", "TAGS")
+			fmt.Printf("\n------------  ---------------  ----")
+			first = false
+		}
+
+		sz := fmt.Sprintf("%s(%s)", humanize.Bytes(s.SizeAfter), humanize.Bytes(s.SizeAfter-s.RecordsBefore))
+		recs := fmt.Sprintf("%s(%s)", humanize.Comma(int64(s.RecordsAfter)), humanize.Comma(int64(s.RecordsAfter-s.RecordsBefore)))
+		fmt.Printf("\n%12s %15s  %s", sz, recs, s.Tags)
+	}
+
+	fmt.Printf("\n%d sources affected. \n", len(res.Sources))
+
 	return nil
 }
 

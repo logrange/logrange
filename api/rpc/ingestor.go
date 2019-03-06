@@ -32,10 +32,10 @@ import (
 type (
 	// ServerIngestor is a struct, which provides the ingestor RPC functionality.
 	ServerIngestor struct {
-		Pool      *bytes.Pool        `inject:""`
-		JrnlCtrlr journal.Controller `inject:""`
-		TIndex    tindex.Service     `inject:""`
-		MainCtx   context.Context    `inject:"mainCtx"`
+		Pool     *bytes.Pool        `inject:""`
+		Journals journal.Controller `inject:""`
+		TIndex   tindex.Service     `inject:""`
+		MainCtx  context.Context    `inject:"mainCtx"`
 
 		wg sync.WaitGroup
 	}
@@ -110,7 +110,7 @@ func (si *ServerIngestor) write(reqId int32, reqBody []byte, sc *rrpc.ServerConn
 	err := wpi.init(reqBody, si.TIndex)
 	if err == nil {
 		var jrnl journal.Journal
-		jrnl, err = si.JrnlCtrlr.GetOrCreate(si.MainCtx, wpi.src)
+		jrnl, err = si.Journals.GetOrCreate(si.MainCtx, wpi.src)
 		if err == nil {
 			_, _, err = jrnl.Write(si.MainCtx, &wpi)
 		}

@@ -24,6 +24,7 @@ import (
 	"github.com/logrange/logrange/pkg/model"
 	"github.com/logrange/logrange/pkg/model/tag"
 	"github.com/logrange/logrange/pkg/tindex"
+	"github.com/logrange/range/pkg/records/journal"
 	"io"
 	"strings"
 	"time"
@@ -32,8 +33,9 @@ import (
 type (
 	// Querier is a backend structure used by an api implementation
 	Querier struct {
-		TIndex      tindex.Service   `inject:""`
-		CurProvider *cursor.Provider `inject:""`
+		TIndex      tindex.Service     `inject:""`
+		CurProvider *cursor.Provider   `inject:""`
+		Journals    journal.Controller `inject:""`
 
 		logger log4g.Logger
 	}
@@ -136,8 +138,13 @@ func (q *Querier) Sources(ctx context.Context, tagsCond string) (*api.SourcesRes
 
 	srcs := make([]api.Source, len(mp))
 	idx := 0
-	for tags := range mp {
+	for tags, src := range mp {
 		srcs[idx].Tags = string(tags)
+		j, err := q.Journals.GetOrCreate(ctx, src)
+		if err == nil {
+			srcs[idx].Size = j.Size()
+			srcs[idx].Records = j.Count()
+		}
 		idx++
 	}
 

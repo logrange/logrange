@@ -260,6 +260,17 @@ func (c *client) doDescribe(ctx context.Context, tc string) (*api.SourcesResult,
 	return res, res.Err
 }
 
+func (c *client) truncate(ctx context.Context, cond string, maxSize uint64) (api.TruncateResult, error) {
+	if c.rpc == nil {
+		err := c.connect()
+		if err != nil {
+			return api.TruncateResult{}, err
+		}
+	}
+
+	return c.rpc.Admin().Truncate(ctx, cond, maxSize)
+}
+
 func (c *client) query(ctx context.Context, qr *api.QueryRequest) (*api.QueryResult, error) {
 	if c.rpc == nil {
 		err := c.connect()

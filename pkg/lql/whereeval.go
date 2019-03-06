@@ -220,5 +220,5 @@ func parseTime(val string) (uint64, error) {
 		}
 	}
 
-	return uint64(tm.Unix()), nil
+	return uint64(tm.UnixNano()), nil
 }

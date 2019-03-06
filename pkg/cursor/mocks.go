@@ -70,7 +70,7 @@ func (tj *testJrnl) Write(ctx context.Context, rit records.Iterator) (int, journ
 }
 
 // Size returns the summarized chunks size
-func (tj *testJrnl) Size() int64 {
+func (tj *testJrnl) Size() uint64 {
 	return 0
 }
 

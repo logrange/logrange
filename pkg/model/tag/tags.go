@@ -125,6 +125,10 @@ func (s *Set) UnmarshalJSON(buf []byte) error {
 	return err
 }
 
+func (l Line) String() string {
+	return string(l)
+}
+
 func (m tagMap) equalTo(m2 tagMap) bool {
 	if len(m) != len(m2) {
 		return false
