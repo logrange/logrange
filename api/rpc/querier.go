@@ -115,14 +115,6 @@ func (sq *ServerQuerier) query(reqId int32, reqBody []byte, sc *rrpc.ServerConn)
 		return
 	}
 
-	state := cursor.State{Id: rq.ReqId, Query: rq.Query, Pos: rq.Pos}
-	cur, err := sq.CurProvider.GetOrCreate(sq.MainCtx, state)
-	if err != nil {
-		sq.logger.Warn("query(): Could not get/create a cursor, err=", err, " state=", state)
-		sc.SendResponse(reqId, err, cEmptyResponse)
-		return
-	}
-
 	limit := rq.Limit
 	if limit < 0 {
 		sc.SendResponse(reqId, fmt.Errorf("limit is negative"), cEmptyResponse)
@@ -133,6 +125,16 @@ func (sq *ServerQuerier) query(reqId int32, reqBody []byte, sc *rrpc.ServerConn)
 		limit = backend.QueryMaxLimit
 	}
 	lim := limit
+
+	cache := rq.WaitTimeout > 0 || limit != rq.Limit
+
+	state := cursor.State{Id: rq.ReqId, Query: rq.Query, Pos: rq.Pos}
+	cur, err := sq.CurProvider.GetOrCreate(sq.MainCtx, state, cache)
+	if err != nil {
+		sq.logger.Warn("query(): Could not get/create a cursor, err=", err, " state=", state)
+		sc.SendResponse(reqId, err, cEmptyResponse)
+		return
+	}
 
 	var qr queryResultBuilder
 	var le api.LogEvent

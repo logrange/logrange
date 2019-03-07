@@ -229,6 +229,15 @@ func (cur *Cursor) collectPos() string {
 	return buf.String()
 }
 
+func (cur *Cursor) close() {
+	for _, jd := range cur.jDescs {
+		jd.it.Close()
+		jd.it = nil
+		jd.j = nil
+	}
+	cur.jDescs = nil
+}
+
 func (cur *Cursor) applyPos() error {
 	if !cur.applyCornerPos(cur.state.Pos) {
 		err := cur.applyStatePos()

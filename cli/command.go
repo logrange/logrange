@@ -289,7 +289,7 @@ func truncFn(ctx context.Context, cfg *config) error {
 	}
 
 	if res.Err != nil {
-		return fmt.Errorf("server returned the error: ", res.Err)
+		return fmt.Errorf("server returned the error: %s", res.Err)
 	}
 
 	first := true

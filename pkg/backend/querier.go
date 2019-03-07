@@ -58,13 +58,6 @@ func (q *Querier) Query(ctx context.Context, req *api.QueryRequest) (*api.QueryR
 			QueryMaxWaitTimeout, req.WaitTimeout)
 	}
 
-	state := cursor.State{Id: req.ReqId, Query: req.Query, Pos: req.Pos}
-	cur, err := q.CurProvider.GetOrCreate(ctx, state)
-	if err != nil {
-		q.logger.Warn("Query(): Could not get/create a cursor, err=", err, " state=", state)
-		return nil, err
-	}
-
 	limit := req.Limit
 	if limit < 0 {
 		return nil, fmt.Errorf("wrong limit value, expected not-negative integer, but got %d", limit)
@@ -75,6 +68,15 @@ func (q *Querier) Query(ctx context.Context, req *api.QueryRequest) (*api.QueryR
 		limit = QueryMaxLimit
 	}
 	lim := limit
+
+	cache := req.WaitTimeout > 0 || limit != req.Limit
+
+	state := cursor.State{Id: req.ReqId, Query: req.Query, Pos: req.Pos}
+	cur, err := q.CurProvider.GetOrCreate(ctx, state, cache)
+	if err != nil {
+		q.logger.Warn("Query(): Could not get/create a cursor, err=", err, " state=", state)
+		return nil, err
+	}
 
 	var sb strings.Builder
 	var lge model.LogEvent

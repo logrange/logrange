@@ -79,7 +79,7 @@ func (p *Provider) Shutdown() {
 
 // GetOrCreate gets existing or creates a new cursor. if state.Id is 0, the new cursor will be always created.
 // If the cursor is returned it must be released explicitly by Release() to be garbage collected properly
-func (p *Provider) GetOrCreate(ctx context.Context, state State) (*Cursor, error) {
+func (p *Provider) GetOrCreate(ctx context.Context, state State, cache bool) (*Cursor, error) {
 	var res *Cursor
 	if state.Id > 0 {
 		p.lock.Lock()
@@ -116,6 +116,9 @@ func (p *Provider) GetOrCreate(ctx context.Context, state State) (*Cursor, error
 	if err != nil {
 		return nil, err
 	}
+	if !cache {
+		return cur, err
+	}
 
 	p.lock.Lock()
 	e := p.free
@@ -144,6 +147,7 @@ func (p *Provider) Release(ctx context.Context, cur *Cursor) State {
 	if !ok {
 		p.lock.Unlock()
 		p.logger.Debug("Releasing cursor, which is not in the cache anymore: ", cur)
+		cur.close()
 		return res
 	}
 	ch := e.Val.(*curHldr)
@@ -184,7 +188,11 @@ func (p *Provider) sweepBySize() {
 	for len(p.curs) > p.maxCurs {
 		e := p.busy.Prev()
 		ch := e.Val.(*curHldr)
+		if !ch.busy {
+			ch.cur.close()
+		}
 		delete(p.curs, ch.cur.Id())
+		ch.cur = nil
 		p.busy = p.busy.TearOff(e)
 		cnt++
 	}
@@ -204,6 +212,8 @@ func (p *Provider) sweepByTime() {
 		if ch.expTime.Before(now) {
 			if ch.busy {
 				p.logger.Warn("Removing cursor ", ch.cur, " due to timeout, but it is not returned yet!")
+			} else {
+				ch.cur.close()
 			}
 			e1 := e.Next()
 			p.busy = p.busy.TearOff(e)

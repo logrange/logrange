@@ -21,7 +21,7 @@ import (
 	"github.com/logrange/logrange/collector/model"
 	"github.com/logrange/logrange/collector/remote"
 	"github.com/logrange/logrange/collector/scanner"
-	"github.com/logrange/logrange/collector/storage"
+	"github.com/logrange/logrange/pkg/storage"
 )
 
 var (
@@ -33,10 +33,12 @@ func Run(ctx context.Context, cfg *Config) error {
 	if err != nil {
 		return fmt.Errorf("failed to create storage, err=%v", err)
 	}
+
 	scanr, err := scanner.NewScanner(cfg.Scanner, store)
 	if err != nil {
 		return fmt.Errorf("failed to create scanner, err=%v", err)
 	}
+
 	client, err := remote.NewClient(cfg.Remote)
 	if err != nil {
 		return fmt.Errorf("failed to create client, err=%v", err)

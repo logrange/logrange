@@ -22,7 +22,7 @@ import (
 	"github.com/jrivets/log4g"
 	"github.com/logrange/logrange/collector/model"
 	"github.com/logrange/logrange/collector/scanner/parser"
-	"github.com/logrange/logrange/collector/storage"
+	"github.com/logrange/logrange/pkg/storage"
 	"github.com/stretchr/testify/assert"
 	"io"
 	"os"

@@ -12,30 +12,24 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package collector
+package forwarder
 
 import (
 	"encoding/json"
-	"fmt"
-	"github.com/logrange/logrange/collector/remote"
-	"github.com/logrange/logrange/collector/scanner"
 	"github.com/logrange/logrange/pkg/storage"
 	"io/ioutil"
 )
 
-// Config struct just aggregate different types of configs in one place
-type Config struct {
-	Remote  *remote.Config
-	Scanner *scanner.Config
-	Storage *storage.Config
-}
-
-//===================== config =====================
+type (
+	// Config struct contains the forwarder configuration
+	Config struct {
+		// Storage is the place where the forwarder state could be stored
+		Storage *storage.Config
+	}
+)
 
 func NewDefaultConfig() *Config {
 	return &Config{
-		Remote:  remote.NewDefaultConfig(),
-		Scanner: scanner.NewDefaultConfig(),
 		Storage: storage.NewDefaultConfig(),
 	}
 }
@@ -45,11 +39,13 @@ func LoadCfgFromFile(path string) (*Config, error) {
 	if err != nil {
 		return nil, err
 	}
+
 	cfg := &Config{}
 	err = json.Unmarshal(data, cfg)
 	if err != nil {
 		return nil, err
 	}
+
 	return cfg, nil
 }
 
@@ -58,29 +54,5 @@ func (c *Config) Apply(other *Config) {
 		return
 	}
 
-	c.Remote.Apply(other.Remote)
-	c.Scanner.Apply(other.Scanner)
 	c.Storage.Apply(other.Storage)
-}
-
-func (c *Config) Check() error {
-	if c.Remote == nil {
-		return fmt.Errorf("invalid config; Remote=%v, must be non-nil", c.Remote)
-	}
-	if c.Scanner == nil {
-		return fmt.Errorf("invalid config; Scanner=%v, must be non-nil", c.Scanner)
-	}
-	if c.Storage == nil {
-		return fmt.Errorf("invalid config; Storage=%v, must be non-nil", c.Storage)
-	}
-	if err := c.Remote.Check(); err != nil {
-		return err
-	}
-	if err := c.Scanner.Check(); err != nil {
-		return err
-	}
-	if err := c.Storage.Check(); err != nil {
-		return err
-	}
-	return nil
 }

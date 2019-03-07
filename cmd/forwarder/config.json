@@ -1,0 +1,55 @@
+{
+  "Remote": {
+    "Transport": {
+      "ListenAddr": "127.0.0.1:9966",
+      "TlsEnabled": false,
+      "Tls2Way": false,
+      "TlsCertFile": "/opt/logrange/collector/ssl/client.crt",
+      "TlsKeyFile": "/opt/logrange/collector/ssl/client.key",
+      "TlsCAFile": "/opt/logrange/collector/ssl/ca.pem"
+    },
+    "ConnectMaxRetry": 3,
+    "ConnectRetryIntervalSec": 5
+  },
+  "Scanner": {
+    "IncludePaths": [
+      "/var/log/*.log",
+      "/var/log/*/*.log"
+    ],
+    "ExcludeMatchers": [],
+    "ScanPathsIntervalSec": 20,
+    "StateStoreIntervalSec": 10,
+    "EventMaxRecords": 1000,
+    "RecordMaxSizeBytes": 16384,
+    "Schemas": [
+      {
+        "PathMatcher": "/*(?:.+/)*(?P<file>.+\\..+)",
+        "DataFormat": "text",
+        "DateFormats": [
+          "DD/MMM/YYYY:HH:mm:ss ZZZZ"
+        ],
+        "Meta": {
+          "Tags": {
+            "file": "{file}"
+          }
+        }
+      },
+      {
+        "PathMatcher": "/*(?:.+/)*(?P<pod>.+)_(?P<ns>.+)_(?P<cname>.+)-(?P<cid>.+)\\..+",
+        "DataFormat": "k8json",
+        "Meta": {
+          "Tags": {
+            "pod": "{pod}",
+            "ns": "{ns}",
+            "cname": "{cname}",
+            "cid": "{cid}"
+          }
+        }
+      }
+    ]
+  },
+  "Storage": {
+    "Type": "file",
+    "Location": "/opt/logrange/collector/storage/"
+  }
+}

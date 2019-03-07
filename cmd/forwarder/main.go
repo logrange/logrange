@@ -18,7 +18,7 @@ import (
 	"context"
 	"github.com/jrivets/log4g"
 	"github.com/logrange/logrange/cmd"
-	"github.com/logrange/logrange/collector"
+	"github.com/logrange/logrange/forwarder"
 	"github.com/logrange/logrange/pkg/storage"
 	"gopkg.in/urfave/cli.v2"
 	"os"
@@ -38,14 +38,14 @@ const (
 func main() {
 	defer log4g.Shutdown()
 	app := &cli.App{
-		Name:    "collector",
+		Name:    "forwarder",
 		Version: Version,
-		Usage:   "Log Collector Agent",
+		Usage:   "Log Forwarder",
 		Commands: []*cli.Command{
 			{
 				Name:   "start",
-				Usage:  "Run collector agent",
-				Action: runCollector,
+				Usage:  "Run forwarder",
+				Action: runForwarder,
 				Flags: []cli.Flag{
 					&cli.StringFlag{
 						Name:  argStartLogCfgFile,
@@ -53,11 +53,11 @@ func main() {
 					},
 					&cli.StringFlag{
 						Name:  argStartCfgFile,
-						Usage: "collector configuration file path",
+						Usage: "forwarder configuration file path",
 					},
 					&cli.StringFlag{
 						Name:  argStartStorageDir,
-						Usage: "collector storage directory",
+						Usage: "forwarder storage directory",
 					},
 				},
 			},
@@ -68,11 +68,11 @@ func main() {
 	sort.Sort(cli.FlagsByName(app.Commands[0].Flags))
 	sort.Sort(cli.CommandsByName(app.Commands))
 	if err := app.Run(os.Args); err != nil {
-		getLogger().Fatal("Failed to run collector, cause: ", err)
+		getLogger().Fatal("Failed to run forwarder, cause: ", err)
 	}
 }
 
-func runCollector(c *cli.Context) error {
+func runForwarder(c *cli.Context) error {
 	logCfgFile := c.String(argStartLogCfgFile)
 	if logCfgFile != "" {
 		err := log4g.ConfigF(logCfgFile)
@@ -82,12 +82,12 @@ func runCollector(c *cli.Context) error {
 	}
 
 	logger := getLogger()
-	cfg := collector.NewDefaultConfig()
+	cfg := forwarder.NewDefaultConfig()
 
 	cfgFile := c.String(argStartCfgFile)
 	if cfgFile != "" {
-		logger.Info("Loading collector config from=", cfgFile)
-		config, err := collector.LoadCfgFromFile(cfgFile)
+		logger.Info("Loading forwarder config from=", cfgFile)
+		config, err := forwarder.LoadCfgFromFile(cfgFile)
 		if err != nil {
 			return err
 		}
@@ -97,13 +97,13 @@ func runCollector(c *cli.Context) error {
 	applyArgsToCfg(c, cfg)
 	ctx, cancel := context.WithCancel(context.Background())
 	cmd.NewNotifierOnIntTermSignal(func(s os.Signal) {
-		getLogger().Warn("Handling signal=", s)
+		logger.Warn("Handling signal=", s)
 		cancel()
 	})
-	return collector.Run(ctx, cfg)
+	return forwarder.Run(ctx, cfg)
 }
 
-func applyArgsToCfg(c *cli.Context, cfg *collector.Config) {
+func applyArgsToCfg(c *cli.Context, cfg *forwarder.Config) {
 	if sd := c.String(argStartStorageDir); sd != "" {
 		cfg.Storage.Type = storage.TypeFile
 		cfg.Storage.Location = sd
@@ -111,5 +111,5 @@ func applyArgsToCfg(c *cli.Context, cfg *collector.Config) {
 }
 
 func getLogger() log4g.Logger {
-	return log4g.GetLogger("collector")
+	return log4g.GetLogger("forwarder")
 }
