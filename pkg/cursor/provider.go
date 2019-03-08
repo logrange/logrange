@@ -148,6 +148,7 @@ func (p *Provider) Release(ctx context.Context, cur *Cursor) State {
 		p.lock.Unlock()
 		p.logger.Debug("Releasing cursor, which is not in the cache anymore: ", cur)
 		cur.close()
+		res.Id = 0
 		return res
 	}
 	ch := e.Val.(*curHldr)

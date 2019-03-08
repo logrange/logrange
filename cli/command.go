@@ -217,7 +217,7 @@ func buildReq(selStr string, stream bool) (*api.QueryRequest, *model.FormatParse
 
 	waitSec := 0
 	if stream {
-		waitSec = 1
+		waitSec = 10
 	}
 
 	qr := &api.QueryRequest{

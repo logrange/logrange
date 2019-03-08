@@ -66,7 +66,6 @@ func (cq *clntQuerier) Query(ctx context.Context, req *api.QueryRequest, res *ap
 	if res != nil {
 		if opErr == nil {
 			_, err = unmarshalQueryResult(resp, res, true)
-			return err
 		}
 		res.Err = opErr
 	}
@@ -149,6 +148,8 @@ func (sq *ServerQuerier) query(reqId int32, reqBody []byte, sc *rrpc.ServerConn)
 			le.Message = lge.Msg
 			le.Timestamp = lge.Timestamp
 			qr.writeLogEvent(&le)
+			limit--
+			cur.Next(sq.MainCtx)
 		}
 
 		if err == io.EOF && limit == lim && rq.WaitTimeout > 0 {
@@ -160,9 +161,6 @@ func (sq *ServerQuerier) query(reqId int32, reqBody []byte, sc *rrpc.ServerConn)
 				break
 			}
 		}
-
-		limit--
-		cur.Next(sq.MainCtx)
 	}
 
 	state = sq.CurProvider.Release(sq.MainCtx, cur)

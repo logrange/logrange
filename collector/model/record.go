@@ -21,8 +21,8 @@ import (
 // Record is a file entry (e.g. log line) represented as a slice of bytes
 // plus some parsed out (or additional) meta information attached to it.
 // Sometimes it's convenient to parse out the needed info from the file entry
-// on the client side and not remote, it saves remote resources. Also
-// remote may simply not know some information which client knows (e.g.
+// on the client side and not sink, it saves sink resources. Also
+// sink may simply not know some information which client knows (e.g.
 // containerId).
 type Record struct {
 

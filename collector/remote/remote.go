@@ -48,7 +48,7 @@ func NewClient(cfg *Config) (*Client, error) {
 
 	cli := new(Client)
 	cli.cfg = deepcopy.Copy(cfg).(*Config)
-	cli.logger = log4g.GetLogger("remote")
+	cli.logger = log4g.GetLogger("sink")
 	return cli, nil
 }
 

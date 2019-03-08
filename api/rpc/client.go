@@ -36,6 +36,7 @@ func NewClient(tcfg transport.Config) (*Client, error) {
 	if err != nil {
 		return nil, err
 	}
+
 	c := new(Client)
 	c.rc = rrpc.NewClient(conn)
 	c.cing = new(clntIngestor)

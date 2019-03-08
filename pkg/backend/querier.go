@@ -94,6 +94,8 @@ func (q *Querier) Query(ctx context.Context, req *api.QueryRequest) (*api.QueryR
 			le.Timestamp = lge.Timestamp
 			sb.Reset()
 			events = append(events, le)
+			limit--
+			cur.Next(ctx)
 		}
 
 		if err == io.EOF && limit == lim && req.WaitTimeout > 0 {
@@ -105,9 +107,6 @@ func (q *Querier) Query(ctx context.Context, req *api.QueryRequest) (*api.QueryR
 				break
 			}
 		}
-
-		limit--
-		cur.Next(ctx)
 	}
 
 	state = q.CurProvider.Release(ctx, cur)

@@ -19,6 +19,7 @@ import (
 	"github.com/jrivets/log4g"
 	"github.com/logrange/logrange/cmd"
 	"github.com/logrange/logrange/forwarder"
+	"github.com/logrange/logrange/forwarder/runner"
 	"github.com/logrange/logrange/pkg/storage"
 	"gopkg.in/urfave/cli.v2"
 	"os"
@@ -100,7 +101,7 @@ func runForwarder(c *cli.Context) error {
 		logger.Warn("Handling signal=", s)
 		cancel()
 	})
-	return forwarder.Run(ctx, cfg)
+	return runner.Run(ctx, cfg)
 }
 
 func applyArgsToCfg(c *cli.Context, cfg *forwarder.Config) {

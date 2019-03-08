@@ -120,6 +120,9 @@ func newFileStorage(location string) (Storage, error) {
 
 func (fs *fileStorage) ReadData(key string) ([]byte, error) {
 	data, err := ioutil.ReadFile(key)
+	if os.IsNotExist(err) {
+		return nil, os.ErrNotExist
+	}
 	if err == nil {
 		fs.logger.Debug("Read key=", key, ", value=", string(data))
 	}

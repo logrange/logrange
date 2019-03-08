@@ -14,7 +14,10 @@
 
 package api
 
-import "context"
+import (
+	"context"
+	"fmt"
+)
 
 type (
 
@@ -84,3 +87,11 @@ type (
 		Sources(ctx context.Context, TagsCond string, res *SourcesResult) error
 	}
 )
+
+func (qr *QueryRequest) String() string {
+	return fmt.Sprintf("{ReqId: %d, Query: %s, Pos: %s, WaitTimeout: %d, Limit: %d}", qr.ReqId, qr.Query, qr.Pos, qr.WaitTimeout, qr.Limit)
+}
+
+func (qres *QueryResult) String() string {
+	return fmt.Sprintf("{Events: %d, NextQueryReq: %s, Err: %v}", len(qres.Events), qres.NextQueryRequest.String(), qres.Err)
+}
