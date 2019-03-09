@@ -21,16 +21,18 @@ trap cleanup EXIT
 CUR_PATH=$(pwd)
 LGR_PATH=${TMP_PATH}/src/github.com/logrange
 
-echo "Getting current git branch..."
-BRANCH=$(git rev-parse --abbrev-ref HEAD)
-check $?
+BRANCH=$1
+if [[ -z ${BRANCH} ]]; then
+    BRANCH=$(git rev-parse --abbrev-ref HEAD)
+    check $?
+fi
 
 echo "Creating tmp sources folder '${LGR_PATH}'..."
 mkdir -p ${LGR_PATH}
 check $?
 
 cd ${LGR_PATH}
-echo "Cloning git repo to '${LGR_PATH}/logrange'..."
+echo "Cloning git branch '${BRANCH}' to '${LGR_PATH}/logrange'..."
 git clone -b ${BRANCH} git@github.com:logrange/logrange.git >> /dev/null 2>&1
 check $?
 
@@ -58,6 +60,3 @@ do
         check $?
     done
 done
-
-
-
