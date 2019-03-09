@@ -32,7 +32,7 @@ if [[ "$ARCH" != "x86_64" ]]; then
     error "Architecture '${ARCH}' is not supported!"
 fi
 
-URL=https://raw.githubusercontent.com/logrange/logrange/master/build/latest/${OS}/${ARCH}/${CMD}
+URL=https://raw.githubusercontent.com/logrange/logrange/master/build/binaries/${OS}/${ARCH}/${CMD}
 echo "Downloading from ${URL}..."
 
 curl -sOfL ${URL}
@@ -41,4 +41,4 @@ if [[ $? -ne 0 ]]; then
 fi
 
 chmod +x ${CMD}
-echo "Done! Try running '${CMD}'"
+echo "Done! Try running '${CMD}'..."

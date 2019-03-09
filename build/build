@@ -38,14 +38,14 @@ cd ${LGR_PATH}/logrange
 env GOPATH=${TMP_PATH} go get -d -u ./... >> /dev/null 2>&1
 check $?
 
-echo "Building logrange binaries to ${CUR_PATH}/latest..."
-mkdir -p ${CUR_PATH}/latest
+echo "Building logrange binaries to ${CUR_PATH}/binaries..."
+mkdir -p ${CUR_PATH}/binaries
 check $?
 
 ARCH="amd64"
 for OS in "linux" "darwin"
 do
-    cd ${CUR_PATH}/latest
+    cd ${CUR_PATH}/binaries
     mkdir -p ${OS}/x86_64
     check $?
 
