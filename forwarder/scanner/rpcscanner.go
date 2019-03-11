@@ -42,12 +42,12 @@ type (
 const (
 	cRpcScanDefaultLimit       = 1000
 	cRpcScanDefaultWaitTimeout = 10
-	cRpcStorageKey             = "forwarder"
+	cRpcStorageKey             = "lr-fwd"
 )
 
 func NewRpcScanner(cfg *forwarder.Config, storage storage.Storage, sink forwarder.Sink) forwarder.Scanner {
 	return &rpcScnanner{
-		logger:  log4g.GetLogger("forwarder"),
+		logger:  log4g.GetLogger("lr-fwd"),
 		cfg:     cfg.ScanConfig,
 		trCfg:   cfg.Transport,
 		storage: storage,

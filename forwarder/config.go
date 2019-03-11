@@ -34,12 +34,12 @@ type (
 		Params         map[string]interface{}
 	}
 
-	// Config struct contains the forwarder configuration
+	// Config struct contains the lr-fwd configuration
 	Config struct {
 		// SinkConfig defines a config of sink. Default is empty will be selected by
 		SinkConfig SinkConfig
 		ScanConfig ScanConfig
-		// Storage is the place where the forwarder state could be stored
+		// Storage is the place where the lr-fwd state could be stored
 		Storage   *storage.Config
 		Transport transport.Config
 	}
@@ -47,6 +47,8 @@ type (
 
 func NewDefaultConfig() *Config {
 	cfg := &Config{Storage: storage.NewDefaultConfig()}
+	cfg.Storage.Type = storage.TypeFile
+	cfg.Storage.Location = "/opt/logrange/lr-fwd"
 	cfg.Transport.ListenAddr = "127.0.0.1:9966"
 	cfg.ScanConfig.Lql = "select source file=hfs_convert.log limit 10000"
 	return cfg

@@ -67,6 +67,7 @@ func (le *LogEvent) Unmarshal(buf []byte, newBuf bool) (int, error) {
 	if err != nil {
 		return n, err
 	}
+
 	le.Timestamp = ts
 	nn := n
 	n, le.Msg, err = xbinary.UnmarshalString(buf[n:], newBuf)

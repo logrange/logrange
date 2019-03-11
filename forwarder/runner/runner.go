@@ -24,10 +24,10 @@ import (
 )
 
 var (
-	logger = log4g.GetLogger("forwarder")
+	logger = log4g.GetLogger("lr-fwd")
 )
 
-// Run executes the forwarder process using ctx context provided and the forwarder configuration
+// Run executes the lr-fwd process using ctx context provided and the lr-fwd configuration
 func Run(ctx context.Context, cfg *forwarder.Config) error {
 	logger.Info("Running.")
 	sink, err := createSink(cfg)
@@ -43,7 +43,7 @@ func Run(ctx context.Context, cfg *forwarder.Config) error {
 	scnr := scanner.NewRpcScanner(cfg, strg, sink)
 	err = scnr.Run(ctx)
 	if err != ctx.Err() {
-		logger.Error("could not start forwarder, err=", err)
+		logger.Error("could not start lr-fwd, err=", err)
 	}
 
 	logger.Info("Shutdown.")

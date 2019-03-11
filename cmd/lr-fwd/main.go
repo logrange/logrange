@@ -39,13 +39,13 @@ const (
 func main() {
 	defer log4g.Shutdown()
 	app := &cli.App{
-		Name:    "forwarder",
+		Name:    "lr-fwd",
 		Version: Version,
 		Usage:   "Log Forwarder",
 		Commands: []*cli.Command{
 			{
 				Name:   "start",
-				Usage:  "Run forwarder",
+				Usage:  "Run lr-fwd",
 				Action: runForwarder,
 				Flags: []cli.Flag{
 					&cli.StringFlag{
@@ -54,11 +54,11 @@ func main() {
 					},
 					&cli.StringFlag{
 						Name:  argStartCfgFile,
-						Usage: "forwarder configuration file path",
+						Usage: "lr-fwd configuration file path",
 					},
 					&cli.StringFlag{
 						Name:  argStartStorageDir,
-						Usage: "forwarder storage directory",
+						Usage: "lr-fwd storage directory",
 					},
 				},
 			},
@@ -69,7 +69,7 @@ func main() {
 	sort.Sort(cli.FlagsByName(app.Commands[0].Flags))
 	sort.Sort(cli.CommandsByName(app.Commands))
 	if err := app.Run(os.Args); err != nil {
-		getLogger().Fatal("Failed to run forwarder, cause: ", err)
+		getLogger().Fatal("Failed to run lr-fwd, cause: ", err)
 	}
 }
 
@@ -87,7 +87,7 @@ func runForwarder(c *cli.Context) error {
 
 	cfgFile := c.String(argStartCfgFile)
 	if cfgFile != "" {
-		logger.Info("Loading forwarder config from=", cfgFile)
+		logger.Info("Loading lr-fwd config from=", cfgFile)
 		config, err := forwarder.LoadCfgFromFile(cfgFile)
 		if err != nil {
 			return err
@@ -112,5 +112,5 @@ func applyArgsToCfg(c *cli.Context, cfg *forwarder.Config) {
 }
 
 func getLogger() log4g.Logger {
-	return log4g.GetLogger("forwarder")
+	return log4g.GetLogger("lr-fwd")
 }

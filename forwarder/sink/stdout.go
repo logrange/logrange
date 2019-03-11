@@ -25,7 +25,8 @@ type (
 	}
 )
 
-func NewStdSkink() forwarder.Sink {
+func NewStdSkink(cfg forwarder.SinkConfig) forwarder.Sink {
+
 	return &stdoutSink{}
 }
 
