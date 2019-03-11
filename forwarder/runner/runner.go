@@ -51,5 +51,5 @@ func Run(ctx context.Context, cfg *forwarder.Config) error {
 }
 
 func createSink(cfg *forwarder.Config) (forwarder.Sink, error) {
-	return sink.NewStdSkink(), nil
+	return sink.NewStdSkink(cfg.SinkConfig), nil
 }
