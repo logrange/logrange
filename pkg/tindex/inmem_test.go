@@ -19,6 +19,7 @@ import (
 	"github.com/jrivets/log4g"
 	"github.com/logrange/logrange/pkg/lql"
 	"github.com/logrange/logrange/pkg/model/tag"
+	"github.com/logrange/range/pkg/records"
 	"github.com/logrange/range/pkg/records/journal"
 	"io/ioutil"
 	"os"
@@ -29,12 +30,48 @@ type testJournals struct {
 	js []string
 }
 
-func (tjc *testJournals) GetJournals(ctx context.Context) []string {
-	return tjc.js
+func (tjc *testJournals) Visit(ctx context.Context, cv journal.ControllerVisitorF) {
+	for _, jn := range tjc.js {
+		if !cv(&testJrnl{jn}) {
+			return
+		}
+	}
 }
 
 func (tjc *testJournals) GetOrCreate(ctx context.Context, jname string) (journal.Journal, error) {
 	return nil, nil
+}
+
+type testJrnl struct {
+	name string
+}
+
+func (tj *testJrnl) Name() string {
+	return tj.name
+}
+
+func (tj *testJrnl) Write(ctx context.Context, rit records.Iterator) (int, journal.Pos, error) {
+	return 0, journal.Pos{}, nil
+}
+
+func (tj *testJrnl) Size() uint64 {
+	return 0
+}
+
+func (tj *testJrnl) Count() uint64 {
+	return 0
+}
+
+func (tj *testJrnl) Iterator() journal.Iterator {
+	return nil
+}
+
+func (tj *testJrnl) Sync() {
+
+}
+
+func (tj *testJrnl) Chunks() journal.ChnksController {
+	return nil
 }
 
 func BenchmarkFindIndex(b *testing.B) {
@@ -143,7 +180,7 @@ func TestCheckLoadReload(t *testing.T) {
 
 }
 
-func TestGetJournals(t *testing.T) {
+func TestVisitor(t *testing.T) {
 	dir, err := ioutil.TempDir("", "GetJournals")
 	if err != nil {
 		t.Fatal("Could not create new dir err=", err)
@@ -162,66 +199,41 @@ func TestGetJournals(t *testing.T) {
 	src2, _ := ims.GetOrCreateJournal("dda=basdfasdf,c=asdfasdfasdfddd")
 
 	ps, _ := lql.ParseSource("{dda=basdfasdf}")
-	res, _, err := ims.GetJournals(ps, 10, false)
+	res, err := getJournals(ims, ps)
 	if err != nil || len(res) != 2 || res[tags] != src || res[tags2] != src2 {
 		t.Fatal("err=", err, " res=", res, ", Src=", src, ", src2=", src2)
 	}
 
 	ps, _ = lql.ParseSource("dda=basdfasdf  and c=asdfasdfasdf")
-	res, _, err = ims.GetJournals(ps, 10, false)
+	res, err = getJournals(ims, ps)
 	if err != nil || len(res) != 1 || res[tags] != src {
 		t.Fatal("err=", err, " res=", res, ", Src=", src)
 	}
 
 	ps, _ = lql.ParseSource("{c=asdfasdfasdf,dda=basdfasdf}")
-	res, _, err = ims.GetJournals(ps, 10, false)
+	res, err = getJournals(ims, ps)
 	if err != nil || len(res) != 1 || res[tags] != src {
 		t.Fatal("err=", err, " res=", res, ", Src=", src)
 	}
 
 	ps, _ = lql.ParseSource("{" + string(tags) + "}")
-	res, _, err = ims.GetJournals(ps, 10, false)
+	res, err = getJournals(ims, ps)
 	if err != nil || len(res) != 1 || res[tags] != src {
 		t.Fatal("err=", err, " res=", res, ", Src=", src)
 	}
 
 	ps, _ = lql.ParseSource("a=234")
-	res, _, err = ims.GetJournals(ps, 5, false)
+	res, err = getJournals(ims, ps)
 	if err != nil || len(res) != 0 {
 		t.Fatal("err=", err, " res=", res)
 	}
-
 }
 
-func TestGetJournalsLimits(t *testing.T) {
-	dir, err := ioutil.TempDir("", "GetJournals")
-	if err != nil {
-		t.Fatal("Could not create new dir err=", err)
-	}
-	defer os.RemoveAll(dir) // clean up
-
-	ims := NewInmemService().(*inmemService)
-	ims.Journals = &testJournals{}
-	ims.Config = &InMemConfig{WorkingDir: dir, DoNotSave: true}
-	ims.Init(nil)
-	ims.GetOrCreateJournal("{name=app1,ip=123}")
-	ims.GetOrCreateJournal("{name=app1,ip=1233}")
-	ims.GetOrCreateJournal("name=app1,ip=12334")
-
-	ps, _ := lql.ParseSource("name=app1")
-	res, _, err := ims.GetJournals(ps, 1, false)
-	if err != nil || len(res) != 1 {
-		t.Fatal("err=", err, " res=", res)
-	}
-
-	res, cnt, err := ims.GetJournals(ps, 10, true)
-	if err != nil || len(res) != 3 || cnt != 3 {
-		t.Fatal("err=", err, " res=", res, ", cnt=", cnt)
-	}
-
-	res, cnt, err = ims.GetJournals(ps, 2, false)
-	if err != nil || len(res) != 2 || cnt != 3 {
-		t.Fatal("err=", err, " res=", res, ", cnt=", cnt)
-	}
-
+func getJournals(ims *inmemService, srcCond *lql.Source) (map[tag.Line]string, error) {
+	res := make(map[tag.Line]string)
+	err := ims.Visit(srcCond, func(tags tag.Set, jrnl string) bool {
+		res[tags.Line()] = jrnl
+		return true
+	})
+	return res, err
 }

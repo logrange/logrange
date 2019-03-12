@@ -58,8 +58,6 @@ type (
 	}
 )
 
-const cMaxSources = 50
-
 // newCursor creates the new cursor based on the state provided.
 func newCursor(ctx context.Context, state State, tidx tindex.Service, jctrl journal.Controller) (*Cursor, error) {
 	sel, err := lql.Parse(state.Query)
@@ -67,17 +65,17 @@ func newCursor(ctx context.Context, state State, tidx tindex.Service, jctrl jour
 		return nil, errors.Wrapf(err, "could not parse lql=%s", state.Query)
 	}
 
-	srcs, _, err := tidx.GetJournals(sel.Source, cMaxSources+1, false)
+	srcs := make(map[tag.Line]string, 10)
+	err = tidx.Visit(sel.Source, func(tags tag.Set, jrnl string) bool {
+		srcs[tags.Line()] = jrnl
+		return true
+	})
 	if err != nil {
 		return nil, errors.Wrapf(err, "could not get a list of journals for the query %s", state.Query)
 	}
 
 	if len(srcs) == 0 {
 		return nil, errors.Errorf("no sources for the expression the query %s", state.Query)
-	}
-
-	if len(srcs) > cMaxSources {
-		return nil, errors.Errorf("too many sources (greater than %d) correspond to the query \"%s\", more concreate condition is needed to reduce the number. ", cMaxSources, state.Query)
 	}
 
 	jd := make(map[string]*jrnlDesc, len(srcs))
@@ -191,7 +189,7 @@ func (cur *Cursor) WaitNewData(ctx context.Context) error {
 	ctx2, cancel := context.WithCancel(ctx)
 	for _, it := range cur.jDescs {
 		go func(jrnl journal.Journal, pos journal.Pos) {
-			jrnl.WaitNewData(ctx2, pos)
+			jrnl.Chunks().WaitForNewData(ctx2, pos)
 			cancel()
 		}(it.j, it.it.Pos())
 	}

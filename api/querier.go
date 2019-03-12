@@ -73,6 +73,12 @@ type (
 		// Count number of sources which meet the TagsCond criteria
 		Count int
 
+		// Total size of all sources
+		TotalSize uint64
+
+		// Total record for all sources
+		TotalRec uint64
+
 		// Err the operaion error, if any
 		Err error `json:"-"`
 	}

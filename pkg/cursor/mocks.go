@@ -18,6 +18,7 @@ import (
 	"fmt"
 	"github.com/logrange/logrange/pkg/lql"
 	"github.com/logrange/logrange/pkg/model/tag"
+	"github.com/logrange/logrange/pkg/tindex"
 	"github.com/logrange/range/pkg/records"
 	"github.com/logrange/range/pkg/records/journal"
 )
@@ -31,8 +32,17 @@ func (tis *testTidxService) GetOrCreateJournal(tags string) (string, error) {
 	return "", nil
 }
 
-func (tis *testTidxService) GetJournals(tagsCond *lql.Source, maxSize int, checkAll bool) (map[tag.Line]string, int, error) {
-	return tis.journals, len(tis.journals), nil
+func (tis *testTidxService) Visit(srcCond *lql.Source, v tindex.VisitorF) error {
+	for tl, jrnl := range tis.journals {
+		s, err := tag.Parse(tl.String())
+		if err != nil {
+			return err
+		}
+		if !v(s, jrnl) {
+			return nil
+		}
+	}
+	return nil
 }
 
 type testJrnlCtrlr struct {
@@ -53,6 +63,14 @@ func (tjc *testJrnlCtrlr) GetJournals(ctx context.Context) []string {
 		res = append(res, src)
 	}
 	return res
+}
+
+func (tjc *testJrnlCtrlr) Visit(ctx context.Context, cv journal.ControllerVisitorF) {
+	for src := range tjc.mp {
+		if !cv(&testJrnl{src}) {
+			return
+		}
+	}
 }
 
 type testJrnl struct {
@@ -83,14 +101,9 @@ func (tj *testJrnl) Iterator() journal.Iterator {
 	return &testJIterator{journal: tj.name}
 }
 
-func (tj *testJrnl) WaitNewData(ctx context.Context, pos journal.Pos) error {
+func (tj *testJrnl) Chunks() journal.ChnksController {
 	panic("not supported")
 	return nil
-}
-
-func (tj *testJrnl) Truncate(ctx context.Context, maxSize uint64, otf journal.OnTrunkF) (int, error) {
-	panic("not supported")
-	return 0, nil
 }
 
 // Sync could be called after a write to sync the written data with the

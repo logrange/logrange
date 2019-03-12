@@ -18,12 +18,10 @@ import (
 	"context"
 	"fmt"
 	"github.com/logrange/logrange/api"
+	"github.com/logrange/logrange/pkg/journal"
 	"github.com/logrange/logrange/pkg/model"
-	"github.com/logrange/logrange/pkg/tindex"
-	"github.com/logrange/range/pkg/records"
-	"github.com/logrange/range/pkg/records/journal"
+	"github.com/logrange/logrange/pkg/model/tag"
 	rrpc "github.com/logrange/range/pkg/rpc"
-	"github.com/logrange/range/pkg/utils/bytes"
 	"github.com/logrange/range/pkg/utils/encoding/xbinary"
 	"io"
 	"sync"
@@ -32,10 +30,8 @@ import (
 type (
 	// ServerIngestor is a struct, which provides the ingestor RPC functionality.
 	ServerIngestor struct {
-		Pool     *bytes.Pool        `inject:""`
-		Journals journal.Controller `inject:""`
-		TIndex   tindex.Service     `inject:""`
-		MainCtx  context.Context    `inject:"mainCtx"`
+		Journals *journal.Service `inject:""`
+		MainCtx  context.Context  `inject:"mainCtx"`
 
 		wg sync.WaitGroup
 	}
@@ -49,13 +45,12 @@ type (
 		events []*api.LogEvent
 	}
 
-	// wpIterator is the struct which receives the slice of bytes and provides a xbinary.WIterator, sutable for
+	// wpIterator is the struct which receives the slice of bytes and provides a records.Iteratro, sutable for
 	// writing the data directly to a journal
 	wpIterator struct {
-		pool *bytes.Pool
-		src  string
+		tags string
+		lge  model.LogEvent
 		buf  []byte
-		rec  []byte
 		read bool
 		pos  int
 		recs int
@@ -106,14 +101,9 @@ func (si *ServerIngestor) write(reqId int32, reqBody []byte, sc *rrpc.ServerConn
 	defer si.wg.Done()
 
 	var wpi wpIterator
-	wpi.pool = si.Pool
-	err := wpi.init(reqBody, si.TIndex)
+	err := wpi.init(reqBody)
 	if err == nil {
-		var jrnl journal.Journal
-		jrnl, err = si.Journals.GetOrCreate(si.MainCtx, wpi.src)
-		if err == nil {
-			_, _, err = jrnl.Write(si.MainCtx, &wpi)
-		}
+		err = si.Journals.Write(si.MainCtx, wpi.tags, &wpi)
 	}
 
 	sc.SendResponse(reqId, err, cEmptyResponse)
@@ -151,14 +141,10 @@ func (wp *writePacket) WriteTo(ow *xbinary.ObjectsWriter) (int, error) {
 	return nn, nil
 }
 
-func (wpi *wpIterator) init(buf []byte, tidx tindex.Service) (err error) {
+func (wpi *wpIterator) init(buf []byte) (err error) {
 	wpi.buf = buf
-	idx, tags, err := xbinary.UnmarshalString(buf, false)
-	if err != nil {
-		return err
-	}
-
-	wpi.src, err = tidx.GetOrCreateJournal(tags)
+	var idx int
+	idx, wpi.tags, err = xbinary.UnmarshalString(buf, false)
 	if err != nil {
 		return err
 	}
@@ -178,19 +164,19 @@ func (wpi *wpIterator) init(buf []byte, tidx tindex.Service) (err error) {
 	return
 }
 
-// Next is a part of xbinary.WIterator
+// Next is a part of records.Iterator
 func (wpi *wpIterator) Next(ctx context.Context) {
 	wpi.read = false
 }
 
-// Get is a part of xbinary.WIterator
-func (wpi *wpIterator) Get(ctx context.Context) (records.Record, error) {
+// Get is a part of records.Iterator
+func (wpi *wpIterator) Get(ctx context.Context) (model.LogEvent, tag.Line, error) {
 	if wpi.read {
-		return wpi.rec, nil
+		return wpi.lge, tag.EmptyLine, nil
 	}
 
 	if wpi.cur >= wpi.recs {
-		return nil, io.EOF
+		return wpi.lge, tag.EmptyLine, io.EOF
 	}
 
 	wpi.cur++
@@ -198,26 +184,17 @@ func (wpi *wpIterator) Get(ctx context.Context) (records.Record, error) {
 	var le api.LogEvent
 	n, err := unmarshalLogEvent(wpi.buf[wpi.pos:], &le, false)
 	if err != nil {
-		return nil, err
+		return wpi.lge, tag.EmptyLine, io.EOF
 	}
 	wpi.pos += n
 	wpi.read = true
 
-	var lge model.LogEvent
-	lge.Timestamp = le.Timestamp
-	lge.Msg = le.Message
+	wpi.lge.Timestamp = le.Timestamp
+	wpi.lge.Msg = le.Message
 
-	sz := lge.WritableSize()
-	if cap(wpi.rec) < sz {
-		wpi.pool.Release(wpi.rec)
-		wpi.rec = wpi.pool.Arrange(sz)
-	}
-	wpi.rec = wpi.rec[:sz]
-	lge.Marshal(wpi.rec)
-
-	return wpi.rec, nil
+	return wpi.lge, tag.EmptyLine, nil
 }
 
 func (wpi *wpIterator) String() string {
-	return fmt.Sprintf("buf len=%d, src=%s, read=%t, pos=%d, recs=%d, cur=%d", len(wpi.buf), wpi.src, wpi.read, wpi.pos, wpi.recs, wpi.cur)
+	return fmt.Sprintf("buf len=%d, tags=%s, read=%t, pos=%d, recs=%d, cur=%d", len(wpi.buf), wpi.tags, wpi.read, wpi.pos, wpi.recs, wpi.cur)
 }

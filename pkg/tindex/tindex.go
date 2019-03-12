@@ -26,9 +26,11 @@ type (
 		// GetOrCreateJournal returns the journal name for the unique Tags combination
 		GetOrCreateJournal(tags string) (string, error)
 
-		// GetJournals returns map of matched Tags to the journals they address by the source expression
-		// the function receive maxSize of the result map and the flag checkAll which allows to count total matches found.
-		// It returns the resulted map, number or matches in total (if checkAll is provided) and an error if any
-		GetJournals(srcCond *lql.Source, maxSize int, checkAll bool) (map[tag.Line]string, int, error)
+		// Visit walks over the tags-sources that corresponds to the srcCond.
+		Visit(srcCond *lql.Source, v VisitorF) error
 	}
+
+	// VisitorF is the callback function which si called by Service.Visit for all matches found. It wil iterate
+	// over the visit set until it is over or the function returns false
+	VisitorF func(tags tag.Set, jrnl string) bool
 )

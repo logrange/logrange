@@ -126,33 +126,33 @@ func (ims *inmemService) GetOrCreateJournal(tags string) (string, error) {
 	return res, nil
 }
 
-func (ims *inmemService) GetJournals(srcCond *lql.Source, maxSize int, checkAll bool) (map[tag.Line]string, int, error) {
+func (ims *inmemService) Visit(srcCond *lql.Source, vf VisitorF) error {
 	tef, err := lql.BuildTagsExpFuncBySource(srcCond)
 	if err != nil {
-		return nil, 0, err
+		return err
 	}
 
 	ims.lock.Lock()
 	if ims.done {
 		ims.lock.Unlock()
-		return nil, 0, fmt.Errorf("already shut-down.")
+		return fmt.Errorf("already shut-down.")
 	}
 
-	count := 0
-	res := make(map[tag.Line]string, 10)
+	vstd := make([]*tagsDesc, 0, 100)
 	for _, td := range ims.tmap {
 		if tef(td.tags) {
-			count++
-			if len(res) < maxSize {
-				res[td.tags.Line()] = td.Src
-			} else if !checkAll {
-				break
-			}
+			vstd = append(vstd, td)
 		}
 	}
 	ims.lock.Unlock()
 
-	return res, count, nil
+	for _, v := range vstd {
+		if !vf(v.tags, v.Src) {
+			return nil
+		}
+	}
+
+	return nil
 }
 
 func (ims *inmemService) saveStateUnsafe() error {
@@ -195,31 +195,33 @@ func (ims *inmemService) checkConsistency(ctx context.Context) error {
 	}
 
 	ims.logger.Info("Checking the index and data consistency")
-	knwnJrnls := ims.Journals.GetJournals(ctx)
 	fail := false
 	km := make(map[string]string, len(ims.tmap))
 	for _, d := range ims.tmap {
 		km[d.Src] = d.Src
 	}
 
-	for _, src := range knwnJrnls {
-		if _, ok := km[src]; !ok {
-			ims.logger.Error("found journal ", src, ", but it is not in the tindex")
+	jCnt := 0
+	ims.Journals.Visit(ctx, func(j journal.Journal) bool {
+		jCnt++
+		if _, ok := km[j.Name()]; !ok {
+			ims.logger.Error("found journal ", j.Name(), ", but it is not in the tindex")
 			fail = true
-			continue
+		} else {
+			delete(km, j.Name())
 		}
-		delete(km, src)
-	}
+		return true
+	})
 
 	if len(km) > 0 {
 		ims.logger.Warn("tindex contains %d records, which don't have corresponding journals")
 	}
 
 	if fail {
-		ims.logger.Error("Consistency check failed. ", len(knwnJrnls), " sources found and ", len(ims.tmap), " records in tindex")
-		return errors.Errorf("data is inconsistent. %d journals and %d tindex records found. Some journals don't have records in the tindex", len(knwnJrnls), len(ims.tmap))
+		ims.logger.Error("Consistency check failed. ", jCnt, " sources found and ", len(ims.tmap), " records in tindex")
+		return errors.Errorf("data is inconsistent. %d journals and %d tindex records found. Some journals don't have records in the tindex", jCnt, len(ims.tmap))
 	}
-	ims.logger.Info("Consistency check passed. ", len(knwnJrnls), " sources found and all of them have correct tindex record. ",
+	ims.logger.Info("Consistency check passed. ", jCnt, " sources found and all of them have correct tindex record. ",
 		len(ims.tmap), " index records in total.")
 	return ims.saveStateUnsafe()
 }

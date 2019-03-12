@@ -44,7 +44,7 @@ func TestNewCursor(t *testing.T) {
 	}
 
 	cur, err = newCursor(nil, State{Query: "select limit 10"},
-		&testTidxService{map[tag.Line]string{"j1=j1": "j1", "j2": "j2"}},
+		&testTidxService{map[tag.Line]string{"j1=j1": "j1", "j2=j2": "j2"}},
 		&testJrnlCtrlr{map[string]*testJrnl{"j1": &testJrnl{"j1"}, "j2": &testJrnl{"j2"}}})
 	if err != nil {
 		t.Fatal("err must be nil, but err=", err)

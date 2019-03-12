@@ -129,25 +129,38 @@ func (q *Querier) Sources(ctx context.Context, tagsCond string) (*api.SourcesRes
 		return nil, err
 	}
 
-	mp, count, err := q.TIndex.GetJournals(src, 100, true)
+	srcs := make([]api.Source, 0, 100)
+	ts := uint64(0)
+	tr := uint64(0)
+	count := 0
+	var opErr error
+	err = q.TIndex.Visit(src, func(tags tag.Set, jrnl string) bool {
+		count++
+		j, err := q.Journals.GetOrCreate(ctx, jrnl)
+		if err != nil {
+			q.logger.Error("Could not create of get journal instance for ", jrnl, ", err=", err)
+			opErr = err
+			return false
+		}
+		ts += j.Size()
+		tr += j.Count()
+		if cap(srcs) > len(srcs) {
+			srcs = append(srcs, api.Source{Tags: tags.Line().String(), Size: j.Size(), Records: j.Count()})
+		}
+		return true
+	})
+
 	if err != nil {
 		q.logger.Warn("Sources(): could not obtain sources err=", err)
 		return nil, err
 	}
 
-	q.logger.Debug("Requested journals for ", tagsCond, ". returned ", len(mp), " in map with total count=", count)
-
-	srcs := make([]api.Source, len(mp))
-	idx := 0
-	for tags, src := range mp {
-		srcs[idx].Tags = string(tags)
-		j, err := q.Journals.GetOrCreate(ctx, src)
-		if err == nil {
-			srcs[idx].Size = j.Size()
-			srcs[idx].Records = j.Count()
-		}
-		idx++
+	if opErr != nil {
+		q.logger.Warn("Sources(): error in a visitor err=", err, " will repot as a failure.")
+		return nil, err
 	}
 
-	return &api.SourcesResult{Sources: srcs, Count: count}, nil
+	q.logger.Debug("Requested journals for ", tagsCond, ". returned ", len(srcs), " in map with total count=", count)
+
+	return &api.SourcesResult{Sources: srcs, Count: count, TotalSize: ts, TotalRec: tr}, nil
 }
