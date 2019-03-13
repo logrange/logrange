@@ -26,6 +26,7 @@ import (
 	"github.com/logrange/logrange/client/shell"
 	"github.com/logrange/logrange/pkg/storage"
 	"github.com/logrange/logrange/pkg/utils"
+	"github.com/logrange/range/pkg/transport"
 	ucli "gopkg.in/urfave/cli.v2"
 	"os"
 	"sort"
@@ -46,9 +47,6 @@ const (
 )
 
 var (
-	cli  api.Client
-	strg storage.Storage
-
 	cfg    = client.NewDefaultConfig()
 	logger = log4g.GetLogger("lr")
 )
@@ -83,13 +81,13 @@ func main() {
 		Commands: []*ucli.Command{
 			{
 				Name:   "collect",
-				Usage:  "run collector",
+				Usage:  "run data collection",
 				Action: runCollector,
 				Flags:  cmnFlags,
 			},
 			{
 				Name:   "forward",
-				Usage:  "run forwarder",
+				Usage:  "run data forwarding",
 				Action: runForwarder,
 				Flags:  cmnFlags,
 			},
@@ -120,7 +118,10 @@ func main() {
 	}
 
 	if err := app.Run(os.Args); err != nil {
-		logger.Fatal(err)
+		logger.Error(err)
+		if logger.GetLevel() == log4g.FATAL {
+			fmt.Println(err)
+		}
 	}
 }
 
@@ -148,16 +149,6 @@ func initialize(c *ucli.Context) error {
 	}
 
 	applyArgsToCfg(c, cfg)
-	cli, err = rpc.NewClient(*cfg.Transport)
-	if err != nil {
-		return fmt.Errorf("failed to create client, err=%v", err)
-	}
-
-	strg, err = storage.NewStorage(cfg.Storage)
-	if err != nil {
-		return fmt.Errorf("failed to create storage, err=%v", err)
-	}
-
 	return nil
 }
 
@@ -180,6 +171,22 @@ func newCtx() context.Context {
 	return ctx
 }
 
+func newClient(cfg transport.Config) (api.Client, error) {
+	cli, err := rpc.NewClient(cfg)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create client, err=%v", err)
+	}
+	return cli, err
+}
+
+func newStorage(cfg *storage.Config) (storage.Storage, error) {
+	strg, err := storage.NewStorage(cfg)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create storage, err=%v", err)
+	}
+	return strg, err
+}
+
 //===================== collector =====================
 
 func runCollector(c *ucli.Context) error {
@@ -187,6 +194,18 @@ func runCollector(c *ucli.Context) error {
 	if err != nil {
 		return err
 	}
+
+	cli, err := newClient(*cfg.Transport)
+	if err != nil {
+		return err
+	}
+
+	defer cli.Close()
+	strg, err := newStorage(cfg.Storage)
+	if err != nil {
+		return err
+	}
+
 	return collector.Run(newCtx(), cfg, cli, strg)
 }
 
@@ -197,6 +216,18 @@ func runForwarder(c *ucli.Context) error {
 	if err != nil {
 		return err
 	}
+
+	cli, err := newClient(*cfg.Transport)
+	if err != nil {
+		return err
+	}
+
+	defer cli.Close()
+	_, err = newStorage(cfg.Storage)
+	if err != nil {
+		return err
+	}
+
 	return nil
 }
 
@@ -214,8 +245,13 @@ func execQuery(c *ucli.Context) error {
 		return err
 	}
 
-	stream := c.Bool(argQueryStreamMode)
-	return shell.Query(newCtx(), query, stream, cli)
+	cli, err := newClient(*cfg.Transport)
+	if err != nil {
+		return err
+	}
+
+	defer cli.Close()
+	return shell.Query(newCtx(), query, c.Bool(argQueryStreamMode), cli)
 }
 
 //===================== shell =====================
@@ -227,7 +263,12 @@ func runShell(c *ucli.Context) error {
 		return err
 	}
 
-	applyArgsToCfg(c, cfg)
+	cli, err := newClient(*cfg.Transport)
+	if err != nil {
+		return err
+	}
+
+	defer cli.Close()
 	return shell.Run(cli)
 }
 

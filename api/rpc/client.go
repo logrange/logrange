@@ -90,7 +90,13 @@ func (c *Client) Truncate(ctx context.Context, cond string, maxSize uint64) (api
 		}
 	}
 
-	return c.admin.Truncate(ctx, cond, maxSize)
+	res, err := c.admin.Truncate(ctx, cond, maxSize)
+	if err != nil {
+		_ = c.Close()
+		return api.TruncateResult{}, err
+	}
+
+	return res, nil
 }
 
 func (c *Client) Query(ctx context.Context, qr *api.QueryRequest, res *api.QueryResult) error {
@@ -118,5 +124,11 @@ func (c *Client) Write(ctx context.Context, tags string, evs []*api.LogEvent, re
 		}
 	}
 
-	return c.cing.Write(ctx, tags, evs, res)
+	err := c.cing.Write(ctx, tags, evs, res)
+	if err != nil {
+		_ = c.Close()
+		return err
+	}
+
+	return res.Err
 }

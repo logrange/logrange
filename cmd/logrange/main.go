@@ -112,11 +112,10 @@ func runServer(c *cli.Context) error {
 }
 
 func applyArgsToCfg(c *cli.Context, cfg *server.Config) {
-	dc := server.GetDefaultConfig()
-	if hid := c.Int(argStartHostHostId); int(dc.HostHostId) != hid {
+	if hid := c.Int(argStartHostHostId); int(cfg.HostHostId) != hid {
 		cfg.HostHostId = cluster.HostId(hid)
 	}
-	if jd := c.String(argStartJournalDir); dc.JrnlCtrlConfig.JournalsDir != jd {
+	if jd := c.String(argStartJournalDir); jd != "" {
 		cfg.JrnlCtrlConfig.JournalsDir = jd
 	}
 }

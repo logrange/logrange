@@ -94,7 +94,7 @@ func (rs *rpcScnanner) Run(ctx context.Context) error {
 			continue
 		}
 
-		err = rs.client.Querier().Query(ctx, &req, &qr)
+		//err = rs.client.Querier().Query(ctx, &req, &qr)
 		if err != nil {
 			rs.disconnect()
 			sleepDur := time.Second

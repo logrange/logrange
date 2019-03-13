@@ -50,21 +50,18 @@ func Run(ctx context.Context, cfg *client.Config,
 		case <-ctx.Done():
 			break
 		case ev := <-events:
-			if err != nil {
-				logger.Info("Communication error, retry in ",
-					5, "sec; cause: ", err)
-
-				_ = cl.Close()
-				utils.Sleep(ctx, 5*time.Second)
-			}
-			if err == nil {
+			for ctx.Err() == nil {
 				err = cl.Write(ctx, toTagLine(ev), toApiEvents(ev), &wr)
+				if err != nil {
+					logger.Info("Communication error, retry in ", 5, "sec; cause: ", err)
+					utils.Sleep(ctx, 5*time.Second)
+				}
 				if err == nil {
 					if wr.Err != nil {
-						logger.Warn("Error ingesting event=", ev,
-							", server err=", wr.Err)
+						logger.Warn("Error ingesting event=", ev, ", server err=", wr.Err)
 					}
 					ev.Confirm()
+					break
 				}
 			}
 		}
@@ -72,6 +69,7 @@ func Run(ctx context.Context, cfg *client.Config,
 
 	_ = scanr.Close()
 	close(events)
+
 	logger.Info("Shutdown.")
 	return err
 }
