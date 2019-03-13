@@ -11,16 +11,30 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
-package tindex
+
+package journal
 
 import (
-	"fmt"
-	"github.com/logrange/logrange/pkg/utils"
+	"encoding/json"
+	"github.com/logrange/range/pkg/records/chunk"
+	"reflect"
+	"testing"
 )
 
-func newSrc() string {
-	id := utils.NextSimpleId()
-	// making 2 last digits changing from one id to another to be sure the journals will go to different sub-folders
-	// (see NextSimpleId() implementation for details)
-	return fmt.Sprintf("%X%02X", id, (id>>16)&0xFF)
+func TestMarshal(t *testing.T) {
+	v := map[string]sortedChunks{"aaa": {&chkInfo{Id: chunk.NewId(), MinTs: 1234, MaxTs: 1234}}}
+	res, err := json.Marshal(v)
+	if err != nil {
+		t.Fatal("could not marshal v=", v, ", err=", err)
+	}
+
+	var v1 map[string]sortedChunks
+	err = json.Unmarshal(res, &v1)
+	if err != nil {
+		t.Fatal("could not unmarshal res=", string(res), ", err=", err)
+	}
+
+	if !reflect.DeepEqual(v, v1) {
+		t.Fatalf("v=%v, v1=%v", v, v1)
+	}
 }

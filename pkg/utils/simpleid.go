@@ -26,6 +26,9 @@ func init() {
 	lastTid = (uint64(time.Now().UnixNano()) & 0xFFFFFFFFFFFF0000) | uint64(cluster.HostId16&0xFFFF)
 }
 
+// NextSimpleId makes an pseudo-unique 64 bit identifier. The uniquiness could be supported by assigning
+// the last 16 bits of the identifier unique per process. It is user's responsibility to be sure that the host Id
+// part to be unique per process in a cluster of machines.
 func NextSimpleId() uint64 {
 	for {
 		ltid := atomic.LoadUint64(&lastTid)

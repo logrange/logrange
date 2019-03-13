@@ -42,7 +42,7 @@ func Start(ctx context.Context, cfg *Config) error {
 	injector.Register(
 		linker.Component{Name: "HostRegistryConfig", Value: cfg},
 		linker.Component{Name: "JournalControllerConfig", Value: &cfg.JrnlCtrlConfig},
-		linker.Component{Name: "tindexDir", Value: cfg.JrnlCtrlConfig.JournalsDir},
+		linker.Component{Name: "cindexDir", Value: cfg.JrnlCtrlConfig.JournalsDir},
 		linker.Component{Name: "publicRpcTransport", Value: cfg.PublicApiRpc},
 		linker.Component{Name: "inmemServiceConfig", Value: imsCfg},
 		linker.Component{Name: "mainCtx", Value: ctx},

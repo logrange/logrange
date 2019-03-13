@@ -28,6 +28,8 @@ type (
 		pool *bytes.Pool
 		rec  []byte
 		read bool
+
+		minTs, maxTs uint64
 	}
 )
 
@@ -44,6 +46,14 @@ func (iw *iwrapper) Get(ctx context.Context) (records.Record, error) {
 	lge, _, err := iw.it.Get(ctx)
 	if err != nil {
 		return nil, err
+	}
+
+	if iw.minTs == 0 || iw.minTs > lge.Timestamp {
+		iw.minTs = lge.Timestamp
+	}
+
+	if iw.maxTs == 0 || iw.maxTs < lge.Timestamp {
+		iw.maxTs = lge.Timestamp
 	}
 
 	sz := lge.WritableSize()

@@ -156,7 +156,7 @@ func (q *Querier) Sources(ctx context.Context, tagsCond string) (*api.SourcesRes
 	}
 
 	if opErr != nil {
-		q.logger.Warn("Sources(): error in a visitor err=", err, " will repot as a failure.")
+		q.logger.Warn("Sources(): error in a visitor err=", err, " will report as a failure.")
 		return nil, err
 	}
 
