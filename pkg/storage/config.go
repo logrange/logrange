@@ -16,7 +16,7 @@ package storage
 
 import (
 	"fmt"
-	"github.com/logrange/logrange/collector/utils"
+	"github.com/logrange/logrange/pkg/utils"
 	"strings"
 )
 

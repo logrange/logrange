@@ -19,8 +19,13 @@ import (
 	"context"
 	"fmt"
 	"github.com/jrivets/log4g"
-	"github.com/logrange/logrange/cli"
-	"github.com/logrange/logrange/cmd"
+	"github.com/logrange/logrange/api"
+	"github.com/logrange/logrange/api/rpc"
+	"github.com/logrange/logrange/client"
+	"github.com/logrange/logrange/client/collector"
+	"github.com/logrange/logrange/client/shell"
+	"github.com/logrange/logrange/pkg/storage"
+	"github.com/logrange/logrange/pkg/utils"
 	ucli "gopkg.in/urfave/cli.v2"
 	"os"
 	"sort"
@@ -32,46 +37,77 @@ const (
 )
 
 const (
-	argServerAddr      = "server-addr"
+	argCfgFile    = "config-file"
+	argLogCfgFile = "log-config-file"
+	argServerAddr = "server-addr"
+	argStorageDir = "storage-dir"
+
 	argQueryStreamMode = "stream-mode"
 )
 
-var cfg = cli.NewDefaultConfig()
+var (
+	cli  api.Client
+	strg storage.Storage
+
+	cfg    = client.NewDefaultConfig()
+	logger = log4g.GetLogger("lr")
+)
 
 func main() {
 	defer log4g.Shutdown()
+
+	cmnFlags := []ucli.Flag{
+		&ucli.StringFlag{
+			Name:  argServerAddr,
+			Usage: "server address",
+			Value: cfg.Transport.ListenAddr,
+		},
+		&ucli.StringFlag{
+			Name:  argStorageDir,
+			Usage: "storage directory",
+		},
+		&ucli.StringFlag{
+			Name:  argCfgFile,
+			Usage: "configuration file path",
+		},
+		&ucli.StringFlag{
+			Name:  argLogCfgFile,
+			Usage: "log4g configuration file path",
+		},
+	}
+
 	app := &ucli.App{
 		Name:    "lr",
 		Version: Version,
-		Usage:   "Logrange Command Line Interface",
-		Action:  shell,
+		Usage:   "Logrange client",
 		Commands: []*ucli.Command{
 			{
-				Name:      "query",
-				Usage:     "execute Lql query",
-				Action:    query,
-				ArgsUsage: "[Lql query]",
-				Flags: []ucli.Flag{
-					&ucli.StringFlag{
-						Name:  argServerAddr,
-						Usage: "logrange server address",
-						Value: cfg.Transport.ListenAddr,
-					},
-					&ucli.BoolFlag{
-						Name:  argQueryStreamMode,
-						Usage: "enable query stream mode (blocking)",
-					},
-				},
+				Name:   "collect",
+				Usage:  "run collector",
+				Action: runCollector,
+				Flags:  cmnFlags,
+			},
+			{
+				Name:   "forward",
+				Usage:  "run forwarder",
+				Action: runForwarder,
+				Flags:  cmnFlags,
 			},
 			{
 				Name:   "shell",
-				Usage:  "run Lql shell",
-				Action: shell,
-				Flags: []ucli.Flag{
-					&ucli.StringFlag{
-						Name:  argServerAddr,
-						Usage: "logrange server address",
-						Value: cfg.Transport.ListenAddr,
+				Usage:  "run lql shell",
+				Action: runShell,
+				Flags:  []ucli.Flag{cmnFlags[0]},
+			},
+			{
+				Name:      "query",
+				Usage:     "execute lql query",
+				Action:    execQuery,
+				ArgsUsage: "[lql query]",
+				Flags: []ucli.Flag{cmnFlags[0],
+					&ucli.BoolFlag{
+						Name:  argQueryStreamMode,
+						Usage: "enable query stream mode (blocking)",
 					},
 				},
 			},
@@ -79,55 +115,141 @@ func main() {
 	}
 
 	sort.Sort(ucli.FlagsByName(app.Flags))
-	sort.Sort(ucli.FlagsByName(app.Commands[0].Flags))
-	sort.Sort(ucli.FlagsByName(app.Commands[1].Flags))
+	for _, cmd := range app.Commands {
+		sort.Sort(ucli.FlagsByName(cmd.Flags))
+	}
 
-	log4g.SetLogLevel("", log4g.FATAL)
 	if err := app.Run(os.Args); err != nil {
-		fmt.Println(err)
+		logger.Fatal(err)
 	}
 }
 
-func query(c *ucli.Context) error {
-	if err := applyQuery(c); err != nil {
-		return err
+func initialize(c *ucli.Context) error {
+	var (
+		err error
+	)
+
+	logCfgFile := c.String(argLogCfgFile)
+	if logCfgFile != "" {
+		err = log4g.ConfigF(logCfgFile)
+		if err != nil {
+			return err
+		}
 	}
+
+	cfgFile := c.String(argCfgFile)
+	if cfgFile != "" {
+		logger.Info("Loading config from=", cfgFile)
+		config, err := client.LoadCfgFromFile(cfgFile)
+		if err != nil {
+			return err
+		}
+		cfg.Apply(config)
+	}
+
 	applyArgsToCfg(c, cfg)
+	cli, err = rpc.NewClient(*cfg.Transport)
+	if err != nil {
+		return fmt.Errorf("failed to create client, err=%v", err)
+	}
+
+	strg, err = storage.NewStorage(cfg.Storage)
+	if err != nil {
+		return fmt.Errorf("failed to create storage, err=%v", err)
+	}
+
+	return nil
+}
+
+func applyArgsToCfg(c *ucli.Context, cfg *client.Config) {
+	if sa := c.String(argServerAddr); sa != "" {
+		cfg.Transport.ListenAddr = sa
+	}
+	if sd := c.String(argStorageDir); sd != "" {
+		cfg.Storage.Type = storage.TypeFile
+		cfg.Storage.Location = sd
+	}
+}
+
+func newCtx() context.Context {
 	ctx, cancel := context.WithCancel(context.Background())
-	cmd.NewNotifierOnIntTermSignal(func(s os.Signal) {
+	utils.NewNotifierOnIntTermSignal(func(s os.Signal) {
+		logger.Warn("Handling signal=", s)
 		cancel()
 	})
-	return cli.Query(ctx, cfg)
+	return ctx
 }
 
-func shell(c *ucli.Context) error {
+//===================== collector =====================
+
+func runCollector(c *ucli.Context) error {
+	err := initialize(c)
+	if err != nil {
+		return err
+	}
+	return collector.Run(newCtx(), cfg, cli, strg)
+}
+
+//===================== forwarder =====================
+
+func runForwarder(c *ucli.Context) error {
+	err := initialize(c)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+//===================== query =====================
+
+func execQuery(c *ucli.Context) error {
+	log4g.SetLogLevel("", log4g.FATAL)
+	err := initialize(c)
+	if err != nil {
+		return err
+	}
+
+	query, err := getQuery(c)
+	if err != nil {
+		return err
+	}
+
+	stream := c.Bool(argQueryStreamMode)
+	return shell.Query(newCtx(), query, stream, cli)
+}
+
+//===================== shell =====================
+
+func runShell(c *ucli.Context) error {
+	log4g.SetLogLevel("", log4g.FATAL)
+	err := initialize(c)
+	if err != nil {
+		return err
+	}
+
 	applyArgsToCfg(c, cfg)
-	return cli.Shell(cfg)
+	return shell.Run(cli)
 }
 
-func applyQuery(c *ucli.Context) error {
+func getQuery(c *ucli.Context) ([]string, error) {
+	var (
+		query []string
+	)
+
 	stat, _ := os.Stdin.Stat()
 	if (stat.Mode() & os.ModeCharDevice) != 0 { //check if NOT file input
 		if len(c.Args().Slice()) != 0 {
-			cfg.Query = append(cfg.Query, strings.Join(c.Args().Slice(), ""))
-			return nil
+			query = append(query, strings.Join(c.Args().Slice(), " "))
+			return query, nil
 		}
 	}
 	scanner := bufio.NewScanner(os.Stdin)
 	for scanner.Scan() { //for now just read it all, later stream if needed
 		t := strings.TrimSpace(scanner.Text())
 		if t != "" {
-			cfg.Query = append(cfg.Query, t)
+			query = append(query, t)
 		}
 	}
-	return scanner.Err()
-}
 
-func applyArgsToCfg(c *ucli.Context, cfg *cli.Config) {
-	if sa := c.String(argServerAddr); sa != "" {
-		cfg.Transport.ListenAddr = sa
-	}
-	if sm := c.Bool(argQueryStreamMode); sm != cfg.StreamMode {
-		cfg.StreamMode = sm
-	}
+	return query, scanner.Err()
 }

@@ -17,7 +17,7 @@ package main
 import (
 	"context"
 	"github.com/jrivets/log4g"
-	"github.com/logrange/logrange/cmd"
+	"github.com/logrange/logrange/pkg/utils"
 	"github.com/logrange/logrange/server"
 	"github.com/logrange/range/pkg/cluster"
 	"gopkg.in/urfave/cli.v2"
@@ -104,7 +104,7 @@ func runServer(c *cli.Context) error {
 
 	applyArgsToCfg(c, cfg)
 	ctx, cancel := context.WithCancel(context.Background())
-	cmd.NewNotifierOnIntTermSignal(func(s os.Signal) {
+	utils.NewNotifierOnIntTermSignal(func(s os.Signal) {
 		getLogger().Warn("Handling signal=", s)
 		cancel()
 	})

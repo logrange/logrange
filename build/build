@@ -52,7 +52,7 @@ do
     check $?
 
     cd ${OS}/x86_64
-    for cmd in "logrange" "collector" "lr"
+    for cmd in "logrange" "lr"
     do
         echo "Building cmd=${cmd}, os=${OS}, arch=${ARCH}..."
         env GOPATH=${TMP_PATH} GOOS=${OS} GOARCH=${ARCH} \

@@ -1,0 +1,52 @@
+{
+  "Forwarder": [
+    {
+      "Lql": "",
+      "Sink": {
+        "Type": "syslog",
+        "Format": "",
+        "Params": {
+          "Server": "",
+          "Certs": ""
+        }
+      }
+    }
+  ],
+  "Collector": {
+    "IncludePaths": [
+      "/var/log/*.log",
+      "/var/log/*/*.log"
+    ],
+    "ExcludeMatchers": [],
+    "ScanPathsIntervalSec": 20,
+    "StateStoreIntervalSec": 10,
+    "EventMaxRecords": 1000,
+    "RecordMaxSizeBytes": 16384,
+    "Schemas": [
+      {
+        "PathMatcher": "/*(?:.+/)*(?P<file>.+\\..+)",
+        "DataFormat": "text",
+        "DateFormats": [
+          "DD/MMM/YYYY:HH:mm:ss ZZZZ"
+        ],
+        "Meta": {
+          "Tags": {
+            "file": "{file}"
+          }
+        }
+      }
+    ]
+  },
+  "Transport": {
+    "ListenAddr": "127.0.0.1:9966",
+    "TlsEnabled": false,
+    "Tls2Way": false,
+    "TlsCertFile": "/opt/logrange/lr/tls/client.crt",
+    "TlsKeyFile": "/opt/logrange/lr/tls/client.key",
+    "TlsCAFile": "/opt/logrange/lr/tls/ca.pem"
+  },
+  "Storage": {
+    "Type": "file",
+    "Location": "/opt/logrange/lr/"
+  }
+}
