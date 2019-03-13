@@ -23,7 +23,6 @@ import (
 	"github.com/logrange/range/pkg/records/chunk"
 	"github.com/logrange/range/pkg/records/chunk/chunkfs"
 	"github.com/logrange/range/pkg/records/journal"
-	"math"
 	"os"
 )
 
@@ -55,42 +54,42 @@ func removeChunkFile(cid chunk.Id, filename string, err error) {
 
 // Truncate provides implementation of api.Admin.Truncate() function
 func (ad *Admin) Truncate(tagsCond string, maxSize uint64) (api.TruncateResult, error) {
-	se, err := lql.ParseSource(tagsCond)
+	_, err := lql.ParseSource(tagsCond)
 	if err != nil {
 		ad.logger.Warn("Could not parse condition ", tagsCond, ", err=", err)
 		return api.TruncateResult{}, err
 	}
 
 	// select journals first
-	mp, _, err := ad.TIndex.GetJournals(se, int(math.MaxInt32), true)
-	if err != nil {
-		ad.logger.Warn("could not get list of sources for ", tagsCond, ", err=", err)
-		return api.TruncateResult{}, err
-	}
+	//mp, _, err := ad.TIndex.GetJournals(se, int(math.MaxInt32), true)
+	//if err != nil {
+	//	ad.logger.Warn("could not get list of sources for ", tagsCond, ", err=", err)
+	//	return api.TruncateResult{}, err
+	//}
 
 	var res api.TruncateResult
 
-	for tags, src := range mp {
-		j, err := ad.Journals.GetOrCreate(ad.MainCtx, src)
-		if err != nil {
-			ad.logger.Warn("Truncate(): could not get the source=", src, ", err=", err)
-			continue
-		}
-		sb := j.Size()
-		cb := j.Count()
-		ccnt, err := j.Truncate(ad.MainCtx, maxSize, removeChunkFile)
-		if err != nil {
-			ad.logger.Error("Truncate(): could not truncate source ", src, " err=", err)
-		}
-		if ccnt == 0 {
-			continue
-		}
-
-		if res.Sources == nil {
-			res.Sources = make([]*api.SourceTruncateResult, 0, 10)
-		}
-		res.Sources = append(res.Sources, &api.SourceTruncateResult{Tags: string(tags), SizeBefore: uint64(sb), RecordsBefore: cb, SizeAfter: uint64(j.Size()), RecordsAfter: j.Count()})
-	}
+	//for tags, src := range mp {
+	//	j, err := ad.Journals.GetOrCreate(ad.MainCtx, src)
+	//	if err != nil {
+	//		ad.logger.Warn("Truncate(): could not get the source=", src, ", err=", err)
+	//		continue
+	//	}
+	//	sb := j.Size()
+	//	cb := j.Count()
+	//	//ccnt, err := j.Truncate(ad.MainCtx, maxSize, removeChunkFile)
+	//	//if err != nil {
+	//	//	ad.logger.Error("Truncate(): could not truncate source ", src, " err=", err)
+	//	//}
+	//	//if ccnt == 0 {
+	//	//	continue
+	//	//}
+	//
+	//	if res.Sources == nil {
+	//		res.Sources = make([]*api.SourceTruncateResult, 0, 10)
+	//	}
+	//	res.Sources = append(res.Sources, &api.SourceTruncateResult{Tags: string(tags), SizeBefore: uint64(sb), RecordsBefore: cb, SizeAfter: uint64(j.Size()), RecordsAfter: j.Count()})
+	//}
 
 	return res, nil
 }

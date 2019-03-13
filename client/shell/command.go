@@ -279,8 +279,6 @@ func descFn(ctx context.Context, cfg *config) error {
 		return err
 	}
 
-	ts := uint64(0)
-	tr := uint64(0)
 	first := true
 	for _, s := range res.Sources {
 		if first {
@@ -289,18 +287,17 @@ func descFn(ctx context.Context, cfg *config) error {
 			first = false
 		}
 
-		fmt.Printf("\n%10s %13s  %s", humanize.Bytes(s.Size),
-			humanize.Comma(int64(s.Records)), s.Tags)
-		ts += s.Size
-		tr += s.Records
+		fmt.Printf("\n%10s %13s  %s", humanize.Bytes(s.Size), humanize.Comma(int64(s.Records)), s.Tags)
 	}
 
 	if !first {
 		if len(res.Sources) < res.Count {
 			fmt.Printf("... and more ...\n")
-		} else if res.Count > 1 {
+		}
+
+		if res.Count > 1 {
 			fmt.Printf("\n----------  -------------")
-			fmt.Printf("\n%10s  %13s\n", humanize.Bytes(ts), humanize.Comma(int64(tr)))
+			fmt.Printf("\n%10s  %13s\n", humanize.Bytes(res.TotalSize), humanize.Comma(int64(res.TotalRec)))
 		}
 	}
 

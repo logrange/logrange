@@ -21,6 +21,7 @@ import (
 	"github.com/logrange/logrange/api/rpc"
 	"github.com/logrange/logrange/pkg/backend"
 	"github.com/logrange/logrange/pkg/cursor"
+	"github.com/logrange/logrange/pkg/journal"
 	"github.com/logrange/logrange/pkg/tindex"
 	"github.com/logrange/range/pkg/cluster/model"
 	"github.com/logrange/range/pkg/kv/inmem"
@@ -41,13 +42,14 @@ func Start(ctx context.Context, cfg *Config) error {
 	injector.Register(
 		linker.Component{Name: "HostRegistryConfig", Value: cfg},
 		linker.Component{Name: "JournalControllerConfig", Value: &cfg.JrnlCtrlConfig},
-		linker.Component{Name: "tindexDir", Value: cfg.JrnlCtrlConfig.JournalsDir},
+		linker.Component{Name: "cindexDir", Value: cfg.JrnlCtrlConfig.JournalsDir},
 		linker.Component{Name: "publicRpcTransport", Value: cfg.PublicApiRpc},
 		linker.Component{Name: "inmemServiceConfig", Value: imsCfg},
 		linker.Component{Name: "mainCtx", Value: ctx},
 		linker.Component{Name: "", Value: new(bytes.Pool)},
 		linker.Component{Name: "", Value: inmem.New()},
 		linker.Component{Name: "", Value: tindex.NewInmemService()},
+		linker.Component{Name: "", Value: journal.NewService()},
 		linker.Component{Name: "", Value: model.NewHostRegistry()},
 		linker.Component{Name: "", Value: model.NewJournalCatalog()},
 		linker.Component{Name: "", Value: rpc.NewServerIngestor()},

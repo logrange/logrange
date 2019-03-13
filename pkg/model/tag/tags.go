@@ -42,8 +42,9 @@ const (
 )
 
 var (
-	emptyMap = tagMap(map[string]string{})
-	emptySet = Set{"", emptyMap}
+	EmptyLine = Line("")
+	emptyMap  = tagMap(map[string]string{})
+	emptySet  = Set{"", emptyMap}
 )
 
 // Parse expects a string in format either "{name=value,name2=value...}" or

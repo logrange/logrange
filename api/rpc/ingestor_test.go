@@ -17,9 +17,6 @@ package rpc
 import (
 	"bytes"
 	"github.com/logrange/logrange/api"
-	"github.com/logrange/logrange/pkg/model"
-	"github.com/logrange/logrange/pkg/tindex"
-	bytes2 "github.com/logrange/range/pkg/utils/bytes"
 	"github.com/logrange/range/pkg/utils/encoding/xbinary"
 	"io"
 	"testing"
@@ -35,18 +32,15 @@ func BenchmarkIterator(b *testing.B) {
 	ow := &xbinary.ObjectsWriter{Writer: btb}
 	wp.WriteTo(ow)
 
-	tidx := tindex.NewInmemServiceWithConfig(tindex.InMemConfig{DoNotSave: true})
-
 	wpi := new(wpIterator)
-	wpi.pool = new(bytes2.Pool)
-	wpi.init(btb.Bytes(), tidx)
+	wpi.init(btb.Bytes())
 
 	b.ReportAllocs()
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		_, err := wpi.Get(nil)
+		_, _, err := wpi.Get(nil)
 		if err == io.EOF {
-			wpi.init(btb.Bytes(), tidx)
+			wpi.init(btb.Bytes())
 		} else {
 			wpi.Next(nil)
 		}
@@ -66,43 +60,34 @@ func TestWritePacket(t *testing.T) {
 		t.Fatal("Expected size=", wp.WritableSize(), ", but real size is ", len(btb.Bytes()))
 	}
 
-	tidx := tindex.NewInmemServiceWithConfig(tindex.InMemConfig{DoNotSave: true})
-	src, err := tidx.GetOrCreateJournal("aaa=bbb")
-	if err != nil {
-		t.Fatal("err must be nil, but err=", err)
-	}
-
+	src := "aaa=bbb"
 	// now test the iterator
 	wpi := new(wpIterator)
-	wpi.pool = new(bytes2.Pool)
-	wpi.init(btb.Bytes(), tidx)
+	wpi.init(btb.Bytes())
 
-	if wpi.src != src || wpi.recs != 2 {
+	if wpi.tags != src || wpi.recs != 2 {
 		t.Fatal("Wrong wpi=", wpi)
 	}
 
-	rec, err := wpi.Get(nil)
+	le, _, err := wpi.Get(nil)
 	if err != nil {
 		t.Fatal("err=", err)
 	}
-	var le model.LogEvent
-	le.Unmarshal(rec, false)
 	if le.Timestamp != 1 || le.Msg != "mes1" {
 		t.Fatal("Something wrong with le=", le)
 	}
 
 	wpi.Next(nil)
-	rec, err = wpi.Get(nil)
+	le, _, err = wpi.Get(nil)
 	if err != nil {
 		t.Fatal("err=", err)
 	}
-	le.Unmarshal(rec, false)
 	if le.Timestamp != 2 || le.Msg != "mes2" {
 		t.Fatal("Something wrong with le=", le)
 	}
 
 	wpi.Next(nil)
-	_, err = wpi.Get(nil)
+	_, _, err = wpi.Get(nil)
 	if err != io.EOF {
 		t.Fatal("Expecting io.EOF, but err=", err)
 	}
@@ -114,12 +99,6 @@ func TestWritePacketWithTindex(t *testing.T) {
 		&api.LogEvent{2, "mes2", "bbb=ttt"},
 	}}
 
-	tidx := tindex.NewInmemServiceWithConfig(tindex.InMemConfig{DoNotSave: true})
-	src, err := tidx.GetOrCreateJournal("aaa=bbb")
-	if err != nil {
-		t.Fatal("err must be nil, but err=", err)
-	}
-
 	btb := &bytes.Buffer{}
 	ow := &xbinary.ObjectsWriter{Writer: btb}
 	wp.WriteTo(ow)
@@ -129,35 +108,31 @@ func TestWritePacketWithTindex(t *testing.T) {
 
 	// now test the iterator
 	wpi := new(wpIterator)
-	wpi.pool = new(bytes2.Pool)
-	wpi.init(btb.Bytes(), tidx)
+	wpi.init(btb.Bytes())
 
-	if wpi.src != src || wpi.recs != 2 {
+	if wpi.tags != wp.tags || wpi.recs != 2 {
 		t.Fatal("Wrong wpi=", wpi)
 	}
 
-	rec, err := wpi.Get(nil)
+	le, _, err := wpi.Get(nil)
 	if err != nil {
 		t.Fatal("err=", err)
 	}
-	var le model.LogEvent
-	le.Unmarshal(rec, false)
 	if le.Timestamp != 1 || le.Msg != "mes1" {
 		t.Fatal("Something wrong with le=", le)
 	}
 
 	wpi.Next(nil)
-	rec, err = wpi.Get(nil)
+	le, _, err = wpi.Get(nil)
 	if err != nil {
 		t.Fatal("err=", err)
 	}
-	le.Unmarshal(rec, false)
 	if le.Timestamp != 2 || le.Msg != "mes2" {
 		t.Fatal("Something wrong with le=", le)
 	}
 
 	wpi.Next(nil)
-	_, err = wpi.Get(nil)
+	_, _, err = wpi.Get(nil)
 	if err != io.EOF {
 		t.Fatal("Expecting io.EOF, but err=", err)
 	}
