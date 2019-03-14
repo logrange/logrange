@@ -15,6 +15,7 @@
 package rpc
 
 import (
+	"context"
 	"github.com/logrange/logrange/api"
 	rrpc "github.com/logrange/range/pkg/rpc"
 	"github.com/logrange/range/pkg/transport"
@@ -24,6 +25,7 @@ type (
 	// Client is rpc client which provides the API interface for clients
 	Client struct {
 		rc     rrpc.Client
+		cfg    transport.Config
 		cing   *clntIngestor
 		cqrier *clntQuerier
 		admin  *clntAdmin
@@ -32,12 +34,28 @@ type (
 
 // NewClient creates new Client for connecting to the server, using the transport config tcfg
 func NewClient(tcfg transport.Config) (*Client, error) {
-	conn, err := transport.NewClientConn(tcfg)
+	c := new(Client)
+	c.cfg = tcfg
+
+	err := c.connect()
+	return c, err
+}
+
+func (c *Client) Close() error {
+	var err error
+	if c.rc != nil {
+		err = c.rc.Close()
+		c.rc = nil
+	}
+	return err
+}
+
+func (c *Client) connect() error {
+	conn, err := transport.NewClientConn(c.cfg)
 	if err != nil {
-		return nil, err
+		return err
 	}
 
-	c := new(Client)
 	c.rc = rrpc.NewClient(conn)
 	c.cing = new(clntIngestor)
 	c.cing.rc = c.rc
@@ -45,26 +63,72 @@ func NewClient(tcfg transport.Config) (*Client, error) {
 	c.cqrier.rc = c.rc
 	c.admin = new(clntAdmin)
 	c.admin.rc = c.rc
-	return c, nil
-}
-
-// Ingestor return api.Ingestor interface for the client
-func (c *Client) Ingestor() api.Ingestor {
-	return c.cing
-}
-
-// Querier returns api.Querier interface for the client
-func (c *Client) Querier() api.Querier {
-	return c.cqrier
-}
-
-// Admin returns api.Admin interface for the client
-func (c *Client) Admin() api.Admin {
-	return c.admin
-}
-
-// Close closes the client
-func (c *Client) Close() error {
-	c.rc.Close()
 	return nil
+}
+
+func (c *Client) Sources(ctx context.Context, tc string, res *api.SourcesResult) error {
+	if c.rc == nil {
+		err := c.connect()
+		if err != nil {
+			return err
+		}
+	}
+
+	err := c.cqrier.Sources(ctx, tc, res)
+	if err != nil {
+		_ = c.Close()
+		return err
+	}
+	return res.Err
+}
+
+func (c *Client) Truncate(ctx context.Context, cond string, maxSize uint64) (api.TruncateResult, error) {
+	if c.rc == nil {
+		err := c.connect()
+		if err != nil {
+			return api.TruncateResult{}, err
+		}
+	}
+
+	res, err := c.admin.Truncate(ctx, cond, maxSize)
+	if err != nil {
+		_ = c.Close()
+		return api.TruncateResult{}, err
+	}
+
+	return res, nil
+}
+
+func (c *Client) Query(ctx context.Context, qr *api.QueryRequest, res *api.QueryResult) error {
+	if c.rc == nil {
+		err := c.connect()
+		if err != nil {
+			return err
+		}
+	}
+
+	err := c.cqrier.Query(ctx, qr, res)
+	if err != nil {
+		_ = c.Close()
+		return err
+	}
+
+	return res.Err
+}
+
+func (c *Client) Write(ctx context.Context, tags string, evs []*api.LogEvent, res *api.WriteResult) error {
+	if c.rc == nil {
+		err := c.connect()
+		if err != nil {
+			return err
+		}
+	}
+
+	err := c.cing.Write(ctx, tags, evs, res)
+	if err != nil {
+		_ = c.Close()
+		return err
+	}
+
+	return res.Err
 }

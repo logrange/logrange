@@ -13,8 +13,7 @@ if [[ -z ${CMD} ]]; then
     CMD="lr"
 fi
 
-if [[ "${CMD}" != "logrange" \
-   && "${CMD}" != "collector" && "${CMD}" != "lr" ]]; then
+if [[ "${CMD}" != "logrange" && "${CMD}" != "lr" ]]; then
     error "Command '${CMD}' does not exist!"
 fi
 

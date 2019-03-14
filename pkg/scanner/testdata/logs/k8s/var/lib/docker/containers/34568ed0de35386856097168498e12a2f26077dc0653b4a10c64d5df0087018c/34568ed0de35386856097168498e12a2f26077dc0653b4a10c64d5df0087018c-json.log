@@ -1,0 +1,134 @@
+{"log":"Flag --etcd-quorum-read has been deprecated, This flag is deprecated and the ability to switch off quorum read will be removed in a future release.\n","stream":"stderr","time":"2018-02-06T10:23:02.075447563Z"}
+{"log":"I0206 10:23:02.075726       1 server.go:121] Version: v1.9.2\n","stream":"stderr","time":"2018-02-06T10:23:02.076025563Z"}
+{"log":"I0206 10:23:02.862503       1 logs.go:41] warning: ignoring ServerName for user-provided CA for backwards compatibility is deprecated\n","stream":"stderr","time":"2018-02-06T10:23:02.862811582Z"}
+{"log":"I0206 10:23:02.863183       1 logs.go:41] warning: ignoring ServerName for user-provided CA for backwards compatibility is deprecated\n","stream":"stderr","time":"2018-02-06T10:23:02.863359919Z"}
+{"log":"W0206 10:23:02.864207       1 admission.go:66] PersistentVolumeLabel admission controller is deprecated. Please remove this controller from your configuration files and scripts.\n","stream":"stderr","time":"2018-02-06T10:23:02.864401455Z"}
+{"log":"I0206 10:23:02.870727       1 logs.go:41] warning: ignoring ServerName for user-provided CA for backwards compatibility is deprecated\n","stream":"stderr","time":"2018-02-06T10:23:02.870913389Z"}
+{"log":"I0206 10:23:02.873209       1 master.go:225] Using reconciler: master-count\n","stream":"stderr","time":"2018-02-06T10:23:02.873404101Z"}
+{"log":"I0206 10:23:02.878078       1 logs.go:41] warning: ignoring ServerName for user-provided CA for backwards compatibility is deprecated\n","stream":"stderr","time":"2018-02-06T10:23:02.878242794Z"}
+{"log":"I0206 10:23:02.879116       1 logs.go:41] warning: ignoring ServerName for user-provided CA for backwards compatibility is deprecated\n","stream":"stderr","time":"2018-02-06T10:23:02.879235555Z"}
+{"log":"I0206 10:23:02.880574       1 logs.go:41] warning: ignoring ServerName for user-provided CA for backwards compatibility is deprecated\n","stream":"stderr","time":"2018-02-06T10:23:02.880732187Z"}
+{"log":"I0206 10:23:02.882743       1 logs.go:41] warning: ignoring ServerName for user-provided CA for backwards compatibility is deprecated\n","stream":"stderr","time":"2018-02-06T10:23:02.882895387Z"}
+{"log":"I0206 10:23:02.886367       1 logs.go:41] warning: ignoring ServerName for user-provided CA for backwards compatibility is deprecated\n","stream":"stderr","time":"2018-02-06T10:23:02.886567027Z"}
+{"log":"I0206 10:23:02.892576       1 logs.go:41] warning: ignoring ServerName for user-provided CA for backwards compatibility is deprecated\n","stream":"stderr","time":"2018-02-06T10:23:02.89276622Z"}
+{"log":"I0206 10:23:02.893941       1 logs.go:41] warning: ignoring ServerName for user-provided CA for backwards compatibility is deprecated\n","stream":"stderr","time":"2018-02-06T10:23:02.894087377Z"}
+{"log":"I0206 10:23:02.895437       1 logs.go:41] warning: ignoring ServerName for user-provided CA for backwards compatibility is deprecated\n","stream":"stderr","time":"2018-02-06T10:23:02.895559786Z"}
+{"log":"I0206 10:23:02.900908       1 logs.go:41] warning: ignoring ServerName for user-provided CA for backwards compatibility is deprecated\n","stream":"stderr","time":"2018-02-06T10:23:02.901064761Z"}
+{"log":"I0206 10:23:02.902312       1 logs.go:41] warning: ignoring ServerName for user-provided CA for backwards compatibility is deprecated\n","stream":"stderr","time":"2018-02-06T10:23:02.902491398Z"}
+{"log":"I0206 10:23:02.910023       1 logs.go:41] warning: ignoring ServerName for user-provided CA for backwards compatibility is deprecated\n","stream":"stderr","time":"2018-02-06T10:23:02.916898675Z"}
+{"log":"I0206 10:23:02.911040       1 logs.go:41] warning: ignoring ServerName for user-provided CA for backwards compatibility is deprecated\n","stream":"stderr","time":"2018-02-06T10:23:02.916932927Z"}
+{"log":"I0206 10:23:02.912398       1 logs.go:41] warning: ignoring ServerName for user-provided CA for backwards compatibility is deprecated\n","stream":"stderr","time":"2018-02-06T10:23:02.91693746Z"}
+{"log":"I0206 10:23:02.913260       1 logs.go:41] warning: ignoring ServerName for user-provided CA for backwards compatibility is deprecated\n","stream":"stderr","time":"2018-02-06T10:23:02.916942135Z"}
+{"log":"I0206 10:23:02.914144       1 logs.go:41] warning: ignoring ServerName for user-provided CA for backwards compatibility is deprecated\n","stream":"stderr","time":"2018-02-06T10:23:02.91698064Z"}
+{"log":"I0206 10:23:02.914774       1 logs.go:41] warning: ignoring ServerName for user-provided CA for backwards compatibility is deprecated\n","stream":"stderr","time":"2018-02-06T10:23:02.916985052Z"}
+{"log":"I0206 10:23:02.915512       1 logs.go:41] warning: ignoring ServerName for user-provided CA for backwards compatibility is deprecated\n","stream":"stderr","time":"2018-02-06T10:23:02.916988151Z"}
+{"log":"I0206 10:23:02.943561       1 logs.go:41] warning: ignoring ServerName for user-provided CA for backwards compatibility is deprecated\n","stream":"stderr","time":"2018-02-06T10:23:02.946504734Z"}
+{"log":"I0206 10:23:02.944387       1 logs.go:41] warning: ignoring ServerName for user-provided CA for backwards compatibility is deprecated\n","stream":"stderr","time":"2018-02-06T10:23:02.946540737Z"}
+{"log":"I0206 10:23:02.945239       1 logs.go:41] warning: ignoring ServerName for user-provided CA for backwards compatibility is deprecated\n","stream":"stderr","time":"2018-02-06T10:23:02.946545126Z"}
+{"log":"I0206 10:23:02.946087       1 logs.go:41] warning: ignoring ServerName for user-provided CA for backwards compatibility is deprecated\n","stream":"stderr","time":"2018-02-06T10:23:02.946548896Z"}
+{"log":"I0206 10:23:02.983836       1 logs.go:41] warning: ignoring ServerName for user-provided CA for backwards compatibility is deprecated\n","stream":"stderr","time":"2018-02-06T10:23:02.983995606Z"}
+{"log":"I0206 10:23:02.985902       1 logs.go:41] warning: ignoring ServerName for user-provided CA for backwards compatibility is deprecated\n","stream":"stderr","time":"2018-02-06T10:23:02.986048399Z"}
+{"log":"I0206 10:23:02.987657       1 logs.go:41] warning: ignoring ServerName for user-provided CA for backwards compatibility is deprecated\n","stream":"stderr","time":"2018-02-06T10:23:02.987739366Z"}
+{"log":"I0206 10:23:02.988837       1 logs.go:41] warning: ignoring ServerName for user-provided CA for backwards compatibility is deprecated\n","stream":"stderr","time":"2018-02-06T10:23:02.988983827Z"}
+{"log":"I0206 10:23:02.989863       1 logs.go:41] warning: ignoring ServerName for user-provided CA for backwards compatibility is deprecated\n","stream":"stderr","time":"2018-02-06T10:23:02.989988802Z"}
+{"log":"I0206 10:23:02.990760       1 logs.go:41] warning: ignoring ServerName for user-provided CA for backwards compatibility is deprecated\n","stream":"stderr","time":"2018-02-06T10:23:02.990896786Z"}
+{"log":"I0206 10:23:02.991755       1 logs.go:41] warning: ignoring ServerName for user-provided CA for backwards compatibility is deprecated\n","stream":"stderr","time":"2018-02-06T10:23:02.991883817Z"}
+{"log":"I0206 10:23:02.992734       1 logs.go:41] warning: ignoring ServerName for user-provided CA for backwards compatibility is deprecated\n","stream":"stderr","time":"2018-02-06T10:23:02.992862014Z"}
+{"log":"I0206 10:23:02.993712       1 logs.go:41] warning: ignoring ServerName for user-provided CA for backwards compatibility is deprecated\n","stream":"stderr","time":"2018-02-06T10:23:02.993839518Z"}
+{"log":"I0206 10:23:02.994747       1 logs.go:41] warning: ignoring ServerName for user-provided CA for backwards compatibility is deprecated\n","stream":"stderr","time":"2018-02-06T10:23:02.994876395Z"}
+{"log":"I0206 10:23:02.995705       1 logs.go:41] warning: ignoring ServerName for user-provided CA for backwards compatibility is deprecated\n","stream":"stderr","time":"2018-02-06T10:23:02.995834228Z"}
+{"log":"I0206 10:23:03.008741       1 logs.go:41] warning: ignoring ServerName for user-provided CA for backwards compatibility is deprecated\n","stream":"stderr","time":"2018-02-06T10:23:03.008998525Z"}
+{"log":"I0206 10:23:03.010165       1 logs.go:41] warning: ignoring ServerName for user-provided CA for backwards compatibility is deprecated\n","stream":"stderr","time":"2018-02-06T10:23:03.010325146Z"}
+{"log":"I0206 10:23:03.011336       1 logs.go:41] warning: ignoring ServerName for user-provided CA for backwards compatibility is deprecated\n","stream":"stderr","time":"2018-02-06T10:23:03.011471039Z"}
+{"log":"I0206 10:23:03.012522       1 logs.go:41] warning: ignoring ServerName for user-provided CA for backwards compatibility is deprecated\n","stream":"stderr","time":"2018-02-06T10:23:03.012654826Z"}
+{"log":"I0206 10:23:03.013535       1 logs.go:41] warning: ignoring ServerName for user-provided CA for backwards compatibility is deprecated\n","stream":"stderr","time":"2018-02-06T10:23:03.013630968Z"}
+{"log":"I0206 10:23:03.014497       1 logs.go:41] warning: ignoring ServerName for user-provided CA for backwards compatibility is deprecated\n","stream":"stderr","time":"2018-02-06T10:23:03.014621564Z"}
+{"log":"I0206 10:23:03.015400       1 logs.go:41] warning: ignoring ServerName for user-provided CA for backwards compatibility is deprecated\n","stream":"stderr","time":"2018-02-06T10:23:03.015526096Z"}
+{"log":"I0206 10:23:03.018386       1 logs.go:41] warning: ignoring ServerName for user-provided CA for backwards compatibility is deprecated\n","stream":"stderr","time":"2018-02-06T10:23:03.018526765Z"}
+{"log":"I0206 10:23:03.022926       1 logs.go:41] warning: ignoring ServerName for user-provided CA for backwards compatibility is deprecated\n","stream":"stderr","time":"2018-02-06T10:23:03.028475681Z"}
+{"log":"I0206 10:23:03.023812       1 logs.go:41] warning: ignoring ServerName for user-provided CA for backwards compatibility is deprecated\n","stream":"stderr","time":"2018-02-06T10:23:03.028522725Z"}
+{"log":"I0206 10:23:03.024861       1 logs.go:41] warning: ignoring ServerName for user-provided CA for backwards compatibility is deprecated\n","stream":"stderr","time":"2018-02-06T10:23:03.028551603Z"}
+{"log":"I0206 10:23:03.025722       1 logs.go:41] warning: ignoring ServerName for user-provided CA for backwards compatibility is deprecated\n","stream":"stderr","time":"2018-02-06T10:23:03.028561316Z"}
+{"log":"I0206 10:23:03.026485       1 logs.go:41] warning: ignoring ServerName for user-provided CA for backwards compatibility is deprecated\n","stream":"stderr","time":"2018-02-06T10:23:03.028567714Z"}
+{"log":"I0206 10:23:03.065292       1 logs.go:41] warning: ignoring ServerName for user-provided CA for backwards compatibility is deprecated\n","stream":"stderr","time":"2018-02-06T10:23:03.06950694Z"}
+{"log":"I0206 10:23:03.066946       1 logs.go:41] warning: ignoring ServerName for user-provided CA for backwards compatibility is deprecated\n","stream":"stderr","time":"2018-02-06T10:23:03.069576343Z"}
+{"log":"I0206 10:23:03.068492       1 logs.go:41] warning: ignoring ServerName for user-provided CA for backwards compatibility is deprecated\n","stream":"stderr","time":"2018-02-06T10:23:03.069586565Z"}
+{"log":"I0206 10:23:03.071459       1 logs.go:41] warning: ignoring ServerName for user-provided CA for backwards compatibility is deprecated\n","stream":"stderr","time":"2018-02-06T10:23:03.079746908Z"}
+{"log":"I0206 10:23:03.072768       1 logs.go:41] warning: ignoring ServerName for user-provided CA for backwards compatibility is deprecated\n","stream":"stderr","time":"2018-02-06T10:23:03.079783011Z"}
+{"log":"I0206 10:23:03.074294       1 logs.go:41] warning: ignoring ServerName for user-provided CA for backwards compatibility is deprecated\n","stream":"stderr","time":"2018-02-06T10:23:03.079787412Z"}
+{"log":"I0206 10:23:03.075643       1 logs.go:41] warning: ignoring ServerName for user-provided CA for backwards compatibility is deprecated\n","stream":"stderr","time":"2018-02-06T10:23:03.079791037Z"}
+{"log":"I0206 10:23:03.077052       1 logs.go:41] warning: ignoring ServerName for user-provided CA for backwards compatibility is deprecated\n","stream":"stderr","time":"2018-02-06T10:23:03.079794651Z"}
+{"log":"I0206 10:23:03.085540       1 logs.go:41] warning: ignoring ServerName for user-provided CA for backwards compatibility is deprecated\n","stream":"stderr","time":"2018-02-06T10:23:03.089959311Z"}
+{"log":"I0206 10:23:03.086693       1 logs.go:41] warning: ignoring ServerName for user-provided CA for backwards compatibility is deprecated\n","stream":"stderr","time":"2018-02-06T10:23:03.090035089Z"}
+{"log":"I0206 10:23:03.087552       1 logs.go:41] warning: ignoring ServerName for user-provided CA for backwards compatibility is deprecated\n","stream":"stderr","time":"2018-02-06T10:23:03.090040963Z"}
+{"log":"I0206 10:23:03.088350       1 logs.go:41] warning: ignoring ServerName for user-provided CA for backwards compatibility is deprecated\n","stream":"stderr","time":"2018-02-06T10:23:03.090044311Z"}
+{"log":"W0206 10:23:03.176292       1 genericapiserver.go:342] Skipping API batch/v2alpha1 because it has no resources.\n","stream":"stderr","time":"2018-02-06T10:23:03.176525972Z"}
+{"log":"W0206 10:23:03.187881       1 genericapiserver.go:342] Skipping API rbac.authorization.k8s.io/v1alpha1 because it has no resources.\n","stream":"stderr","time":"2018-02-06T10:23:03.188107469Z"}
+{"log":"W0206 10:23:03.218315       1 genericapiserver.go:342] Skipping API storage.k8s.io/v1alpha1 because it has no resources.\n","stream":"stderr","time":"2018-02-06T10:23:03.223424062Z"}
+{"log":"W0206 10:23:03.307993       1 genericapiserver.go:342] Skipping API admissionregistration.k8s.io/v1alpha1 because it has no resources.\n","stream":"stderr","time":"2018-02-06T10:23:03.308242859Z"}
+{"log":"[restful] 2018/02/06 10:23:03 log.go:33: [restful/swagger] listing is available at https://10.138.132.49:443/swaggerapi\n","stream":"stderr","time":"2018-02-06T10:23:03.449312892Z"}
+{"log":"[restful] 2018/02/06 10:23:03 log.go:33: [restful/swagger] https://10.138.132.49:443/swaggerui/ is mapped to folder /swagger-ui/\n","stream":"stderr","time":"2018-02-06T10:23:03.449377511Z"}
+{"log":"[restful] 2018/02/06 10:23:04 log.go:33: [restful/swagger] listing is available at https://10.138.132.49:443/swaggerapi\n","stream":"stderr","time":"2018-02-06T10:23:04.346875087Z"}
+{"log":"[restful] 2018/02/06 10:23:04 log.go:33: [restful/swagger] https://10.138.132.49:443/swaggerui/ is mapped to folder /swagger-ui/\n","stream":"stderr","time":"2018-02-06T10:23:04.346920311Z"}
+{"log":"I0206 10:23:04.377881       1 logs.go:41] warning: ignoring ServerName for user-provided CA for backwards compatibility is deprecated\n","stream":"stderr","time":"2018-02-06T10:23:04.378056973Z"}
+{"log":"I0206 10:23:07.892938       1 serve.go:89] Serving securely on [::]:443\n","stream":"stderr","time":"2018-02-06T10:23:07.893196174Z"}
+{"log":"I0206 10:23:07.923835       1 crd_finalizer.go:242] Starting CRDFinalizer\n","stream":"stderr","time":"2018-02-06T10:23:07.924066869Z"}
+{"log":"I0206 10:23:07.924327       1 apiservice_controller.go:112] Starting APIServiceRegistrationController\n","stream":"stderr","time":"2018-02-06T10:23:07.924453211Z"}
+{"log":"I0206 10:23:07.924395       1 cache.go:32] Waiting for caches to sync for APIServiceRegistrationController controller\n","stream":"stderr","time":"2018-02-06T10:23:07.92446577Z"}
+{"log":"I0206 10:23:07.924565       1 available_controller.go:262] Starting AvailableConditionController\n","stream":"stderr","time":"2018-02-06T10:23:07.924620291Z"}
+{"log":"I0206 10:23:07.924665       1 cache.go:32] Waiting for caches to sync for AvailableConditionController controller\n","stream":"stderr","time":"2018-02-06T10:23:07.924789902Z"}
+{"log":"I0206 10:23:07.924762       1 controller.go:84] Starting OpenAPI AggregationController\n","stream":"stderr","time":"2018-02-06T10:23:07.924871978Z"}
+{"log":"I0206 10:23:08.066782       1 customresource_discovery_controller.go:152] Starting DiscoveryController\n","stream":"stderr","time":"2018-02-06T10:23:08.066998234Z"}
+{"log":"I0206 10:23:08.066944       1 naming_controller.go:274] Starting NamingConditionController\n","stream":"stderr","time":"2018-02-06T10:23:08.06703376Z"}
+{"log":"I0206 10:23:08.067093       1 crdregistration_controller.go:110] Starting crd-autoregister controller\n","stream":"stderr","time":"2018-02-06T10:23:08.067177917Z"}
+{"log":"I0206 10:23:08.067135       1 controller_utils.go:1019] Waiting for caches to sync for crd-autoregister controller\n","stream":"stderr","time":"2018-02-06T10:23:08.067204147Z"}
+{"log":"I0206 10:23:08.237924       1 cache.go:39] Caches are synced for AvailableConditionController controller\n","stream":"stderr","time":"2018-02-06T10:23:08.243381827Z"}
+{"log":"I0206 10:23:08.237935       1 cache.go:39] Caches are synced for APIServiceRegistrationController controller\n","stream":"stderr","time":"2018-02-06T10:23:08.243423925Z"}
+{"log":"I0206 10:23:08.267346       1 controller_utils.go:1026] Caches are synced for crd-autoregister controller\n","stream":"stderr","time":"2018-02-06T10:23:08.267524065Z"}
+{"log":"I0206 10:23:08.267417       1 autoregister_controller.go:136] Starting autoregister controller\n","stream":"stderr","time":"2018-02-06T10:23:08.267563945Z"}
+{"log":"I0206 10:23:08.267426       1 cache.go:32] Waiting for caches to sync for autoregister controller\n","stream":"stderr","time":"2018-02-06T10:23:08.267568461Z"}
+{"log":"I0206 10:23:08.367577       1 cache.go:39] Caches are synced for autoregister controller\n","stream":"stderr","time":"2018-02-06T10:23:08.368078863Z"}
+{"log":"I0206 10:23:09.176992       1 trace.go:76] Trace[1437902002]: \"GuaranteedUpdate etcd3: *core.Node\" (started: 2018-02-06 10:23:08.169804435 +0000 UTC m=+6.372817707) (total time: 1.007090051s):\n","stream":"stderr","time":"2018-02-06T10:23:09.177249744Z"}
+{"log":"Trace[1437902002]: [1.004664481s] [1.004606563s] Transaction prepared\n","stream":"stderr","time":"2018-02-06T10:23:09.177302958Z"}
+{"log":"I0206 10:23:09.212314       1 trace.go:76] Trace[1337298878]: \"GuaranteedUpdate etcd3: *core.Node\" (started: 2018-02-06 10:23:08.205169302 +0000 UTC m=+6.408182582) (total time: 1.007116551s):\n","stream":"stderr","time":"2018-02-06T10:23:09.212540874Z"}
+{"log":"Trace[1337298878]: [1.005119473s] [1.005023873s] Transaction prepared\n","stream":"stderr","time":"2018-02-06T10:23:09.212574206Z"}
+{"log":"I0206 10:23:11.838650       1 controller.go:538] quota admission added evaluator for: { endpoints}\n","stream":"stderr","time":"2018-02-06T10:23:11.839047483Z"}
+{"log":"I0206 10:23:11.891889       1 controller.go:538] quota admission added evaluator for: { serviceaccounts}\n","stream":"stderr","time":"2018-02-06T10:23:11.892117215Z"}
+{"log":"E0206 10:36:13.054590       1 watcher.go:208] watch chan error: etcdserver: mvcc: required revision has been compacted\n","stream":"stderr","time":"2018-02-06T10:36:13.055029309Z"}
+{"log":"E0206 10:43:17.106899       1 watcher.go:208] watch chan error: etcdserver: mvcc: required revision has been compacted\n","stream":"stderr","time":"2018-02-06T10:43:17.107396606Z"}
+{"log":"E0206 10:55:18.204273       1 watcher.go:208] watch chan error: etcdserver: mvcc: required revision has been compacted\n","stream":"stderr","time":"2018-02-06T10:55:18.205093037Z"}
+{"log":"E0206 11:04:20.259948       1 watcher.go:208] watch chan error: etcdserver: mvcc: required revision has been compacted\n","stream":"stderr","time":"2018-02-06T11:04:20.260468808Z"}
+{"log":"E0206 11:13:23.310294       1 watcher.go:208] watch chan error: etcdserver: mvcc: required revision has been compacted\n","stream":"stderr","time":"2018-02-06T11:13:23.310578273Z"}
+{"log":"E0206 11:35:38.383136       1 watcher.go:208] watch chan error: etcdserver: mvcc: required revision has been compacted\n","stream":"stderr","time":"2018-02-06T11:35:38.384311651Z"}
+{"log":"E0206 11:44:36.419852       1 watcher.go:208] watch chan error: etcdserver: mvcc: required revision has been compacted\n","stream":"stderr","time":"2018-02-06T11:44:36.420898164Z"}
+{"log":"E0206 11:53:03.464824       1 watcher.go:208] watch chan error: etcdserver: mvcc: required revision has been compacted\n","stream":"stderr","time":"2018-02-06T11:53:03.4687844Z"}
+{"log":"E0206 12:07:08.560330       1 watcher.go:208] watch chan error: etcdserver: mvcc: required revision has been compacted\n","stream":"stderr","time":"2018-02-06T12:07:08.560978632Z"}
+{"log":"E0206 12:15:01.594794       1 watcher.go:208] watch chan error: etcdserver: mvcc: required revision has been compacted\n","stream":"stderr","time":"2018-02-06T12:15:01.595465676Z"}
+{"log":"E0206 12:31:08.656743       1 watcher.go:208] watch chan error: etcdserver: mvcc: required revision has been compacted\n","stream":"stderr","time":"2018-02-06T12:31:08.657166214Z"}
+{"log":"E0206 12:38:09.689482       1 watcher.go:208] watch chan error: etcdserver: mvcc: required revision has been compacted\n","stream":"stderr","time":"2018-02-06T12:38:09.692138912Z"}
+{"log":"E0206 12:54:20.778971       1 watcher.go:208] watch chan error: etcdserver: mvcc: required revision has been compacted\n","stream":"stderr","time":"2018-02-06T12:54:20.779183437Z"}
+{"log":"E0206 13:04:55.820589       1 watcher.go:208] watch chan error: etcdserver: mvcc: required revision has been compacted\n","stream":"stderr","time":"2018-02-06T13:04:55.820961525Z"}
+{"log":"E0206 13:19:08.841675       1 watcher.go:208] watch chan error: etcdserver: mvcc: required revision has been compacted\n","stream":"stderr","time":"2018-02-06T13:19:08.842014254Z"}
+{"log":"E0206 13:29:01.934207       1 watcher.go:208] watch chan error: etcdserver: mvcc: required revision has been compacted\n","stream":"stderr","time":"2018-02-06T13:29:01.93706565Z"}
+{"log":"E0206 13:38:15.966119       1 watcher.go:208] watch chan error: etcdserver: mvcc: required revision has been compacted\n","stream":"stderr","time":"2018-02-06T13:38:15.966363713Z"}
+{"log":"E0206 13:52:24.987475       1 watcher.go:208] watch chan error: etcdserver: mvcc: required revision has been compacted\n","stream":"stderr","time":"2018-02-06T13:52:24.987686987Z"}
+{"log":"E0206 14:02:16.033699       1 watcher.go:208] watch chan error: etcdserver: mvcc: required revision has been compacted\n","stream":"stderr","time":"2018-02-06T14:02:16.03544987Z"}
+{"log":"E0206 14:10:34.104131       1 watcher.go:208] watch chan error: etcdserver: mvcc: required revision has been compacted\n","stream":"stderr","time":"2018-02-06T14:10:34.107634717Z"}
+{"log":"E0206 14:20:15.159545       1 watcher.go:208] watch chan error: etcdserver: mvcc: required revision has been compacted\n","stream":"stderr","time":"2018-02-06T14:20:15.160796799Z"}
+{"log":"E0206 14:36:04.178126       1 watcher.go:208] watch chan error: etcdserver: mvcc: required revision has been compacted\n","stream":"stderr","time":"2018-02-06T14:36:04.180342842Z"}
+{"log":"E0206 14:43:44.249303       1 watcher.go:208] watch chan error: etcdserver: mvcc: required revision has been compacted\n","stream":"stderr","time":"2018-02-06T14:43:44.249812478Z"}
+{"log":"E0206 14:53:41.341989       1 watcher.go:208] watch chan error: etcdserver: mvcc: required revision has been compacted\n","stream":"stderr","time":"2018-02-06T14:53:41.343069778Z"}
+{"log":"E0206 15:05:23.409978       1 watcher.go:208] watch chan error: etcdserver: mvcc: required revision has been compacted\n","stream":"stderr","time":"2018-02-06T15:05:23.410859366Z"}
+{"log":"E0206 15:18:12.456056       1 watcher.go:208] watch chan error: etcdserver: mvcc: required revision has been compacted\n","stream":"stderr","time":"2018-02-06T15:18:12.456362693Z"}
+{"log":"E0206 15:37:06.542326       1 watcher.go:208] watch chan error: etcdserver: mvcc: required revision has been compacted\n","stream":"stderr","time":"2018-02-06T15:37:06.544276203Z"}
+{"log":"E0206 15:46:12.597121       1 watcher.go:208] watch chan error: etcdserver: mvcc: required revision has been compacted\n","stream":"stderr","time":"2018-02-06T15:46:12.597414403Z"}
+{"log":"E0206 15:55:47.672379       1 watcher.go:208] watch chan error: etcdserver: mvcc: required revision has been compacted\n","stream":"stderr","time":"2018-02-06T15:55:47.672911736Z"}
+{"log":"E0206 16:07:39.683964       1 watcher.go:208] watch chan error: etcdserver: mvcc: required revision has been compacted\n","stream":"stderr","time":"2018-02-06T16:07:39.684178058Z"}
+{"log":"E0206 16:16:51.707271       1 watcher.go:208] watch chan error: etcdserver: mvcc: required revision has been compacted\n","stream":"stderr","time":"2018-02-06T16:16:51.70755421Z"}
+{"log":"E0206 16:26:07.737647       1 watcher.go:208] watch chan error: etcdserver: mvcc: required revision has been compacted\n","stream":"stderr","time":"2018-02-06T16:26:07.738313221Z"}
+{"log":"E0206 16:33:58.772323       1 watcher.go:208] watch chan error: etcdserver: mvcc: required revision has been compacted\n","stream":"stderr","time":"2018-02-06T16:33:58.772617444Z"}
+{"log":"E0206 16:48:55.858174       1 watcher.go:208] watch chan error: etcdserver: mvcc: required revision has been compacted\n","stream":"stderr","time":"2018-02-06T16:48:55.8591795Z"}
+{"log":"E0206 16:58:46.942831       1 watcher.go:208] watch chan error: etcdserver: mvcc: required revision has been compacted\n","stream":"stderr","time":"2018-02-06T16:58:46.945267422Z"}
+{"log":"E0206 17:11:20.980910       1 watcher.go:208] watch chan error: etcdserver: mvcc: required revision has been compacted\n","stream":"stderr","time":"2018-02-06T17:11:20.981539564Z"}
+{"log":"E0206 17:18:47.007675       1 watcher.go:208] watch chan error: etcdserver: mvcc: required revision has been compacted\n","stream":"stderr","time":"2018-02-06T17:18:47.009196959Z"}
+{"log":"E0206 17:34:48.103695       1 watcher.go:208] watch chan error: etcdserver: mvcc: required revision has been compacted\n","stream":"stderr","time":"2018-02-06T17:34:48.104415061Z"}

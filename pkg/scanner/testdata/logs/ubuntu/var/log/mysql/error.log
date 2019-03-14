@@ -1,0 +1,41 @@
+2018-01-25T00:46:02.044697Z 0 [Warning] TIMESTAMP with implicit DEFAULT value is deprecated. Please use --explicit_defaults_for_timestamp server option (see documentation for more details).
+2018-01-25T00:46:02.858804Z 0 [Warning] InnoDB: New log files created, LSN=45790
+2018-01-25T00:46:02.926512Z 0 [Warning] InnoDB: Creating foreign key constraint system tables.
+2018-01-25T00:46:02.987348Z 0 [Warning] No existing UUID has been found, so we assume that this is the first time that this server has been started. Generating a new UUID: 1e82a8d3-0169-11e8-9ac5-0e43e6581452.
+2018-01-25T00:46:02.989164Z 0 [Warning] Gtid table is not ready to be used. Table 'mysql.gtid_executed' cannot be opened.
+2018-01-25T00:46:02.991736Z 1 [Warning] root@localhost is created with an empty password ! Please consider switching off the --initialize-insecure option.
+2018-01-25T00:46:07.503444Z 0 [Warning] Changed limits: max_open_files: 1024 (requested 5000)
+2018-01-25T00:46:07.503497Z 0 [Warning] Changed limits: table_open_cache: 431 (requested 2000)
+2018-01-25T00:46:07.682441Z 0 [Warning] TIMESTAMP with implicit DEFAULT value is deprecated. Please use --explicit_defaults_for_timestamp server option (see documentation for more details).
+2018-01-25T00:46:07.685944Z 0 [Note] /usr/sbin/mysqld (mysqld 5.7.21-0ubuntu0.16.04.1) starting as process 3753 ...
+2018-01-25T00:46:07.693298Z 0 [Note] InnoDB: PUNCH HOLE support available
+2018-01-25T00:46:07.693338Z 0 [Note] InnoDB: Mutexes and rw_locks use GCC atomic builtins
+2018-01-25T00:46:07.693343Z 0 [Note] InnoDB: Uses event mutexes
+2018-01-25T00:46:07.693347Z 0 [Note] InnoDB: GCC builtin __atomic_thread_fence() is used for memory barrier
+2018-01-25T00:46:07.693351Z 0 [Note] InnoDB: Compressed tables use zlib 1.2.8
+2018-01-25T00:46:07.693355Z 0 [Note] InnoDB: Using Linux native AIO
+2018-01-25T00:46:07.693802Z 0 [Note] InnoDB: Number of pools: 1
+2018-01-25T00:46:07.693989Z 0 [Note] InnoDB: Using CPU crc32 instructions
+2018-01-25T00:46:07.697066Z 0 [Note] InnoDB: Initializing buffer pool, total size = 128M, instances = 1, chunk size = 128M
+2018-01-25T00:46:07.713463Z 0 [Note] InnoDB: Completed initialization of buffer pool
+2018-01-25T00:46:07.718088Z 0 [Note] InnoDB: If the mysqld execution user is authorized, page cleaner thread priority can be changed. See the man page of setpriority().
+2018-01-25T00:46:07.731905Z 0 [Note] InnoDB: Highest supported file format is Barracuda.
+2018-01-25T00:46:07.743111Z 0 [Note] InnoDB: Creating shared tablespace for temporary tables
+2018-01-25T00:46:07.743192Z 0 [Note] InnoDB: Setting file './ibtmp1' size to 12 MB. Physically writing the file full; Please wait ...
+2018-01-25T00:46:07.778881Z 0 [Note] InnoDB: File './ibtmp1' size is now 12 MB.
+2018-01-25T00:46:07.779828Z 0 [Note] InnoDB: 96 redo rollback segment(s) found. 96 redo rollback segment(s) are active.
+2018-01-25T00:46:07.779849Z 0 [Note] InnoDB: 32 non-redo rollback segment(s) are active.
+2018-01-25T00:46:08.240829Z 0 [Note] InnoDB: Waiting for purge to start
+2018-01-25T00:46:08.294217Z 0 [Note] InnoDB: 5.7.21 started; log sequence number 2551607
+2018-01-25T00:46:08.301656Z 0 [Note] InnoDB: Loading buffer pool(s) from /var/lib/mysql/ib_buffer_pool
+2018-01-25T00:46:08.301943Z 0 [Note] Plugin 'FEDERATED' is disabled.
+2018-01-25T00:46:08.305095Z 0 [Note] InnoDB: Buffer pool(s) load completed at 180125  0:46:08
+2018-01-25T00:46:08.311047Z 0 [Warning] Failed to set up SSL because of the following SSL library error: SSL context is not usable without certificate and private key
+2018-01-25T00:46:08.311078Z 0 [Note] Server hostname (bind-address): '127.0.0.1'; port: 3306
+2018-01-25T00:46:08.311095Z 0 [Note]   - '127.0.0.1' resolves to '127.0.0.1';
+2018-01-25T00:46:08.311151Z 0 [Note] Server socket created on IP: '127.0.0.1'.
+2018-01-25T00:46:08.323057Z 0 [Note] Event Scheduler: Loaded 0 events
+2018-01-25T00:46:08.323291Z 0 [Note] /usr/sbin/mysqld: ready for connections.
+Version: '5.7.21-0ubuntu0.16.04.1'  socket: '/var/run/mysqld/mysqld.sock'  port: 3306  (Ubuntu)
+2018-01-25T00:46:08.509673Z 2 [Note] Access denied for user 'root'@'localhost' (using password: NO)
+2018-01-25T00:46:08.517762Z 3 [Note] Access denied for user 'root'@'localhost' (using password: NO)

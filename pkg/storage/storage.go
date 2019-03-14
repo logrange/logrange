@@ -17,7 +17,7 @@ package storage
 import (
 	"fmt"
 	"github.com/jrivets/log4g"
-	"github.com/logrange/logrange/collector/utils"
+	"github.com/logrange/logrange/pkg/utils"
 	"io/ioutil"
 	"os"
 	"strings"
