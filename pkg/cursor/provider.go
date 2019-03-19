@@ -18,10 +18,8 @@ import (
 	"context"
 	"github.com/jrivets/log4g"
 	"github.com/logrange/logrange/pkg/container"
-	"github.com/logrange/logrange/pkg/tindex"
 	"github.com/logrange/logrange/pkg/utils"
 	wpctx "github.com/logrange/range/pkg/context"
-	"github.com/logrange/range/pkg/records/journal"
 	"github.com/pkg/errors"
 	"sync"
 	"time"
@@ -29,8 +27,7 @@ import (
 
 type (
 	Provider struct {
-		Tidx  tindex.Service     `inject:""`
-		JCtrl journal.Controller `inject:""`
+		JrnlsProvider JournalsProvider `inject:""`
 
 		logger     log4g.Logger
 		lock       sync.Mutex
@@ -105,6 +102,7 @@ func (p *Provider) GetOrCreate(ctx context.Context, state State, cache bool) (*C
 	}
 
 	if res != nil {
+		p.logger.Debug("Cursor for ", state, " found in the cache. ")
 		return res, nil
 	}
 
@@ -112,11 +110,13 @@ func (p *Provider) GetOrCreate(ctx context.Context, state State, cache bool) (*C
 		state.Id = utils.NextSimpleId()
 	}
 
-	cur, err := newCursor(ctx, state, p.Tidx, p.JCtrl)
+	cur, err := newCursor(ctx, state, p.JrnlsProvider)
 	if err != nil {
 		return nil, err
 	}
+
 	if !cache {
+		p.logger.Debug("New cursor ", cur, " doesn't go to the cache. ")
 		return cur, err
 	}
 
@@ -135,6 +135,7 @@ func (p *Provider) GetOrCreate(ctx context.Context, state State, cache bool) (*C
 	ch.expTime = time.Now().Add(p.busyTo)
 	p.busy = e.Append(p.busy)
 	p.curs[cur.Id()] = e
+	p.logger.Debug("Putting cursor ", cur, " into the cache. Cache size is ", len(p.curs))
 	p.lock.Unlock()
 
 	return cur, nil

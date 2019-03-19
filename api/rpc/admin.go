@@ -36,18 +36,13 @@ type (
 	clntAdmin struct {
 		rc rrpc.Client
 	}
-
-	truncParams struct {
-		Cond    string
-		MaxSize uint64
-	}
 )
 
 // Truncate client implementation for api.Admin
-func (ca *clntAdmin) Truncate(ctx context.Context, tagsCond string, maxSize uint64) (res api.TruncateResult, err error) {
-	buf, err := json.Marshal(truncParams{tagsCond, maxSize})
+func (ca *clntAdmin) Truncate(ctx context.Context, req api.TruncateRequest) (res api.TruncateResult, err error) {
+	buf, err := json.Marshal(req)
 	if err != nil {
-		return res, errors.Wrapf(err, "could not marshal params ")
+		return res, errors.Wrapf(err, "could not marshal request ")
 	}
 
 	resp, opErr, err := ca.rc.Call(ctx, cRpcEpAdminTruncate, records.Record(buf))
@@ -72,7 +67,7 @@ func NewServerAdmin() *ServerAdmin {
 }
 
 func (sa *ServerAdmin) truncate(reqId int32, reqBody []byte, sc *rrpc.ServerConn) {
-	var req truncParams
+	var req api.TruncateRequest
 	err := json.Unmarshal(reqBody, &req)
 	if err != nil {
 		sa.logger.Error("truncate(): could not unmarshal the body request ")
@@ -80,7 +75,7 @@ func (sa *ServerAdmin) truncate(reqId int32, reqBody []byte, sc *rrpc.ServerConn
 		return
 	}
 
-	res, err := sa.Admin.Truncate(req.Cond, req.MaxSize)
+	res, err := sa.Admin.Truncate(req)
 	if err != nil {
 		sa.logger.Warn("truncate(): got the err=", err)
 		sc.SendResponse(reqId, err, cEmptyResponse)

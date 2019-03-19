@@ -136,7 +136,7 @@ func (rs *rpcScnanner) sinking(ctx context.Context, events []*api.LogEvent) bool
 
 func (rs *rpcScnanner) prepareFirstQuery() (api.QueryRequest, error) {
 	var res api.QueryRequest
-	_, err := lql.Parse("") //(rs.cfg.Lql)
+	_, err := lql.ParseLql("") //(rs.cfg.Lql)
 	if err != nil {
 		rs.logger.Error("Could not parse ")
 		return res, err

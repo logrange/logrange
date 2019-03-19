@@ -20,11 +20,9 @@ import (
 	"github.com/jrivets/log4g"
 	"github.com/logrange/logrange/api"
 	"github.com/logrange/logrange/pkg/cursor"
-	"github.com/logrange/logrange/pkg/lql"
+	"github.com/logrange/logrange/pkg/journal"
 	"github.com/logrange/logrange/pkg/model"
 	"github.com/logrange/logrange/pkg/model/tag"
-	"github.com/logrange/logrange/pkg/tindex"
-	"github.com/logrange/range/pkg/records/journal"
 	"io"
 	"strings"
 	"time"
@@ -33,9 +31,8 @@ import (
 type (
 	// Querier is a backend structure used by an api implementation
 	Querier struct {
-		TIndex      tindex.Service     `inject:""`
-		CurProvider *cursor.Provider   `inject:""`
-		Journals    journal.Controller `inject:""`
+		Journals    *journal.Service `inject:""`
+		CurProvider *cursor.Provider `inject:""`
 
 		logger log4g.Logger
 	}
@@ -123,44 +120,5 @@ func (q *Querier) Query(ctx context.Context, req *api.QueryRequest) (*api.QueryR
 
 // Sources provides implementation for api.Querier.Source function
 func (q *Querier) Sources(ctx context.Context, tagsCond string) (*api.SourcesResult, error) {
-	src, err := lql.ParseSource(tagsCond)
-	if err != nil {
-		q.logger.Warn("Sources(): could not parse the source condition ", tagsCond, " err=", err)
-		return nil, err
-	}
-
-	srcs := make([]api.Source, 0, 100)
-	ts := uint64(0)
-	tr := uint64(0)
-	count := 0
-	var opErr error
-	err = q.TIndex.Visit(src, func(tags tag.Set, jrnl string) bool {
-		count++
-		j, err := q.Journals.GetOrCreate(ctx, jrnl)
-		if err != nil {
-			q.logger.Error("Could not create of get journal instance for ", jrnl, ", err=", err)
-			opErr = err
-			return false
-		}
-		ts += j.Size()
-		tr += j.Count()
-		if cap(srcs) > len(srcs) {
-			srcs = append(srcs, api.Source{Tags: tags.Line().String(), Size: j.Size(), Records: j.Count()})
-		}
-		return true
-	})
-
-	if err != nil {
-		q.logger.Warn("Sources(): could not obtain sources err=", err)
-		return nil, err
-	}
-
-	if opErr != nil {
-		q.logger.Warn("Sources(): error in a visitor err=", err, " will report as a failure.")
-		return nil, err
-	}
-
-	q.logger.Debug("Requested journals for ", tagsCond, ". returned ", len(srcs), " in map with total count=", count)
-
-	return &api.SourcesResult{Sources: srcs, Count: count, TotalSize: ts, TotalRec: tr}, nil
+	return q.Journals.Sources(ctx, tagsCond)
 }

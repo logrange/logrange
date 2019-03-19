@@ -16,9 +16,13 @@ package journal
 
 import (
 	"context"
+	"fmt"
 	"github.com/dustin/go-humanize"
 	"github.com/jrivets/log4g"
+	"github.com/logrange/logrange/api"
+	"github.com/logrange/logrange/pkg/lql"
 	"github.com/logrange/logrange/pkg/model"
+	"github.com/logrange/logrange/pkg/model/tag"
 	"github.com/logrange/logrange/pkg/tindex"
 	"github.com/logrange/range/pkg/records/chunk"
 	"github.com/logrange/range/pkg/records/chunk/chunkfs"
@@ -26,6 +30,7 @@ import (
 	"github.com/logrange/range/pkg/utils/bytes"
 	"github.com/pkg/errors"
 	"os"
+	"sort"
 	"time"
 )
 
@@ -39,6 +44,32 @@ type (
 
 		cIdx   *cindex
 		logger log4g.Logger
+	}
+
+	// TruncateParams allows to provide parameters for Truncate() functions
+	TruncateParams struct {
+		DryRun bool
+		// TagsCond contains the tags condition to select journals to be truncated
+		TagsCond string
+		// MaxSrcSize defines the upper level of a journal size, which will be truncated, if reached
+		MaxSrcSize uint64
+		// MinSrcSize defines the lower level of a journal size, which will not be cut if the journal will be less
+		// than this parameter after truncation
+		MinSrcSize uint64
+		// OldestTs defines the oldest record timestamp. Chunks with records less than the parameter are candidates
+		// for truncation
+		OldestTs uint64
+	}
+
+	TruncateInfo struct {
+		Tags          tag.Set
+		Src           string
+		BeforeSize    uint64
+		AfterSize     uint64
+		BeforeRecs    uint64
+		AfterRecs     uint64
+		ChunksDeleted int
+		Deleted       bool
 	}
 )
 
@@ -69,6 +100,7 @@ func (s *Service) Write(ctx context.Context, tags string, lit model.Iterator) er
 
 	jrnl, err := s.Journals.GetOrCreate(ctx, src)
 	if err != nil {
+		s.TIndex.Release(src)
 		return errors.Wrapf(err, "could not get or create new journal with src=%s by tags=%s", src, tags)
 	}
 
@@ -77,6 +109,7 @@ func (s *Service) Write(ctx context.Context, tags string, lit model.Iterator) er
 	iw.it = lit
 	n, pos, err := jrnl.Write(ctx, &iw)
 	if err != nil {
+		s.TIndex.Release(src)
 		return errors.Wrapf(err, "could not write records to the journal %s by tags=%s", src, tags)
 	}
 
@@ -84,104 +117,273 @@ func (s *Service) Write(ctx context.Context, tags string, lit model.Iterator) er
 		s.onWriteCIndex(src, &iw, n, pos)
 	}
 
+	s.TIndex.Release(src)
 	iw.close() // free resources
 	return nil
 }
 
+// GetJournals is part of cursor.JournalsProvider
+func (s *Service) GetJournals(ctx context.Context, tagsCond *lql.Source, maxLimit int) (map[tag.Line]rjournal.Journal, error) {
+	var res map[tag.Line]rjournal.Journal
+	if maxLimit < 100 {
+		res = make(map[tag.Line]rjournal.Journal)
+	} else {
+		res = make(map[tag.Line]rjournal.Journal)
+	}
+
+	var err1 error
+	err := s.TIndex.Visit(tagsCond, func(tags tag.Set, jrnl string) bool {
+		var j rjournal.Journal
+		j, err1 = s.Journals.GetOrCreate(ctx, jrnl)
+		if err1 != nil {
+			s.logger.Error("GetJournals(): Could not create of get journal instance for ", jrnl, ", err=", err1)
+			return false
+		}
+
+		if len(res) == maxLimit {
+			s.TIndex.Release(jrnl)
+			err1 = errors.Errorf("Limit exceeds. Expected no more than %d journals, but at least %d alredy found ", maxLimit, maxLimit+1)
+			return false
+		}
+
+		res[tags.Line()] = j
+
+		return true
+	}, tindex.VF_DO_NOT_RELEASE)
+
+	if err1 != nil || err != nil {
+		for _, j := range res {
+			s.TIndex.Release(j.Name())
+		}
+		res = nil
+		if err1 != nil {
+			err = err1
+		}
+	}
+
+	return res, err
+}
+
+// Release releases the journal. Journal must not be used after the call. This is part of cursor.JournalsProvider
+func (s *Service) Release(jn string) {
+	s.TIndex.Release(jn)
+}
+
+// Sources provides implementation for api.Querier.Source function
+func (s *Service) Sources(ctx context.Context, tagsCond string) (*api.SourcesResult, error) {
+	srcExp, err := lql.ParseSource(tagsCond)
+	if err != nil {
+		s.logger.Warn("Sources(): could not parse the source condition ", tagsCond, " err=", err)
+		return nil, err
+	}
+
+	srcs := make([]api.Source, 0, 100)
+	ts := uint64(0)
+	tr := uint64(0)
+	count := 0
+	var opErr error
+	var src api.Source
+
+	// by default sort by descending
+	srtF := func(i int) bool {
+		return srcs[i].Size < src.Size
+	}
+
+	err = s.TIndex.Visit(srcExp, func(tags tag.Set, jrnl string) bool {
+		count++
+		j, err := s.Journals.GetOrCreate(ctx, jrnl)
+		if err != nil {
+			s.logger.Error("Could not create of get journal instance for ", jrnl, ", err=", err)
+			opErr = err
+			return false
+		}
+		ts += j.Size()
+		tr += j.Count()
+		src.Tags = tags.Line().String()
+		src.Size = j.Size()
+		src.Records = j.Count()
+
+		idx := sort.Search(len(srcs), srtF)
+		szBefore := len(srcs)
+		if len(srcs) < cap(srcs) {
+			srcs = append(srcs, src)
+		}
+
+		if idx < szBefore {
+			copy(srcs[idx+1:], srcs[idx:])
+			srcs[idx] = src
+		}
+		return true
+	}, 0)
+
+	if err != nil {
+		s.logger.Warn("Sources(): could not obtain sources err=", err)
+		return nil, err
+	}
+
+	if opErr != nil {
+		s.logger.Warn("Sources(): error in a visitor err=", err, " will report as a failure.")
+		return nil, err
+	}
+
+	s.logger.Debug("Requested journals for ", tagsCond, ". returned ", len(srcs), " in map with total count=", count)
+
+	return &api.SourcesResult{Sources: srcs, Count: count, TotalSize: ts, TotalRec: tr}, nil
+}
+
+type OnTruncateF func(ti TruncateInfo)
+
 // TruncateBySize walks over all journals and prune them if the size exceeds maximum value
-func (s *Service) TruncateBySize(ctx context.Context, maxSize uint64) {
+func (s *Service) Truncate(ctx context.Context, tp TruncateParams, otf OnTruncateF) error {
+	srcExp, err := lql.ParseSource(tp.TagsCond)
+	if err != nil {
+		s.logger.Warn("Truncate(): could not parse the source condition ", tp.TagsCond, " err=", err)
+		return err
+	}
+
 	start := time.Now()
 	cremoved := 0
 	ts := uint64(0)
 	rs := ts
-	s.Journals.Visit(ctx, func(j rjournal.Journal) bool {
-		size := j.Size()
-		ts += size
-		if size > maxSize {
-			cks, err := j.Chunks().Chunks(ctx)
-			if err == nil {
-				idx := 0
-				isize := size
-				for _, ck := range cks {
-					size -= uint64(ck.Size())
-					if size <= maxSize {
-						break
-					}
-					idx++
-				}
 
-				if idx == len(cks) {
-					idx = len(cks) - 1
-				}
-				n, err := j.Chunks().DeleteChunks(ctx, cks[idx].Id(), func(cid chunk.Id, filename string, err error) {
-					s.deleteChunk(filename)
-				})
-				if err != nil {
-					s.logger.Error("Could not remove chunks for ", j, ", err=", err)
-				} else {
-					rs += isize - size
-					cremoved += n
-				}
-			}
+	s.logger.Debug("Trundate(): tp=", tp)
+
+	err = s.TIndex.Visit(srcExp, func(tags tag.Set, jn string) bool {
+		s.logger.Debug("Truncate(): considering ", jn, " for tags=", tags.Line())
+		j, err := s.Journals.GetOrCreate(ctx, jn)
+		if err != nil {
+			s.logger.Error("Truncate(): could not obtain journal by its name=", jn, ", the condition is ", tp.TagsCond, ". err=", err)
+			return ctx.Err() == nil
 		}
-		return ctx.Err() == nil
-	})
 
-	s.logger.Info("TruncateBySize(): ", cremoved, " chunks removed. Initial size was ", humanize.Bytes(ts),
-		"(", ts, "), removed ", humanize.Bytes(rs), "(", rs, "). It took ", time.Now().Sub(start))
+		size := j.Size()
+		recs := j.Count()
+		if size == 0 {
+			s.logger.Debug("Truncate(): size is 0, will try to delete the journal ", jn)
+			if (tp.DryRun || s.deleteJournal(ctx, j)) && otf != nil {
+				otf(TruncateInfo{tags, jn, 0, 0, 0, 0, 0, true})
+			}
+			return ctx.Err() == nil
+		}
+
+		ts += size
+		n, tr, err := s.truncate(ctx, j, &tp)
+		if err != nil {
+			s.logger.Error("Truncate(): could not truncate data from the journal ", jn, ", err=", err)
+		} else {
+			ts += tr
+			cremoved += n
+		}
+		arecs := j.Count()
+
+		deleted := false
+		if tr == size {
+			s.logger.Debug("Truncate(): size is 0 after truncation, will try to delete ", jn)
+			deleted = tp.DryRun || s.deleteJournal(ctx, j)
+		}
+
+		if err == nil && otf != nil && tr > 0 {
+			otf(TruncateInfo{tags, jn, size, size - tr, recs, arecs, n, deleted})
+		}
+
+		return ctx.Err() == nil
+	}, tindex.VF_SKIP_IF_LOCKED)
+
+	if err != nil {
+		s.logger.Warn("Truncate(): an error happened while visiting the journals, err=", err)
+		return err
+	}
+
+	s.logger.Info("Truncate(): ", cremoved, " chunk(s) were removed. Initial size of ALL journals was ", humanize.Bytes(ts),
+		"(", ts, "), and ", humanize.Bytes(rs), "(", rs, ") were removed. It took ", time.Now().Sub(start))
+	return nil
 }
 
-// TruncateByTimestamp checks all journals and deletes chunks, that contain information earlier than uNano, but
-// only if the journal size will not become LESS than szThreshold
-func (s *Service) TruncateByTimestamp(ctx context.Context, uNano uint64, szThreshold uint64) {
-	start := time.Now()
-	ts := uint64(0)
-	tr := uint64(0)
-	cremoved := 0
-	s.Journals.Visit(ctx, func(j rjournal.Journal) bool {
-		js := j.Size()
-		red := uint64(0)
-		if js > szThreshold {
-			cks, err := j.Chunks().Chunks(ctx)
-			if err == nil {
-				sc := s.cIdx.syncChunks(ctx, j.Name(), cks)
-				idx := -1
-				for i, ck := range cks {
-					if sc[i].MaxTs > uNano || js-red < szThreshold {
-						break
-					}
-					idx = i
-					red += uint64(ck.Size())
-				}
+// truncate receives a journal and the truncate params, truncate the journal and returns number of chunks truncated,
+// together with total size of removed chunks. It returns an error if the operation was unsuccessful
+func (s *Service) truncate(ctx context.Context, jrnl rjournal.Journal, tp *TruncateParams) (int, uint64, error) {
+	cks, err := jrnl.Chunks().Chunks(ctx)
+	if err != nil {
+		return 0, 0, errors.Wrapf(err, "truncate(): could not read list of chunks for %s", jrnl.Name())
+	}
 
-				if idx >= 0 {
-					n, err := j.Chunks().DeleteChunks(ctx, cks[idx].Id(), func(cid chunk.Id, filename string, err error) {
-						s.deleteChunk(filename)
-					})
-					if err != nil {
-						red = 0
-						s.logger.Error("Could not remove chunks for ", j, ", err=", err)
-					} else {
-						cremoved += n
-					}
-				}
-			}
+	size := jrnl.Size()
+	isize := size
+	idx := 0
+	s.logger.Debug("truncate(): ", jrnl, " has ", len(cks), " chunks, with total size=", size)
+
+	// first cut by the size, idx is exclusive
+	if tp.MaxSrcSize > 0 && tp.MaxSrcSize > tp.MinSrcSize {
+		for ; idx < len(cks) && size > tp.MaxSrcSize && size-uint64(cks[idx].Size()) >= tp.MinSrcSize; idx++ {
+			size -= uint64(cks[idx].Size())
 		}
-		ts += js
-		tr += red
-		return ctx.Err() == nil
+	}
+	s.logger.Debug("After checking size first ", idx, " chunks considered to be removed. New size=", size)
+
+	if tp.OldestTs > 0 && idx < len(cks) {
+		sc := s.cIdx.syncChunks(ctx, jrnl.Name(), cks)
+		for ; idx < len(sc) && sc[idx].MaxTs <= tp.OldestTs && size-uint64(cks[idx].Size()) >= tp.MinSrcSize; idx++ {
+			size -= uint64(cks[idx].Size())
+		}
+	}
+	s.logger.Debug("After checking records' time, first ", idx, " chunks considered to be removed. New size=", size)
+
+	n := idx
+	idx--
+	if idx < 0 || tp.DryRun {
+		return n, isize - size, nil
+	}
+
+	n, err = jrnl.Chunks().DeleteChunks(ctx, cks[idx].Id(), func(cid chunk.Id, filename string, err error) {
+		s.deleteChunk(filename)
 	})
-	s.logger.Info("TruncateByTimestamp(): ", cremoved, " chunks removed. Initial size was ", humanize.Bytes(ts),
-		"(", ts, "), removed ", humanize.Bytes(tr), "(", tr, "). It took ", time.Now().Sub(start))
+	if err != nil {
+		return 0, 0, errors.Wrapf(err, "truncate(): Could not truncate chunks for %v", jrnl)
+	}
+	return n, isize - size, nil
+}
+
+func (s *Service) deleteJournal(ctx context.Context, j rjournal.Journal) bool {
+	jn := j.Name()
+	s.logger.Debug("deleting the journal ", jn, " completely.")
+	if !s.TIndex.LockExclusively(jn) {
+		s.logger.Warn("deleteJournal(): could not acquire the journal ", jn, " exlusively. Giving up.")
+		return false
+	}
+
+	if sz := j.Size(); sz > 0 {
+		s.TIndex.UnlockExclusively(jn)
+		s.logger.Warn("deleteJournal(): could not delete the journal ", jn, " the size is not 0: ", sz)
+		return false
+	}
+
+	dir := j.Chunks().LocalFolder()
+
+	err := s.TIndex.Delete(jn)
+	s.TIndex.UnlockExclusively(jn)
+	if err != nil {
+		s.logger.Warn("deleteJournal(): could not delete the journal ", jn, " err=", err)
+		return false
+	}
+
+	if len(dir) > 0 {
+		err = os.RemoveAll(dir)
+		if err != nil {
+			s.logger.Error("deleteJournal(): could not remove folder ", dir, " for the journal ", jn, " err=", err)
+		}
+	}
+	return true
 }
 
 func (s *Service) deleteChunk(cfname string) {
 	fn := chunkfs.SetChunkDataFileExt(cfname)
+	s.logger.Debug("deleteChunk(): Deleting ", fn)
 	if err := os.Remove(fn); err != nil && !os.IsNotExist(err) {
 		s.logger.Warn("could not remove the chunk file ", fn, ", err=", err)
 	}
 
 	fn = chunkfs.SetChunkIdxFileExt(cfname)
+	s.logger.Debug("deleteChunk(): Deleting ", fn)
 	if err := os.Remove(fn); err != nil {
 		s.logger.Warn("could not remove the chunk file ", fn, ", err=", err)
 	}
@@ -190,4 +392,8 @@ func (s *Service) deleteChunk(cfname string) {
 func (s *Service) onWriteCIndex(src string, iw *iwrapper, n int, pos rjournal.Pos) {
 	ci := chkInfo{pos.CId, iw.minTs, iw.maxTs}
 	s.cIdx.onWrite(src, pos.Idx-uint32(n), pos.Idx-1, ci)
+}
+
+func (tp TruncateParams) String() string {
+	return fmt.Sprintf("{DryRun=%t, TagsCond=%s, MaxSrcSize=%d, MinSrcSize=%d, OldestTs=%d}", tp.DryRun, tp.TagsCond, tp.MaxSrcSize, tp.MinSrcSize, tp.OldestTs)
 }

@@ -86,7 +86,7 @@ func (c *Client) Sources(ctx context.Context, tc string, res *api.SourcesResult)
 	return res.Err
 }
 
-func (c *Client) Truncate(ctx context.Context, cond string, maxSize uint64) (api.TruncateResult, error) {
+func (c *Client) Truncate(ctx context.Context, request api.TruncateRequest) (api.TruncateResult, error) {
 	if c.rc == nil {
 		err := c.connect()
 		if err != nil {
@@ -94,7 +94,7 @@ func (c *Client) Truncate(ctx context.Context, cond string, maxSize uint64) (api
 		}
 	}
 
-	res, err := c.admin.Truncate(ctx, cond, maxSize)
+	res, err := c.admin.Truncate(ctx, request)
 	if err != nil {
 		_ = c.Close()
 		return api.TruncateResult{}, err

@@ -127,6 +127,12 @@ func (sq *ServerQuerier) query(reqId int32, reqBody []byte, sc *rrpc.ServerConn)
 
 	cache := rq.WaitTimeout > 0 || limit != rq.Limit
 
+	if lim == 0 && rq.WaitTimeout <= 0 {
+		sq.logger.Debug("query(): returns empty response for limit=0 and not blocking query")
+		sc.SendResponse(reqId, nil, cEmptyResponse)
+		return
+	}
+
 	state := cursor.State{Id: rq.ReqId, Query: rq.Query, Pos: rq.Pos}
 	cur, err := sq.CurProvider.GetOrCreate(sq.MainCtx, state, cache)
 	if err != nil {
