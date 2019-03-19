@@ -1,7 +1,0 @@
-2018-01-25 06:16:55,361 INFO Initial blacklisted packages: 
-2018-01-25 06:16:55,362 INFO Initial whitelisted packages: 
-2018-01-25 06:16:55,362 INFO Starting unattended upgrades script
-2018-01-25 06:16:55,362 INFO Allowed origins are: ['o=Ubuntu,a=xenial', 'o=Ubuntu,a=xenial-security', 'o=UbuntuESM,a=xenial']
-2018-01-25 06:16:59,070 INFO Packages that will be upgraded: rsync
-2018-01-25 06:16:59,071 INFO Writing dpkg log to '/var/log/unattended-upgrades/unattended-upgrades-dpkg.log'
-2018-01-25 06:17:01,696 INFO All upgrades installed

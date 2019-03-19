@@ -1,0 +1,94 @@
+Cloud-init v. 17.1 running 'init-local' at Thu, 25 Jan 2018 00:41:07 +0000. Up 6.09 seconds.
+Cloud-init v. 17.1 running 'init' at Thu, 25 Jan 2018 00:41:09 +0000. Up 7.37 seconds.
+ci-info: ++++++++++++++++++++++++++++++++++++++Net device info++++++++++++++++++++++++++++++++++++++
+ci-info: +--------+------+-----------------------------+---------------+-------+-------------------+
+ci-info: | Device |  Up  |           Address           |      Mask     | Scope |     Hw-Address    |
+ci-info: +--------+------+-----------------------------+---------------+-------+-------------------+
+ci-info: |  eth0  | True |        159.89.146.218       | 255.255.240.0 |   .   | 0e:43:e6:58:14:52 |
+ci-info: |  eth0  | True | fe80::c43:e6ff:fe58:1452/64 |       .       |  link | 0e:43:e6:58:14:52 |
+ci-info: |   lo   | True |          127.0.0.1          |   255.0.0.0   |   .   |         .         |
+ci-info: |   lo   | True |           ::1/128           |       .       |  host |         .         |
+ci-info: +--------+------+-----------------------------+---------------+-------+-------------------+
+ci-info: ++++++++++++++++++++++++++++++Route IPv4 info++++++++++++++++++++++++++++++
+ci-info: +-------+--------------+--------------+---------------+-----------+-------+
+ci-info: | Route | Destination  |   Gateway    |    Genmask    | Interface | Flags |
+ci-info: +-------+--------------+--------------+---------------+-----------+-------+
+ci-info: |   0   |   0.0.0.0    | 159.89.144.1 |    0.0.0.0    |    eth0   |   UG  |
+ci-info: |   1   |  10.46.0.0   |   0.0.0.0    |  255.255.0.0  |    eth0   |   U   |
+ci-info: |   2   | 159.89.144.0 |   0.0.0.0    | 255.255.240.0 |    eth0   |   U   |
+ci-info: +-------+--------------+--------------+---------------+-----------+-------+
+Generating public/private rsa key pair.
+Your identification has been saved in /etc/ssh/ssh_host_rsa_key.
+Your public key has been saved in /etc/ssh/ssh_host_rsa_key.pub.
+The key fingerprint is:
+SHA256:zU/+gIhutjOX2/5eBuR/ZyST1XYje1XqDSwQCKoyKJQ root@polyubuntu
+The key's randomart image is:
++---[RSA 2048]----+
+|      .. .o.    .|
+|  .  .  .  . . .o|
+| E  .       o.+.*|
+|o  .     o o oo*+|
+|= .     S o +.=.o|
+|.o     . . = o.+ |
+|      . ... + + +|
+|     .= o.   = o.|
+|     oo=.oooo .  |
++----[SHA256]-----+
+Generating public/private dsa key pair.
+Your identification has been saved in /etc/ssh/ssh_host_dsa_key.
+Your public key has been saved in /etc/ssh/ssh_host_dsa_key.pub.
+The key fingerprint is:
+SHA256:GMA7RzPTaY+/mNddEeMJWH/tkNgCgXzQn0HmdnqtMD0 root@polyubuntu
+The key's randomart image is:
++---[DSA 1024]----+
+|   ..  o.=oo=.   |
+|    ..= * o=.+.+.|
+|     o.= + .=oB.*|
+|    o .o. ..o= B.|
+|     o. S.  + E +|
+|          .  + o.|
+|         o o ... |
+|        o o . .  |
+|         .       |
++----[SHA256]-----+
+Generating public/private ecdsa key pair.
+Your identification has been saved in /etc/ssh/ssh_host_ecdsa_key.
+Your public key has been saved in /etc/ssh/ssh_host_ecdsa_key.pub.
+The key fingerprint is:
+SHA256:3dFXKok6y3jC0lt8+qdhIlh2oCr5b44HWd4XGVrRAsM root@polyubuntu
+The key's randomart image is:
++---[ECDSA 256]---+
+|     .o..o      .|
+|      E.+ .. o ..|
+|      .o +. + o .|
+|    ....oo . o . |
+|   +..o S.. .    |
+| .o..*.=.o       |
+|o ..o *.B +      |
+| o .o. * = ..    |
+|  o=o . ..oo     |
++----[SHA256]-----+
+Generating public/private ed25519 key pair.
+Your identification has been saved in /etc/ssh/ssh_host_ed25519_key.
+Your public key has been saved in /etc/ssh/ssh_host_ed25519_key.pub.
+The key fingerprint is:
+SHA256:SeLCqkL0Zfa+jjCOP62Fhl1tuO95CZZwbT9ON+SrOW4 root@polyubuntu
+The key's randomart image is:
++--[ED25519 256]--+
+|                 |
+|                 |
+|      . o        |
+| . . *o+ +   .   |
+|. . *o=oS . o    |
+| .ooo.o=   + +   |
+|...*.oo . + o o  |
+|..+.+.o..o E..   |
+|o..+o.o*o o+o    |
++----[SHA256]-----+
+Generating locales (this might take a while)...
+  en_US.UTF-8... done
+Generation complete.
+Cloud-init v. 17.1 running 'modules:config' at Thu, 25 Jan 2018 00:41:10 +0000. Up 8.56 seconds.
+Initializing machine ID from KVM UUID.
+Cloud-init v. 17.1 running 'modules:final' at Thu, 25 Jan 2018 00:41:12 +0000. Up 10.63 seconds.
+Cloud-init v. 17.1 finished at Thu, 25 Jan 2018 00:41:12 +0000. Datasource DataSourceDigitalOcean.  Up 10.84 seconds
