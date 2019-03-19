@@ -21,6 +21,7 @@ import (
 	"github.com/logrange/logrange/api"
 	"github.com/logrange/logrange/pkg/lql"
 	"github.com/logrange/logrange/pkg/model"
+	"github.com/logrange/logrange/pkg/utils"
 	"github.com/logrange/range/pkg/utils/bytes"
 	"io"
 	"math"
@@ -41,8 +42,6 @@ type (
 	config struct {
 		query      []string
 		stream     bool
-		tagsCond   string
-		size       string
 		optKV      string
 		beforeQuit func()
 		cli        api.Client
@@ -71,22 +70,21 @@ func init() {
 	commands = []command{ //replace with language grammar...
 		{
 			name:    cmdSelectName,
-			matcher: regexp.MustCompile("(?P<" + cmdSelectName + ">(?i)^(?:select$|select\\s.+$))"),
+			matcher: regexp.MustCompile("(?i)^select\\s.+$"),
 			cmdFn:   selectFn,
 			help:    "run LQL queries, e.g. 'select limit 1'",
 		},
 		{
-			name: cmdDescName,
-			matcher: regexp.MustCompile("(?i)^(?:(?:describe$|desc$)|(?:describe|desc)\\s+(?P<" +
-				rgTagsGrp + ">.+))"),
-			cmdFn: descFn,
-			help:  "describe sources, e.g. 'describe tag like \"*a*\"'",
+			name:    cmdDescName,
+			matcher: regexp.MustCompile("(?i)^describe.*$"),
+			cmdFn:   descFn,
+			help:    "describe source(s), e.g. 'describe tag like \"*a*\"'",
 		},
 		{
 			name:    cmdTruncName,
-			matcher: regexp.MustCompile(`(?i)^(?:truncate$|truncate)(?:(?P<tagsCond>\s+.*)|)\s+(?:if-greater\s+(?P<size>\d[0-9.,]*\s*[a-zA-Z]{0,3}))`),
+			matcher: regexp.MustCompile(`(?i)^truncate\s.*$`),
 			cmdFn:   truncFn,
-			help:    "truncate source if size exceeds a value, e.g. 'truncate nam=app,ip=123 if-greater 10.5G'",
+			help:    "truncate source(s) if size exceeds a value, e.g. 'truncate name=app,ip=123 maxsize 10.5G'",
 		},
 		{
 			name: cmdSetOptName,
@@ -113,27 +111,16 @@ func init() {
 func execCmd(ctx context.Context, input string, cfg *config) error {
 	for _, d := range commands {
 		if !d.matcher.MatchString(input) {
-			if strings.HasPrefix(input, d.name) {
-				return fmt.Errorf("command %s - invalid syntax", d.name)
-			}
 			continue
 		}
 		vars := getInputVars(d.matcher, input)
-		if s, ok := vars[cmdSelectName]; ok {
-			cfg.query = []string{s}
-		}
-		if d, ok := vars[rgTagsGrp]; ok {
-			cfg.tagsCond = d
-		}
-		if sz, ok := vars[rgSizeGrp]; ok {
-			cfg.size = sz
-		}
+		cfg.query = []string{input}
 		if opt, ok := vars[cmdSetOptName]; ok {
 			cfg.optKV = opt
 		}
 		return d.cmdFn(ctx, cfg)
 	}
-	return fmt.Errorf("unknown command=%v", input)
+	return fmt.Errorf("unknown command=%v, try help, or check the syntax.", input)
 }
 
 func getInputVars(re *regexp.Regexp, input string) map[string]string {
@@ -226,14 +213,15 @@ func printResults(res *api.QueryResult, frmt *model.FormatParser, w io.Writer) {
 }
 
 func buildReq(selStr string, stream bool) (*api.QueryRequest, *model.FormatParser, error) {
-	s, err := lql.Parse(selStr)
+	l, err := lql.ParseLql(selStr)
 	if err != nil {
 		return nil, nil, err
 	}
+	s := l.Select
 
 	fmtt := defaultEvFmtTemplate
-	if s.Format != "" {
-		fmtt, err = model.NewFormatParser(s.Format)
+	if utils.GetStringVal(s.Format, "") != "" {
+		fmtt, err = model.NewFormatParser(*s.Format)
 		if err != nil {
 			return nil, nil, err
 		}
@@ -244,14 +232,15 @@ func buildReq(selStr string, stream bool) (*api.QueryRequest, *model.FormatParse
 		pos = s.Position.PosId
 	}
 
-	lim := s.Limit
-	if s.Limit > math.MaxInt32 {
+	lim := utils.GetInt64Val(s.Limit, 0)
+	if lim > math.MaxInt32 {
 		lim = math.MaxInt32
 	}
 
 	waitSec := 0
 	if stream {
 		waitSec = 10
+		lim = math.MaxInt32
 	}
 
 	qr := &api.QueryRequest{
@@ -267,13 +256,16 @@ func buildReq(selStr string, stream bool) (*api.QueryRequest, *model.FormatParse
 //===================== describe =====================
 
 func descFn(ctx context.Context, cfg *config) error {
-	_, err := lql.ParseSource(cfg.tagsCond)
+	l, err := lql.ParseLql(cfg.query[0])
 	if err != nil {
 		return err
 	}
+	if l.Describe == nil {
+		return fmt.Errorf("Oops, expected describe, but received %s", cfg.query[0])
+	}
 
 	res := &api.SourcesResult{}
-	err = cfg.cli.Sources(ctx, cfg.tagsCond, res)
+	err = cfg.cli.Sources(ctx, l.Describe.Source.String(), res)
 	if err != nil {
 		return err
 	}
@@ -306,17 +298,22 @@ func descFn(ctx context.Context, cfg *config) error {
 
 //===================== truncate =====================
 
+func toTruncateRequest(t *lql.Truncate) api.TruncateRequest {
+	if t == nil {
+		return api.TruncateRequest{}
+	}
+	return api.TruncateRequest{TagsCond: t.GetTagsCond(), MaxSrcSize: t.GetMaxSize(), MinSrcSize: t.GetMinSize(), OldestTs: t.GetBefore(), DryRun: t.IsDryRun()}
+}
+
 func truncFn(ctx context.Context, cfg *config) error {
-	sz, err := humanize.ParseBytes(cfg.size)
+	l, err := lql.ParseLql(cfg.query[0])
 	if err != nil {
 		return err
 	}
 
-	if _, err = lql.ParseSource(cfg.tagsCond); err != nil {
-		return err
-	}
+	fmt.Println("understand: ", l.Truncate.String())
 
-	res, err := cfg.cli.Truncate(ctx, api.TruncateRequest{TagsCond: cfg.tagsCond, MaxSrcSize: sz})
+	res, err := cfg.cli.Truncate(ctx, toTruncateRequest(l.Truncate))
 	if err != nil {
 		return err
 	}

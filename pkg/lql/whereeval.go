@@ -17,10 +17,11 @@ package lql
 import (
 	"fmt"
 	"github.com/logrange/logrange/pkg/model"
+	"github.com/logrange/logrange/pkg/scanner/parser/date"
+	"github.com/logrange/range/pkg/utils/bytes"
 	"path"
 	"strconv"
 	"strings"
-	"time"
 )
 
 type (
@@ -204,20 +205,15 @@ func (web *whereExpFuncBuilder) buildMsgCond(cn *Condition) (err error) {
 	return err
 }
 
-const unix_no_zone = "2006-01-02T15:04:05"
-
 func parseTime(val string) (uint64, error) {
 	v, err := strconv.ParseInt(val, 10, 64)
 	if err == nil {
 		return uint64(v), nil
 	}
 
-	tm, err := time.Parse(time.RFC3339, val)
+	tm, err := date.Parse(bytes.StringToByteArray(val))
 	if err != nil {
-		tm, err = time.Parse(unix_no_zone, val)
-		if err != nil {
-			return 0, fmt.Errorf("Could not parse timestamp %s doesn't look like unix time or RFC3339 format or short form.", val)
-		}
+		return 0, err
 	}
 
 	return uint64(tm.UnixNano()), nil

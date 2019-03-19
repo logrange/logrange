@@ -70,10 +70,11 @@ type (
 
 // newCursor creates the new cursor based on the state provided.
 func newCursor(ctx context.Context, state State, jrnlProvider JournalsProvider) (*Cursor, error) {
-	sel, err := lql.Parse(state.Query)
-	if err != nil {
-		return nil, errors.Wrapf(err, "could not parse lql=%s", state.Query)
+	l, err := lql.ParseLql(state.Query)
+	if err != nil || l.Select == nil {
+		return nil, errors.Wrapf(err, "could not parse lql=%s, expecting select statement", state.Query)
 	}
+	sel := l.Select
 
 	srcs, err := jrnlProvider.GetJournals(ctx, sel.Source, 50)
 

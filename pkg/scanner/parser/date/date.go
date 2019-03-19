@@ -167,9 +167,19 @@ var (
 		{"ZZZ", "MST", "[A-Z]{3}"},
 		{"ZZ", "Z07:00", "Z[0-9]{2}:[0-9]{2}"},
 	}
+
+	defParser = NewDefaultParser()
 )
 
 //===================== parser =====================
+
+func Parse(data []byte) (time.Time, error) {
+	tm, f := defParser.Parse(data)
+	if f == nil {
+		return tm, fmt.Errorf("Could not parse data %s, no such default format for it, or it is wrong date/time", data)
+	}
+	return tm, nil
+}
 
 func NewDefaultParser(usrFmts ...string) *parser {
 	if len(usrFmts) == 0 {

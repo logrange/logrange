@@ -46,6 +46,8 @@ type (
 
 	// TruncateRequest contains truncation params
 	TruncateRequest struct {
+		// DryRun will not affect data, but wil report sources affected
+		DryRun bool
 		// TagsCond contains the tags condition to select journals to be truncated
 		TagsCond string
 		// MaxSrcSize defines the upper level of a journal size, which will be truncated, if reached

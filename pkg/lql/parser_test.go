@@ -16,6 +16,7 @@ package lql
 
 import (
 	"github.com/logrange/logrange/pkg/model/tag"
+	"github.com/logrange/logrange/pkg/utils"
 	"testing"
 )
 
@@ -23,14 +24,15 @@ func BenchmarkParse(b *testing.B) {
 	b.ReportAllocs()
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		Parse("SELECT SOURCE a>b WHERE 'from'='this is tag value' or filename=\"wifi.log\" OFFSET 0 LIMIT -1")
+		ParseLql("SELECT SOURCE a>b WHERE 'from'='this is tag value' or filename=\"wifi.log\" OFFSET 0 LIMIT -1")
 	}
 }
 
 func TestParse(t *testing.T) {
-	testOk(t, "select limit 120")
+	testOk(t, "select all")
 	testOk(t, "select limit 100")
-	testOk(t, "select offset 123 limit 100")
+	testOk(t, "select all limit 100")
+	testOk(t, "select offset 123 ")
 	testOk(t, "select format 'format-%ts-%pod' limit 100")
 	testOk(t, "select format 'format-%ts-%pod' position tail limit 100")
 	testOk(t, "select format 'format-%ts-%pod' position 'head' limit 100")
@@ -50,30 +52,37 @@ func TestParse(t *testing.T) {
 	testOk(t, "SELECT source a=b OR b contains 'r' WHERE filename=\"system.log\" or filename=\"wifi.log\" OFFSET 0 LIMIT -1")
 	testOk(t, "SELECT Source a=b AND c=d WHERE filename=\"system.log\" or filename=\"wifi.log\" OFFSET 0 LIMIT -1")
 	testOk(t, "SELECT SOURCE a>b WHERE from='this is tag value' or filename=\"wifi.log\" OFFSET 0 LIMIT -1")
+	testOk(t, "describe")
+	testOk(t, "describe {fff=aaa}")
+	testOk(t, "describe file=anme AND c=d")
+	testOk(t, "truncate")
+	testOk(t, "truncate {fff=aaa}")
+	testOk(t, "truncate file=anme AND c=d minsize 3G maxsize 20 ")
+	testOk(t, "truncate dryrun {fff=aaa} before '2019-03-11 12:34:43'")
 }
 
 func TestParams(t *testing.T) {
-	s := testOk(t, "Select format 'abc' where a = '123' position tail offset -10 limit 13")
-	if s.Format != "abc" || s.Position.PosId != "tail" || *s.Offset != -10 || s.Limit != 13 {
-		t.Fatal("Something goes wrong ", s)
+	l := testOk(t, "Select format 'abc' where a = '123' position tail offset -10 limit 13")
+	if utils.GetStringVal(l.Select.Format, "") != "abc" || l.Select.Position.PosId != "tail" || *l.Select.Offset != -10 || *l.Select.Limit != 13 {
+		t.Fatal("Something goes wrong ", l.Select)
 	}
 }
 
 func TestPosition(t *testing.T) {
-	s := testOk(t, "Select format 'abc' where a = '123' position 'tail' offset -10 limit 13")
-	if s.Position.PosId != "tail" {
-		t.Fatal("Something goes wrong ", s)
+	l := testOk(t, "Select format 'abc' where a = '123' position 'tail' offset -10 limit 13")
+	if l.Select.Position.PosId != "tail" {
+		t.Fatal("Something goes wrong ", l.Select)
 	}
 
-	s = testOk(t, "Select format 'abc' where a = '123' position tail offset -10 limit 13")
-	if s.Position.PosId != "tail" {
-		t.Fatal("Something goes wrong ", s)
+	l = testOk(t, "Select format 'abc' where a = '123' position tail offset -10 limit 13")
+	if l.Select.Position.PosId != "tail" {
+		t.Fatal("Something goes wrong ", l.Select)
 	}
 
 	posId := "AAAABXNyY0lkAAAE0gAAAAAAAeIqAAAAGHNyYzEyMzQ3OUAkJV8gQTIzNEF6cUlkMgAAAA4AAAAAAAAE0g=="
-	s = testOk(t, "Select format 'abc' where a = '123' position '"+posId+"' offset -10 limit 13")
-	if s.Position.PosId != posId {
-		t.Fatal("Something goes wrong ", s)
+	l = testOk(t, "Select format 'abc' where a = '123' position '"+posId+"' offset -10 limit 13")
+	if l.Select.Position.PosId != posId {
+		t.Fatal("Something goes wrong ", l.Select)
 	}
 }
 
@@ -85,6 +94,28 @@ func TestParseTagsSource(t *testing.T) {
 
 func TestParseWhere(t *testing.T) {
 	testWhereOk(t, "a=adsf and b=adsf")
+}
+
+func TestConditionString(t *testing.T) {
+	testCondParse(t, "a like 123")
+	testCondParse(t, `a like '12"3'`)
+	testCondParse(t, `a=b`)
+	testCondParse(t, `a=bcd`)
+}
+
+func testCondParse(t *testing.T, str string) {
+	var c, c2 Condition
+	err := parserCondition.ParseString(str, &c)
+	if err != nil {
+		t.Fatal("err=", err)
+	}
+	err = parserCondition.ParseString(c.String(), &c2)
+	if err != nil {
+		t.Fatal("could not parse ", c.String(), " err=", err)
+	}
+	if c.String() != c2.String() {
+		t.Fatal("something goes wrong ", &c, &c2)
+	}
 }
 
 func testParseSource(t *testing.T, exp string, tags, errOk bool) {
@@ -113,11 +144,20 @@ func testWhereOk(t *testing.T, whr string) *Expression {
 	return e
 }
 
-func testOk(t *testing.T, kql string) *Select {
-	s, err := Parse(kql)
+func testOk(t *testing.T, lql string) *Lql {
+	l, err := ParseLql(lql)
 	if err != nil {
-		t.Fatal("kql=\"", kql, "\" unexpected err=", err)
+		t.Fatal("lql=\"", lql, "\" unexpected err=", err)
 	}
-	t.Log(s.Limit)
-	return s
+
+	l2, err := ParseLql(l.String())
+	if err != nil {
+		t.Fatal("l.String()=\"", l.String(), "\" unexpected err=", err)
+	}
+
+	if l.String() != l2.String() {
+		t.Fatal("Initial lql=", lql, ", l.String()=", l.String(), ", l2.String()=", l2.String())
+	}
+
+	return l
 }

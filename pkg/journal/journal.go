@@ -48,6 +48,7 @@ type (
 
 	// TruncateParams allows to provide parameters for Truncate() functions
 	TruncateParams struct {
+		DryRun bool
 		// TagsCond contains the tags condition to select journals to be truncated
 		TagsCond string
 		// MaxSrcSize defines the upper level of a journal size, which will be truncated, if reached
@@ -259,7 +260,7 @@ func (s *Service) Truncate(ctx context.Context, tp TruncateParams, otf OnTruncat
 		recs := j.Count()
 		if size == 0 {
 			s.logger.Debug("Truncate(): size is 0, will try to delete the journal ", jn)
-			if s.deleteJournal(ctx, j) && otf != nil {
+			if (tp.DryRun || s.deleteJournal(ctx, j)) && otf != nil {
 				otf(TruncateInfo{tags, jn, 0, 0, 0, 0, 0, true})
 			}
 			return ctx.Err() == nil
@@ -278,7 +279,7 @@ func (s *Service) Truncate(ctx context.Context, tp TruncateParams, otf OnTruncat
 		deleted := false
 		if tr == size {
 			s.logger.Debug("Truncate(): size is 0 after truncation, will try to delete ", jn)
-			deleted = s.deleteJournal(ctx, j)
+			deleted = tp.DryRun || s.deleteJournal(ctx, j)
 		}
 
 		if err == nil && otf != nil && tr > 0 {
@@ -327,12 +328,13 @@ func (s *Service) truncate(ctx context.Context, jrnl rjournal.Journal, tp *Trunc
 	}
 	s.logger.Debug("After checking records' time, first ", idx, " chunks considered to be removed. New size=", size)
 
+	n := idx
 	idx--
-	if idx < 0 {
-		return 0, 0, nil
+	if idx < 0 || tp.DryRun {
+		return n, isize - size, nil
 	}
 
-	n, err := jrnl.Chunks().DeleteChunks(ctx, cks[idx].Id(), func(cid chunk.Id, filename string, err error) {
+	n, err = jrnl.Chunks().DeleteChunks(ctx, cks[idx].Id(), func(cid chunk.Id, filename string, err error) {
 		s.deleteChunk(filename)
 	})
 	if err != nil {
@@ -393,5 +395,5 @@ func (s *Service) onWriteCIndex(src string, iw *iwrapper, n int, pos rjournal.Po
 }
 
 func (tp TruncateParams) String() string {
-	return fmt.Sprintf("{TagsCond=%s, MaxSrcSize=%d, MinSrcSize=%d, OldestTs=%d}", tp.TagsCond, tp.MaxSrcSize, tp.MinSrcSize, tp.OldestTs)
+	return fmt.Sprintf("{DryRun=%t, TagsCond=%s, MaxSrcSize=%d, MinSrcSize=%d, OldestTs=%d}", tp.DryRun, tp.TagsCond, tp.MaxSrcSize, tp.MinSrcSize, tp.OldestTs)
 }

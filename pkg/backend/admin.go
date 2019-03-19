@@ -42,6 +42,7 @@ func (ad *Admin) Truncate(req api.TruncateRequest) (api.TruncateResult, error) {
 	srcs := make([]*api.SourceTruncateResult, 0, 10)
 
 	err := ad.Journals.Truncate(ad.MainCtx, journal.TruncateParams{
+		DryRun:     req.DryRun,
 		TagsCond:   req.TagsCond,
 		MinSrcSize: req.MinSrcSize,
 		MaxSrcSize: req.MaxSrcSize,
