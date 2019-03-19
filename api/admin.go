@@ -29,6 +29,10 @@ type (
 		RecordsBefore uint64
 		// RecordsAfter number of records after truncation
 		RecordsAfter uint64
+		// ChunksDeleted contains number of chunks deleted
+		ChunksDeleted int
+		// Deleted contains whether the source was completely deleted
+		Deleted bool
 	}
 
 	// TruncateResult contains the result of the Truncate execution
@@ -40,11 +44,25 @@ type (
 		Err error `json:"-"`
 	}
 
+	// TruncateRequest contains truncation params
+	TruncateRequest struct {
+		// TagsCond contains the tags condition to select journals to be truncated
+		TagsCond string
+		// MaxSrcSize defines the upper level of a journal size, which will be truncated, if reached
+		MaxSrcSize uint64
+		// MinSrcSize defines the lower level of a journal size, which will not be cut if the journal will be less
+		// than this parameter after truncation
+		MinSrcSize uint64
+		// OldestTs defines the oldest record timestamp. Chunks with records less than the parameter are candidates
+		// for truncation
+		OldestTs uint64
+	}
+
 	// Admin interface allows to perform some administrative actions
 	Admin interface {
 
-		// Truncate affects all sources whcih meet the tagsCond and have the size equal or bigger than maxSize
-		// Returns list of sources affected.
-		Truncate(ctx context.Context, tagsCond string, maxSize uint64) (res TruncateResult, err error)
+		// Truncate walks over all known sources and tries to truncate them if they match with the request
+		// It returns list of sources affected.
+		Truncate(ctx context.Context, req TruncateRequest) (res TruncateResult, err error)
 	}
 )

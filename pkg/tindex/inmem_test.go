@@ -23,7 +23,9 @@ import (
 	"github.com/logrange/range/pkg/records/journal"
 	"io/ioutil"
 	"os"
+	"sync/atomic"
 	"testing"
+	"time"
 )
 
 type testJournals struct {
@@ -40,6 +42,10 @@ func (tjc *testJournals) Visit(ctx context.Context, cv journal.ControllerVisitor
 
 func (tjc *testJournals) GetOrCreate(ctx context.Context, jname string) (journal.Journal, error) {
 	return nil, nil
+}
+
+func (tjc *testJournals) Delete(ctx context.Context, jname string) error {
+	return nil
 }
 
 type testJrnl struct {
@@ -119,7 +125,6 @@ func TestCheckInit(t *testing.T) {
 	if err != nil {
 		t.Fatal("Must be created, but err=", err)
 	}
-	t.Log(jrnl)
 	ims.Shutdown()
 
 	ims.Journals = &testJournals{[]string{jrnl}}
@@ -229,11 +234,232 @@ func TestVisitor(t *testing.T) {
 	}
 }
 
+func TestReAcquireExclusively(t *testing.T) {
+	dir, err := ioutil.TempDir("", "GetJournals")
+	if err != nil {
+		t.Fatal("Could not create new dir err=", err)
+	}
+	defer os.RemoveAll(dir) // clean up
+
+	tags := tag.Line("dda=a")
+	ps, _ := lql.ParseSource(tags.String())
+
+	ims := NewInmemService().(*inmemService)
+	ims.Journals = &testJournals{}
+	ims.Config = &InMemConfig{WorkingDir: dir, DoNotSave: true}
+	ims.Init(nil)
+
+	if ims.LockExclusively("blah") {
+		t.Fatal("Must not be acquired")
+	}
+
+	src, _ := ims.GetOrCreateJournal("dda=a") //1st
+	ims.GetOrCreateJournal("dda=a")           // 2nd
+
+	if ims.tmap["dda=a"].readers != 2 {
+		t.Fatal("Wrong value for td=", ims.tmap["dda=a"])
+	}
+
+	res, _ := getJournals(ims, ps)
+
+	// check visitior
+	if len(res) != 1 || res[tags] != src {
+		t.Fatal("Visitor must return the journal but res=", res)
+	}
+
+	if ims.smap[src].readers != 2 {
+		t.Fatal("Wrong value for td=", ims.smap[src])
+	}
+
+	ok := ims.LockExclusively(src)
+	if ok || ims.smap[src].exclusive {
+		t.Fatal("Must not be acquired but ok=", ok)
+	}
+	ims.Release(src)
+
+	// Now, we have only one read ackusition, so can re-acquire for exclusive
+	if !ims.LockExclusively(src) || !ims.smap[src].exclusive {
+		t.Fatal("Must be acquired")
+	}
+
+	// visitor must not return the journal
+	res, _ = getJournals(ims, ps)
+	if len(res) != 0 {
+		t.Fatal("Visitor must not return the journal but res=", res)
+	}
+
+	// releasing the exclusive
+	ims.UnlockExclusively(src)
+	if ims.smap[src].exclusive {
+		t.Fatal("Must not be exclusive")
+	}
+	ims.Release(src)
+
+	// not acquired for read, so must fail
+	if ims.LockExclusively(src) || ims.smap[src].exclusive {
+		t.Fatal("Must not be acquired")
+	}
+
+	// visitor must return the journal again
+	res, _ = getJournals(ims, ps)
+	if len(res) != 1 || res[tags] != src {
+		t.Fatal("Visitor must return the journal but res=", res)
+	}
+
+	// Ok, re-acquire once again now
+	ims.GetOrCreateJournal("dda=a")
+	if !ims.LockExclusively(src) || !ims.smap[src].exclusive {
+		t.Fatal("Must be acquired")
+	}
+
+	// will check that GetOrCreateJournal until the exclusive is released...
+	var nextAck int64
+	go func() {
+		ims.GetOrCreateJournal("dda=a")
+		atomic.StoreInt64(&nextAck, time.Now().UnixNano())
+		ims.Release(src)
+	}()
+
+	time.Sleep(10 * time.Millisecond)
+	now := time.Now()
+	ims.UnlockExclusively(src)
+	ims.Release(src)
+	time.Sleep(2 * time.Millisecond)
+	if atomic.LoadInt64(&nextAck)-now.UnixNano() < 0 {
+		t.Fatal("concurrent acquisition in go routine at ", nextAck, " must happen after the release ", now)
+	}
+}
+
+func TestDelete(t *testing.T) {
+	dir, err := ioutil.TempDir("", "GetJournals")
+	if err != nil {
+		t.Fatal("Could not create new dir err=", err)
+	}
+	defer os.RemoveAll(dir) // clean up
+
+	ims := NewInmemService().(*inmemService)
+	ims.Journals = &testJournals{}
+	ims.Config = &InMemConfig{WorkingDir: dir, DoNotSave: true}
+	ims.Init(nil)
+
+	src, _ := ims.GetOrCreateJournal("dda=a") //1st
+	// on not exclusive lock must fail
+	if ims.Delete(src) == nil {
+		t.Fatal("Must not be able to Delete!")
+	}
+
+	ims.Release(src)
+
+	// must fail if no lock at all
+	if ims.Delete(src) == nil {
+		t.Fatal("Must not be able to Delete!")
+	}
+
+	if len(ims.smap) != 1 || len(ims.tmap) != 1 {
+		t.Fatal("Must not affect data, but ims.smap=", ims.smap)
+	}
+
+	// ok, no get it exclusively
+	ims.GetOrCreateJournal("dda=a")
+	ims.LockExclusively(src)
+	if err := ims.Delete(src); err != nil {
+		t.Fatal("Must be able to delete, but err=", err)
+	}
+
+	ims.Release(src)
+	if len(ims.smap) != 0 || len(ims.tmap) != 0 {
+		t.Fatal("Must not affect data, but ims.smap=", ims.smap)
+	}
+}
+
+func TestVisitSkipping(t *testing.T) {
+	dir, err := ioutil.TempDir("", "GetJournals")
+	if err != nil {
+		t.Fatal("Could not create new dir err=", err)
+	}
+	defer os.RemoveAll(dir) // clean up
+
+	ims := NewInmemService().(*inmemService)
+	ims.Journals = &testJournals{}
+	ims.Config = &InMemConfig{WorkingDir: dir, DoNotSave: true}
+	ims.Init(nil)
+
+	src, _ := ims.GetOrCreateJournal("dda=a") //1st
+
+	if ims.smap[src].readers != 1 {
+		t.Fatal("Must be 1 reader here")
+	}
+
+	ims.Release(src)
+
+	// Visit release
+	ims.visitSkippingIfLocked(lql.PositiveTagsExpFunc, func(tags tag.Set, jrnl string) bool {
+		if ims.smap[jrnl].readers != 1 {
+			t.Fatal("Must be 1 reader here")
+		}
+		return true
+	}, 0)
+
+	if ims.smap[src].readers != 0 {
+		t.Fatal("Must be 0 readers here")
+	}
+
+	// Visit non-release
+	ims.visitSkippingIfLocked(lql.PositiveTagsExpFunc, func(tags tag.Set, jrnl string) bool {
+		if ims.smap[jrnl].readers != 1 {
+			t.Fatal("Must be 1 reader here")
+		}
+		return true
+	}, VF_DO_NOT_RELEASE)
+
+	if ims.smap[src].readers != 1 {
+		t.Fatal("Must be 0 readers here")
+	}
+	ims.Release(src)
+
+	src2, _ := ims.GetOrCreateJournal("dda3=a") //1st
+	ims.Release(src2)
+
+	// Visit non-release
+	visited := map[string]string{}
+	ims.visitSkippingIfLocked(lql.PositiveTagsExpFunc, func(tags tag.Set, jrnl string) bool {
+		if ims.smap[jrnl].readers != 1 {
+			t.Fatal("Must be 1 reader here")
+		}
+		visited[jrnl] = jrnl
+		return false
+	}, VF_DO_NOT_RELEASE)
+
+	if len(visited) != 1 || (visited[src] == src && ims.smap[src2].readers != 0) || (visited[src2] == src2 && ims.smap[src].readers != 0) {
+		t.Fatal("not properly released ", visited)
+	}
+
+	if visited[src] == src {
+		ims.Release(src)
+	} else {
+		ims.Release(src2)
+	}
+
+	// Visit release
+	visited = map[string]string{}
+	ims.visitSkippingIfLocked(lql.PositiveTagsExpFunc, func(tags tag.Set, jrnl string) bool {
+		if ims.smap[jrnl].readers != 1 {
+			t.Fatal("Must be 1 reader here")
+		}
+		visited[jrnl] = jrnl
+		return false
+	}, 0)
+
+	if len(visited) != 1 || ims.smap[src2].readers != 0 || ims.smap[src].readers != 0 {
+		t.Fatal("not properly released ", visited)
+	}
+}
+
 func getJournals(ims *inmemService, srcCond *lql.Source) (map[tag.Line]string, error) {
 	res := make(map[tag.Line]string)
 	err := ims.Visit(srcCond, func(tags tag.Set, jrnl string) bool {
 		res[tags.Line()] = jrnl
 		return true
-	})
+	}, VF_SKIP_IF_LOCKED)
 	return res, err
 }

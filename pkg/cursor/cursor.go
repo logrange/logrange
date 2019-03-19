@@ -21,7 +21,6 @@ import (
 	"github.com/logrange/logrange/pkg/lql"
 	"github.com/logrange/logrange/pkg/model"
 	"github.com/logrange/logrange/pkg/model/tag"
-	"github.com/logrange/logrange/pkg/tindex"
 	"github.com/logrange/range/pkg/records/journal"
 	"github.com/pkg/errors"
 	"strings"
@@ -46,9 +45,20 @@ type (
 	// a new cursor could be created from the struct. Cursor supports model.Iterator interface which allows to access
 	// to records the cursor selects
 	Cursor struct {
-		state  State
-		it     model.Iterator
-		jDescs map[string]*jrnlDesc
+		state        State
+		it           model.Iterator
+		jrnlProvider JournalsProvider
+		jDescs       map[string]*jrnlDesc
+	}
+
+	// JournalsProvider interface is used for creating new cursors. journal.Service most probably implements it.
+	JournalsProvider interface {
+		// GetJournals returns map of journals by tags:journal.Journal or an error, if any. The returned journals
+		// must be released after usage by Release() function
+		GetJournals(ctx context.Context, tagsCond *lql.Source, maxLimit int) (map[tag.Line]journal.Journal, error)
+
+		// Release releases the journal. Journal must not be used after the call
+		Release(jn string)
 	}
 
 	jrnlDesc struct {
@@ -59,17 +69,14 @@ type (
 )
 
 // newCursor creates the new cursor based on the state provided.
-func newCursor(ctx context.Context, state State, tidx tindex.Service, jctrl journal.Controller) (*Cursor, error) {
+func newCursor(ctx context.Context, state State, jrnlProvider JournalsProvider) (*Cursor, error) {
 	sel, err := lql.Parse(state.Query)
 	if err != nil {
 		return nil, errors.Wrapf(err, "could not parse lql=%s", state.Query)
 	}
 
-	srcs := make(map[tag.Line]string, 10)
-	err = tidx.Visit(sel.Source, func(tags tag.Set, jrnl string) bool {
-		srcs[tags.Line()] = jrnl
-		return true
-	})
+	srcs, err := jrnlProvider.GetJournals(ctx, sel.Source, 50)
+
 	if err != nil {
 		return nil, errors.Wrapf(err, "could not get a list of journals for the query %s", state.Query)
 	}
@@ -82,28 +89,19 @@ func newCursor(ctx context.Context, state State, tidx tindex.Service, jctrl jour
 	// create the iterators
 	var it model.Iterator
 	if len(srcs) == 1 {
-		for tags, src := range srcs {
-			jrnl, err := jctrl.GetOrCreate(ctx, src)
-			if err != nil {
-				return nil, errors.Wrapf(err, "could not get the access to the journal %s for tag %s, which's got for the query \"%s\"", src, tags, state.Query)
-			}
+		for tags, jrnl := range srcs {
 			jit := jrnl.Iterator()
 			it = (&model.LogEventIterator{}).Wrap(tags, jit)
 
-			jd[src] = &jrnlDesc{tags, jrnl, jit}
+			jd[jrnl.Name()] = &jrnlDesc{tags, jrnl, jit}
 		}
 	} else {
 		mxs := make([]model.Iterator, len(srcs))
 
 		i := 0
-		for tags, src := range srcs {
-			jrnl, err := jctrl.GetOrCreate(ctx, src)
-			if err != nil {
-				return nil, errors.Wrapf(err, "could not get the access to the journal %s, which's got for the query \"%s\" ", src, state.Query)
-			}
-
+		for tags, jrnl := range srcs {
 			jit := jrnl.Iterator()
-			jd[src] = &jrnlDesc{tags, jrnl, jit}
+			jd[jrnl.Name()] = &jrnlDesc{tags, jrnl, jit}
 			mxs[i] = (&model.LogEventIterator{}).Wrap(tags, jit)
 			i++
 		}
@@ -137,6 +135,7 @@ func newCursor(ctx context.Context, state State, tidx tindex.Service, jctrl jour
 	cur.state = state
 	cur.it = it
 	cur.jDescs = jd
+	cur.jrnlProvider = jrnlProvider
 	if err := cur.applyPos(); err != nil {
 		return nil, errors.Wrapf(err, "the position %s could not be applied ", state.Pos)
 	}
@@ -230,6 +229,7 @@ func (cur *Cursor) collectPos() string {
 func (cur *Cursor) close() {
 	for _, jd := range cur.jDescs {
 		jd.it.Close()
+		cur.jrnlProvider.Release(jd.j.Name())
 		jd.it = nil
 		jd.j = nil
 	}

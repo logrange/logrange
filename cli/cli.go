@@ -268,7 +268,7 @@ func (c *client) truncate(ctx context.Context, cond string, maxSize uint64) (api
 		}
 	}
 
-	return c.rpc.Admin().Truncate(ctx, cond, maxSize)
+	return c.rpc.Admin().Truncate(ctx, api.TruncateRequest{TagsCond: cond, MaxSrcSize: maxSize, MinSrcSize: 0})
 }
 
 func (c *client) query(ctx context.Context, qr *api.QueryRequest) (*api.QueryResult, error) {

@@ -84,7 +84,7 @@ func init() {
 		},
 		{
 			name:    cmdTruncName,
-			matcher: regexp.MustCompile(`(?i)^(?:truncate$|truncate)(?:(?P<rgTagsCond>\s+.*)|)\s+(?:if-greater\s+(?P<size>\d[0-9.,]+\s*[a-zA-Z]{0,3}))`),
+			matcher: regexp.MustCompile(`(?i)^(?:truncate$|truncate)(?:(?P<tagsCond>\s+.*)|)\s+(?:if-greater\s+(?P<size>\d[0-9.,]*\s*[a-zA-Z]{0,3}))`),
 			cmdFn:   truncFn,
 			help:    "truncate source if size exceeds a value, e.g. 'truncate nam=app,ip=123 if-greater 10.5G'",
 		},
@@ -256,7 +256,7 @@ func descFn(ctx context.Context, cfg *config) error {
 
 	if !first {
 		if len(res.Sources) < res.Count {
-			fmt.Printf("... and more ...\n")
+			fmt.Printf("\n\n... and more recods ...\n")
 		}
 
 		if res.Count > 1 {

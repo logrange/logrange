@@ -25,8 +25,7 @@ func TestGetOrCreate(t *testing.T) {
 	p := NewProvider()
 	defer p.Shutdown()
 
-	p.Tidx = &testTidxService{map[tag.Line]string{"j1=j1": "j1"}}
-	p.JCtrl = &testJrnlCtrlr{map[string]*testJrnl{"j1": &testJrnl{"j1"}}}
+	p.JrnlsProvider = &testJrnlsProvider{j: map[tag.Line]*testJrnl{"j1=j1": &testJrnl{"j1"}}}
 	cur, err := p.GetOrCreate(nil, State{Query: "select limit 10"}, true)
 	if err != nil {
 		t.Fatal("err must be nil, but err=", err)
@@ -54,8 +53,7 @@ func TestRelease(t *testing.T) {
 	p := NewProvider()
 	defer p.Shutdown()
 
-	p.Tidx = &testTidxService{map[tag.Line]string{"j1=j1": "j1"}}
-	p.JCtrl = &testJrnlCtrlr{map[string]*testJrnl{"j1": &testJrnl{"j1"}}}
+	p.JrnlsProvider = &testJrnlsProvider{j: map[tag.Line]*testJrnl{"j1=j1": &testJrnl{"j1"}}}
 	cur, err := p.GetOrCreate(nil, State{Id: 1, Query: "select limit 10"}, true)
 	if e, ok := p.curs[1]; !ok || e != p.busy || err != nil {
 		t.Fatal("cur=", cur, ", was not found or err=", err)
@@ -88,8 +86,8 @@ func TestSweepByTime(t *testing.T) {
 		t.Fatal("p.Init() == ", err)
 	}
 
-	p.Tidx = &testTidxService{map[tag.Line]string{"j1=j1": "j1"}}
-	p.JCtrl = &testJrnlCtrlr{map[string]*testJrnl{"j1": &testJrnl{"j1"}}}
+	tjp := &testJrnlsProvider{j: map[tag.Line]*testJrnl{"j1=j1": &testJrnl{"j1"}}}
+	p.JrnlsProvider = tjp
 	cur, err := p.GetOrCreate(nil, State{Id: 1, Query: "select limit 10"}, true)
 	if e, ok := p.curs[1]; !ok || e != p.busy || err != nil {
 		t.Fatal("cur=", cur, ", was not found or err=", err)
@@ -112,6 +110,9 @@ func TestSweepByTime(t *testing.T) {
 		t.Fatal("cur2 must be swept")
 	}
 
+	if len(tjp.released) != 1 || tjp.released["j1"] != "j1" {
+		t.Fatal("Must be released, but tjp.release=", tjp.released)
+	}
 }
 
 func TestSweepBySize(t *testing.T) {
@@ -121,8 +122,7 @@ func TestSweepBySize(t *testing.T) {
 
 	log4g.SetLogLevel("", log4g.DEBUG)
 
-	p.Tidx = &testTidxService{map[tag.Line]string{"j1=j1": "j1"}}
-	p.JCtrl = &testJrnlCtrlr{map[string]*testJrnl{"j1": &testJrnl{"j1"}}}
+	p.JrnlsProvider = &testJrnlsProvider{j: map[tag.Line]*testJrnl{"j1=j1": &testJrnl{"j1"}}}
 	cur, err := p.GetOrCreate(nil, State{Id: 1, Query: "select limit 10"}, true)
 	if e, ok := p.curs[1]; !ok || e != p.busy || err != nil {
 		t.Fatal("cur=", cur, ", was not found or err=", err)

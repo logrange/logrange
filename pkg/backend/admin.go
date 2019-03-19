@@ -18,20 +18,14 @@ import (
 	"context"
 	"github.com/jrivets/log4g"
 	"github.com/logrange/logrange/api"
-	"github.com/logrange/logrange/pkg/lql"
-	"github.com/logrange/logrange/pkg/tindex"
-	"github.com/logrange/range/pkg/records/chunk"
-	"github.com/logrange/range/pkg/records/chunk/chunkfs"
-	"github.com/logrange/range/pkg/records/journal"
-	"os"
+	"github.com/logrange/logrange/pkg/journal"
 )
 
 type (
 	// Admin is a backend structure used by an api implementation
 	Admin struct {
-		TIndex   tindex.Service     `inject:""`
-		Journals journal.Controller `inject:""`
-		MainCtx  context.Context    `inject:"mainCtx"`
+		Journals *journal.Service `inject:""`
+		MainCtx  context.Context  `inject:"mainCtx"`
 
 		logger log4g.Logger
 	}
@@ -43,53 +37,27 @@ func NewAdmin() *Admin {
 	return ad
 }
 
-func removeChunkFile(cid chunk.Id, filename string, err error) {
-	if err != nil {
-		return
-	}
-
-	os.Remove(chunkfs.SetChunkDataFileExt(filename))
-	os.Remove(chunkfs.SetChunkIdxFileExt(filename))
-}
-
 // Truncate provides implementation of api.Admin.Truncate() function
-func (ad *Admin) Truncate(tagsCond string, maxSize uint64) (api.TruncateResult, error) {
-	_, err := lql.ParseSource(tagsCond)
-	if err != nil {
-		ad.logger.Warn("Could not parse condition ", tagsCond, ", err=", err)
-		return api.TruncateResult{}, err
-	}
+func (ad *Admin) Truncate(req api.TruncateRequest) (api.TruncateResult, error) {
+	srcs := make([]*api.SourceTruncateResult, 0, 10)
 
-	// select journals first
-	//mp, _, err := ad.TIndex.GetJournals(se, int(math.MaxInt32), true)
-	//if err != nil {
-	//	ad.logger.Warn("could not get list of sources for ", tagsCond, ", err=", err)
-	//	return api.TruncateResult{}, err
-	//}
+	err := ad.Journals.Truncate(ad.MainCtx, journal.TruncateParams{
+		TagsCond:   req.TagsCond,
+		MinSrcSize: req.MinSrcSize,
+		MaxSrcSize: req.MaxSrcSize,
+		OldestTs:   req.OldestTs,
+	}, func(ti journal.TruncateInfo) {
+		str := &api.SourceTruncateResult{
+			Tags:          ti.Tags.String(),
+			RecordsBefore: ti.BeforeRecs,
+			RecordsAfter:  ti.AfterRecs,
+			SizeBefore:    ti.BeforeSize,
+			SizeAfter:     ti.AfterSize,
+			ChunksDeleted: ti.ChunksDeleted,
+			Deleted:       ti.Deleted,
+		}
+		srcs = append(srcs, str)
+	})
 
-	var res api.TruncateResult
-
-	//for tags, src := range mp {
-	//	j, err := ad.Journals.GetOrCreate(ad.MainCtx, src)
-	//	if err != nil {
-	//		ad.logger.Warn("Truncate(): could not get the source=", src, ", err=", err)
-	//		continue
-	//	}
-	//	sb := j.Size()
-	//	cb := j.Count()
-	//	//ccnt, err := j.Truncate(ad.MainCtx, maxSize, removeChunkFile)
-	//	//if err != nil {
-	//	//	ad.logger.Error("Truncate(): could not truncate source ", src, " err=", err)
-	//	//}
-	//	//if ccnt == 0 {
-	//	//	continue
-	//	//}
-	//
-	//	if res.Sources == nil {
-	//		res.Sources = make([]*api.SourceTruncateResult, 0, 10)
-	//	}
-	//	res.Sources = append(res.Sources, &api.SourceTruncateResult{Tags: string(tags), SizeBefore: uint64(sb), RecordsBefore: cb, SizeAfter: uint64(j.Size()), RecordsAfter: j.Count()})
-	//}
-
-	return res, nil
+	return api.TruncateResult{srcs, nil}, err
 }

@@ -22,17 +22,16 @@ import (
 )
 
 func TestNewCursor(t *testing.T) {
-	if _, err := newCursor(nil, State{Query: "ddd"}, &testTidxService{}, nil); err == nil {
+	if _, err := newCursor(nil, State{Query: "ddd"}, &testJrnlsProvider{}); err == nil {
 		t.Fatal("err must not be nil, Source expression compilation must fail")
 	}
 
-	if _, err := newCursor(nil, State{}, &testTidxService{}, nil); err == nil {
+	if _, err := newCursor(nil, State{}, &testJrnlsProvider{}); err == nil {
 		t.Fatal("err must not be nil, No sources are provided")
 	}
 
 	cur, err := newCursor(nil, State{Query: "select limit 10"},
-		&testTidxService{map[tag.Line]string{"j1=j1": "j1"}},
-		&testJrnlCtrlr{map[string]*testJrnl{"j1": &testJrnl{"j1"}}})
+		&testJrnlsProvider{j: map[tag.Line]*testJrnl{"j1=j1": &testJrnl{"j1"}}})
 	if err != nil {
 		t.Fatal("err must be nil, but err=", err)
 	}
@@ -44,8 +43,7 @@ func TestNewCursor(t *testing.T) {
 	}
 
 	cur, err = newCursor(nil, State{Query: "select limit 10"},
-		&testTidxService{map[tag.Line]string{"j1=j1": "j1", "j2=j2": "j2"}},
-		&testJrnlCtrlr{map[string]*testJrnl{"j1": &testJrnl{"j1"}, "j2": &testJrnl{"j2"}}})
+		&testJrnlsProvider{j: map[tag.Line]*testJrnl{"j1=j1": &testJrnl{"j1"}, "j2=j2": &testJrnl{"j2"}}})
 	if err != nil {
 		t.Fatal("err must be nil, but err=", err)
 	}
@@ -57,10 +55,31 @@ func TestNewCursor(t *testing.T) {
 	}
 }
 
+func TestCursorClose(t *testing.T) {
+	tp := &testJrnlsProvider{j: map[tag.Line]*testJrnl{"j1=j1": &testJrnl{"j1"}, "j2=j2": &testJrnl{"j2"}}}
+	cur, err := newCursor(nil, State{Query: "select limit 10"}, tp)
+	if err != nil {
+		t.Fatal("err must be nil, but err=", err)
+	}
+	if _, ok := cur.it.(*model.Mixer); !ok {
+		t.Fatal("cur.it must be *model.Mixer")
+	}
+	if len(cur.jDescs) != 2 || (cur.jDescs["j2"].it.(*testJIterator)).journal != "j2" {
+		t.Fatal("Expecting iterator composed from 1 journal")
+	}
+
+	if len(tp.released) != 0 {
+		t.Fatal("Must be no releases yet")
+	}
+	cur.close()
+	if len(tp.released) != 2 || tp.released["j1"] != "j1" || tp.released["j2"] != "j2" {
+		t.Fatal("wrong releases")
+	}
+}
+
 func TestNewCursoreWithPos(t *testing.T) {
 	cur, err := newCursor(nil, State{Query: "select limit 10", Pos: "tail"},
-		&testTidxService{map[tag.Line]string{"j1=j1": "j1"}},
-		&testJrnlCtrlr{map[string]*testJrnl{"j1": &testJrnl{"j1"}}})
+		&testJrnlsProvider{j: map[tag.Line]*testJrnl{"j1=j1": &testJrnl{"j1"}}})
 	if err != nil {
 		t.Fatal("err must be nil, but err=", err)
 	}
@@ -70,8 +89,7 @@ func TestNewCursoreWithPos(t *testing.T) {
 
 	j1Pos := journal.Pos{0x1234D, 0xABC}
 	cur, err = newCursor(nil, State{Query: "select limit 10", Pos: "j1=" + j1Pos.String()},
-		&testTidxService{map[tag.Line]string{"j1=j1": "j1"}},
-		&testJrnlCtrlr{map[string]*testJrnl{"j1": &testJrnl{"j1"}}})
+		&testJrnlsProvider{j: map[tag.Line]*testJrnl{"j1=j1": &testJrnl{"j1"}}})
 	if err != nil {
 		t.Fatal("err must be nil, but err=", err)
 	}
@@ -80,8 +98,7 @@ func TestNewCursoreWithPos(t *testing.T) {
 	}
 
 	cur, err = newCursor(nil, State{Query: "select limit 10", Pos: "j1=" + j1Pos.String()},
-		&testTidxService{map[tag.Line]string{"j1=j1": "j1", "j2=j2": "j2"}},
-		&testJrnlCtrlr{map[string]*testJrnl{"j1": &testJrnl{"j1"}, "j2": &testJrnl{"j2"}}})
+		&testJrnlsProvider{j: map[tag.Line]*testJrnl{"j1=j1": &testJrnl{"j1"}, "j2=j2": &testJrnl{"j2"}}})
 	if err != nil {
 		t.Fatal("err must be nil, but err=", err)
 	}
@@ -92,8 +109,7 @@ func TestNewCursoreWithPos(t *testing.T) {
 
 func TestApplyState(t *testing.T) {
 	cur, _ := newCursor(nil, State{Query: "select limit 10", Pos: "tail"},
-		&testTidxService{map[tag.Line]string{"j1=j1": "j1"}},
-		&testJrnlCtrlr{map[string]*testJrnl{"j1": &testJrnl{"j1"}}})
+		&testJrnlsProvider{j: map[tag.Line]*testJrnl{"j1=j1": &testJrnl{"j1"}}})
 	state := cur.state
 	err := cur.ApplyState(State{Id: state.Id, Pos: "blah blah"})
 	if err == nil || cur.state != state {

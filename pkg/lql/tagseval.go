@@ -34,7 +34,7 @@ type (
 	}
 )
 
-var positiveTagsExpFunc = func(tag.Set) bool { return true }
+var PositiveTagsExpFunc = func(tag.Set) bool { return true }
 
 // BuildTagsExpFuncByCond receives a condition line and parses it to the TagsExpFunc
 // The tagCond could be provided in one of the following 2 forms:
@@ -52,7 +52,7 @@ func BuildTagsExpFunc(tagsCond string) (TagsExpFunc, error) {
 // BuildTagsExpFuncBySource
 func BuildTagsExpFuncBySource(src *Source) (TagsExpFunc, error) {
 	if src == nil {
-		return positiveTagsExpFunc, nil
+		return PositiveTagsExpFunc, nil
 	}
 
 	if src.Tags != nil {
@@ -70,7 +70,7 @@ func (tc *tagsCondExp) subsetOf(tags tag.Set) bool {
 // buildTagsExpFunc returns  TagsExpFunc by the expression provided
 func buildTagsExpFunc(exp *Expression) (TagsExpFunc, error) {
 	if exp == nil {
-		return positiveTagsExpFunc, nil
+		return PositiveTagsExpFunc, nil
 	}
 
 	var teb tagsExpFuncBuilder
@@ -84,7 +84,7 @@ func buildTagsExpFunc(exp *Expression) (TagsExpFunc, error) {
 
 func (teb *tagsExpFuncBuilder) buildOrConds(ocn []*OrCondition) error {
 	if len(ocn) == 0 {
-		teb.tef = positiveTagsExpFunc
+		teb.tef = PositiveTagsExpFunc
 		return nil
 	}
 
@@ -111,7 +111,7 @@ func (teb *tagsExpFuncBuilder) buildOrConds(ocn []*OrCondition) error {
 
 func (teb *tagsExpFuncBuilder) buildXConds(cn []*XCondition) (err error) {
 	if len(cn) == 0 {
-		teb.tef = positiveTagsExpFunc
+		teb.tef = PositiveTagsExpFunc
 		return nil
 	}
 

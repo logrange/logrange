@@ -15,62 +15,80 @@ package cursor
 
 import (
 	"context"
-	"fmt"
 	"github.com/logrange/logrange/pkg/lql"
 	"github.com/logrange/logrange/pkg/model/tag"
-	"github.com/logrange/logrange/pkg/tindex"
 	"github.com/logrange/range/pkg/records"
 	"github.com/logrange/range/pkg/records/journal"
 )
 
 // test helpers
-type testTidxService struct {
-	journals map[tag.Line]string
+//type testTidxService struct {
+//	journals map[tag.Line]string
+//}
+//
+//func (tis *testTidxService) GetOrCreateJournal(tags string) (string, error) {
+//	return "", nil
+//}
+//
+//func (tis *testTidxService) Visit(srcCond *lql.Source, v tindex.VisitorF) error {
+//	for tl, jrnl := range tis.journals {
+//		s, err := tag.Parse(tl.String())
+//		if err != nil {
+//			return err
+//		}
+//		if !v(s, jrnl) {
+//			return nil
+//		}
+//	}
+//	return nil
+//}
+//
+//type testJrnlCtrlr struct {
+//	mp map[string]*testJrnl
+//}
+//
+//func (tjc *testJrnlCtrlr) GetOrCreate(ctx context.Context, jname string) (journal.Journal, error) {
+//	if j, ok := tjc.mp[jname]; ok {
+//		j.name = jname
+//		return j, nil
+//	}
+//	return nil, fmt.Errorf("Journal %s is not found", jname)
+//}
+//
+//func (tjc *testJrnlCtrlr) GetJournals(ctx context.Context) []string {
+//	res := make([]string, 0, len(tjc.mp))
+//	for src := range tjc.mp {
+//		res = append(res, src)
+//	}
+//	return res
+//}
+//
+//func (tjc *testJrnlCtrlr) Visit(ctx context.Context, cv journal.ControllerVisitorF) {
+//	for src := range tjc.mp {
+//		if !cv(&testJrnl{src}) {
+//			return
+//		}
+//	}
+//}
+
+type testJrnlsProvider struct {
+	j        map[tag.Line]*testJrnl
+	released map[string]string
 }
 
-func (tis *testTidxService) GetOrCreateJournal(tags string) (string, error) {
-	return "", nil
-}
-
-func (tis *testTidxService) Visit(srcCond *lql.Source, v tindex.VisitorF) error {
-	for tl, jrnl := range tis.journals {
-		s, err := tag.Parse(tl.String())
-		if err != nil {
-			return err
-		}
-		if !v(s, jrnl) {
-			return nil
-		}
+func (tjp *testJrnlsProvider) GetJournals(ctx context.Context, tagsCond *lql.Source, maxLimit int) (map[tag.Line]journal.Journal, error) {
+	res := make(map[tag.Line]journal.Journal)
+	for k, v := range tjp.j {
+		res[k] = v
 	}
-	return nil
+	return res, nil
 }
 
-type testJrnlCtrlr struct {
-	mp map[string]*testJrnl
-}
-
-func (tjc *testJrnlCtrlr) GetOrCreate(ctx context.Context, jname string) (journal.Journal, error) {
-	if j, ok := tjc.mp[jname]; ok {
-		j.name = jname
-		return j, nil
+func (tjp *testJrnlsProvider) Release(jn string) {
+	if tjp.released == nil {
+		tjp.released = make(map[string]string)
 	}
-	return nil, fmt.Errorf("Journal %s is not found", jname)
-}
-
-func (tjc *testJrnlCtrlr) GetJournals(ctx context.Context) []string {
-	res := make([]string, 0, len(tjc.mp))
-	for src := range tjc.mp {
-		res = append(res, src)
-	}
-	return res
-}
-
-func (tjc *testJrnlCtrlr) Visit(ctx context.Context, cv journal.ControllerVisitorF) {
-	for src := range tjc.mp {
-		if !cv(&testJrnl{src}) {
-			return
-		}
-	}
+	tjp.released[jn] = jn
 }
 
 type testJrnl struct {
