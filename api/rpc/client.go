@@ -51,6 +51,10 @@ func (c *Client) Close() error {
 }
 
 func (c *Client) connect() error {
+	if c.rc != nil {
+		_ = c.Close()
+	}
+
 	conn, err := transport.NewClientConn(c.cfg)
 	if err != nil {
 		return err
