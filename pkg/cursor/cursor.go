@@ -205,6 +205,7 @@ func (cur *Cursor) commit(ctx context.Context) State {
 	// calling cur.Get(ctx) to fix the cursor position in case of last call was cur.Next()
 	cur.Get(ctx)
 	cur.state.Pos = cur.collectPos()
+	cur.it.Release()
 	return cur.state
 }
 
@@ -221,8 +222,6 @@ func (cur *Cursor) collectPos() string {
 		buf.WriteString(jn)
 		buf.WriteString(cPosJrnlVal)
 		buf.WriteString(jd.it.Pos().String())
-
-		jd.it.Release()
 	}
 	return buf.String()
 }

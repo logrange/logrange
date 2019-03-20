@@ -68,9 +68,16 @@ func (iw *iwrapper) Get(ctx context.Context) (records.Record, error) {
 
 }
 
-func (iw *iwrapper) close() {
+func (iw *iwrapper) Release() {
+	iw.it.Release()
+	iw.read = false
 	if iw.rec != nil {
 		iw.pool.Release(iw.rec)
 		iw.rec = nil
 	}
+	iw.read = false
+}
+
+func (iw *iwrapper) close() {
+	iw.Release()
 }

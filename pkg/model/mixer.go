@@ -61,8 +61,10 @@ func (mr *Mixer) Next(ctx context.Context) {
 	switch mr.st {
 	case 1:
 		mr.src1.it.Next(ctx)
+		mr.src1.le.Release()
 	case 2:
 		mr.src2.it.Next(ctx)
+		mr.src2.le.Release()
 	}
 	mr.st = 0
 }
@@ -80,6 +82,14 @@ func (mr *Mixer) Get(ctx context.Context) (LogEvent, tag.Line, error) {
 		return mr.src2.le, mr.src2.tags, nil
 	}
 	return LogEvent{}, "", io.EOF
+}
+
+func (mr *Mixer) Release() {
+	mr.st = 0
+	mr.src1.it.Release()
+	mr.src1.le.Release()
+	mr.src2.it.Release()
+	mr.src2.le.Release()
 }
 
 func (mr *Mixer) selectState(ctx context.Context) error {

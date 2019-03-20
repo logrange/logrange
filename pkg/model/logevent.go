@@ -36,6 +36,12 @@ type (
 
 const recVersion = 0x20 // bits 5-7 contains version. bits 0-4 contains mask for the fields to be read
 
+// Release drops references to the buffers if the logEvent has ones
+func (le *LogEvent) Release() {
+	le.Msg = ""
+	le.Fields = ""
+}
+
 // WritableSize returns the number of bytes required to marshal the LogEvent
 func (le *LogEvent) WritableSize() int {
 	base := 1 + 8 + xbinary.WritableStringSize(le.Msg)

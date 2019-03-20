@@ -48,6 +48,10 @@ func (tle *testLogEventsWrapper) Get(ctx context.Context) (records.Record, error
 	return nil, io.EOF
 }
 
+func (tle *testLogEventsWrapper) Release() {
+
+}
+
 func TestFilter(t *testing.T) {
 	les := []model.LogEvent{{1, "asdfasdf", ""}, {2, "as2df", ""}, {3, "asd3f", ""}, {4, "jjjj", ""},
 		{5, "jjjjee", ""}}

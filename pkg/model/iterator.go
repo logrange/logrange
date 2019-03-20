@@ -29,6 +29,11 @@ type (
 
 		// Get returns current LogEvent, the TagsCond for the event or an error if any. It returns io.EOF when end of the collection is reached
 		Get(ctx context.Context) (LogEvent, tag.Line, error)
+
+		// Release allows to free underlying resources if they were used for the iteration.
+		// This method doesn't affect the iterator position, so subsequent calls to Next() or Get() will
+		// get the same result if the Release was not invoked
+		Release()
 	}
 
 	// LogEventIterator struct wraps a records.Iterator and provides LogEvent Iterator interface over it.
@@ -51,6 +56,7 @@ func (lei *LogEventIterator) Wrap(tags tag.Line, it records.Iterator) *LogEventI
 // Next switches to the next LogEvent record
 func (lei *LogEventIterator) Next(ctx context.Context) {
 	lei.it.Next(ctx)
+	lei.le.Release()
 	lei.st = 0
 }
 
@@ -66,6 +72,12 @@ func (lei *LogEventIterator) Get(ctx context.Context) (LogEvent, tag.Line, error
 
 	}
 	return lei.le, lei.tags, err
+}
+
+func (lei *LogEventIterator) Release() {
+	lei.st = 0
+	lei.le.Release()
+	lei.it.Release()
 }
 
 type testLogEventsWrapper struct {
@@ -90,4 +102,8 @@ func (tle *testLogEventsWrapper) Get(ctx context.Context) (records.Record, error
 		return buf, nil
 	}
 	return nil, io.EOF
+}
+
+func (tle *testLogEventsWrapper) Release() {
+
 }

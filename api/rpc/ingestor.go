@@ -220,6 +220,11 @@ func (wpi *wpIterator) Get(ctx context.Context) (model.LogEvent, tag.Line, error
 	return wpi.lge, tag.EmptyLine, nil
 }
 
+// Release is a part of records.Iterator
+func (wpi *wpIterator) Release() {
+	// Do nothing due to the object short life, but be careful with it.
+}
+
 func (wpi *wpIterator) String() string {
 	return fmt.Sprintf("buf len=%d, tags=%s, read=%t, pos=%d, recs=%d, cur=%d", len(wpi.buf), wpi.tags, wpi.read, wpi.pos, wpi.recs, wpi.cur)
 }
