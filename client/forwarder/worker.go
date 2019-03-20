@@ -12,26 +12,4 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package sink
-
-import (
-	"fmt"
-	"github.com/logrange/logrange/api"
-	"github.com/logrange/logrange/client/forwarder"
-)
-
-type (
-	stdoutSink struct {
-	}
-)
-
-func NewStdSkink(cfg forwarder.SinkConfig) forwarder.Sink {
-	return &stdoutSink{}
-}
-
-func (ss *stdoutSink) OnNewData(events []*api.LogEvent) error {
-	for _, e := range events {
-		fmt.Println(e.Message)
-	}
-	return nil
-}
+package forwarder

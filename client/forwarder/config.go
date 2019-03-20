@@ -28,7 +28,7 @@ type (
 		Params map[string]interface{}
 	}
 
-	Forwarder struct {
+	ForwarderConfig struct {
 		Lql  string
 		Sink SinkConfig
 	}

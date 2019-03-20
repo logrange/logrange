@@ -19,6 +19,7 @@ import (
 	"github.com/jrivets/log4g"
 	"github.com/logrange/logrange/client/forwarder"
 	"github.com/logrange/logrange/client/forwarder/scanner"
+	"github.com/logrange/logrange/client/forwarder/sink"
 	"github.com/logrange/logrange/pkg/storage"
 )
 
@@ -49,6 +50,6 @@ func Run(ctx context.Context, cfg *forwarder.Config) error {
 	return nil
 }
 
-func createSink(cfg *forwarder.Config) (forwarder.Sink, error) {
+func createSink(cfg *forwarder.Config) (sink.Sink, error) {
 	return nil, nil // sink.NewStdSkink(cfg.SinkConfig), nil
 }

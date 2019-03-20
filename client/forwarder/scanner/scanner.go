@@ -20,8 +20,10 @@ import (
 	"github.com/logrange/logrange/api"
 	"github.com/logrange/logrange/api/rpc"
 	"github.com/logrange/logrange/client/forwarder"
+	"github.com/logrange/logrange/client/forwarder/sink"
 	"github.com/logrange/logrange/pkg/lql"
 	"github.com/logrange/logrange/pkg/storage"
+	"github.com/logrange/logrange/pkg/utils"
 	"github.com/logrange/range/pkg/transport"
 	"github.com/logrange/range/pkg/utils/bytes"
 	"os"
@@ -29,13 +31,17 @@ import (
 )
 
 type (
+	Scanner interface {
+		Run(context.Context) error
+	}
+
 	rpcScnanner struct {
 		//cfg     forwarder.ScanConfig
 		trCfg   transport.Config
 		storage storage.Storage
 		client  *rpc.Client
 		logger  log4g.Logger
-		sink    forwarder.Sink
+		sink    sink.Sink
 	}
 )
 
@@ -45,7 +51,9 @@ const (
 	cRpcStorageKey             = "lr-fwd"
 )
 
-func NewRpcScanner(cfg *forwarder.Config, storage storage.Storage, sink forwarder.Sink) forwarder.Scanner {
+//===================== rpcScanner =====================
+
+func NewRpcScanner(cfg *forwarder.Config, storage storage.Storage, sink sink.Sink) Scanner {
 	return &rpcScnanner{
 		logger: log4g.GetLogger("lr-fwd"),
 		//cfg:     cfg.ScanConfig,
@@ -90,7 +98,7 @@ func (rs *rpcScnanner) Run(ctx context.Context) error {
 			rs.disconnect()
 			sleepDur := time.Second
 			rs.logger.Error("Connection error ", err, " will reconnect in ", sleepDur)
-			rs.sleep(ctx, sleepDur)
+			utils.Sleep(ctx, sleepDur)
 			continue
 		}
 
@@ -100,7 +108,7 @@ func (rs *rpcScnanner) Run(ctx context.Context) error {
 			sleepDur := time.Second
 			rs.logger.Error("Could not make server call query. err=", err,
 				" will try again in ", sleepDur)
-			rs.sleep(ctx, sleepDur)
+			utils.Sleep(ctx, sleepDur)
 			continue
 		}
 
@@ -108,7 +116,7 @@ func (rs *rpcScnanner) Run(ctx context.Context) error {
 			sleepDur := time.Second
 			rs.logger.Warn("got query execution error=", qr.Err,
 				", will try the request once again in ", sleepDur)
-			rs.sleep(ctx, sleepDur)
+			utils.Sleep(ctx, sleepDur)
 			continue
 		}
 
@@ -129,7 +137,7 @@ func (rs *rpcScnanner) sinking(ctx context.Context, events []*api.LogEvent) bool
 		}
 		sleepDur := time.Second
 		rs.logger.Warn("could not sink portion of ", len(events), " err=", err, ", will try again in ", sleepDur)
-		rs.sleep(ctx, sleepDur)
+		utils.Sleep(ctx, sleepDur)
 	}
 	return false
 }
@@ -164,12 +172,4 @@ func (rs *rpcScnanner) readPos() (string, error) {
 		return "", err
 	}
 	return bytes.ByteArrayToString(data), nil
-}
-
-func (rs *rpcScnanner) sleep(ctx context.Context, d time.Duration) {
-	select {
-	case <-ctx.Done():
-	case <-time.After(d):
-
-	}
 }
