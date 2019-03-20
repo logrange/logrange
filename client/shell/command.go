@@ -21,6 +21,7 @@ import (
 	"github.com/logrange/logrange/api"
 	"github.com/logrange/logrange/pkg/lql"
 	"github.com/logrange/logrange/pkg/model"
+	"github.com/logrange/logrange/pkg/model/field"
 	"github.com/logrange/logrange/pkg/utils"
 	"github.com/logrange/range/pkg/utils/bytes"
 	"io"
@@ -208,6 +209,7 @@ func printResults(res *api.QueryResult, frmt *model.FormatParser, w io.Writer) {
 
 		le.Timestamp = e.Timestamp
 		le.Msg = strings.Trim(e.Message, "\n")
+		le.Fields = field.Parse(e.Fields)
 		_, _ = w.Write(bytes.StringToByteArray(frmt.FormatStr(&le, e.Tags)))
 	}
 }

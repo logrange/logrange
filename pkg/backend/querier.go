@@ -22,6 +22,7 @@ import (
 	"github.com/logrange/logrange/pkg/cursor"
 	"github.com/logrange/logrange/pkg/journal"
 	"github.com/logrange/logrange/pkg/model"
+	"github.com/logrange/logrange/pkg/model/field"
 	"github.com/logrange/logrange/pkg/model/tag"
 	"io"
 	"strings"
@@ -78,17 +79,24 @@ func (q *Querier) Query(ctx context.Context, req *api.QueryRequest) (*api.QueryR
 	var sb strings.Builder
 	var lge model.LogEvent
 	var tags tag.Line
+	flds := field.Fields("")
+	kvsFields := ""
 
 	events := make([]*api.LogEvent, 0, 100)
 
 	for limit > 0 && err == nil {
 		lge, tags, err = cur.Get(ctx)
 		if err == nil {
+			if flds != lge.Fields {
+				kvsFields = lge.Fields.AsKVString()
+				flds = lge.Fields.Copy()
+			}
 			le := new(api.LogEvent)
 			sb.WriteString(lge.Msg)
 			le.Tags = string(tags)
 			le.Message = sb.String()
 			le.Timestamp = lge.Timestamp
+			le.Fields = kvsFields
 			sb.Reset()
 			events = append(events, le)
 			limit--

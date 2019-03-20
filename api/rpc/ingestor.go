@@ -20,9 +20,11 @@ import (
 	"github.com/logrange/logrange/api"
 	"github.com/logrange/logrange/pkg/journal"
 	"github.com/logrange/logrange/pkg/model"
+	"github.com/logrange/logrange/pkg/model/field"
 	"github.com/logrange/logrange/pkg/model/tag"
 	rrpc "github.com/logrange/range/pkg/rpc"
 	"github.com/logrange/range/pkg/utils/encoding/xbinary"
+	"github.com/pkg/errors"
 	"io"
 	"sync"
 )
@@ -42,6 +44,7 @@ type (
 
 	writePacket struct {
 		tags   string
+		fields string
 		events []*api.LogEvent
 	}
 
@@ -82,9 +85,10 @@ func (si *ServerIngestor) Shutdown() {
 	si.wg.Wait()
 }
 
-func (ci *clntIngestor) Write(ctx context.Context, tags string, evs []*api.LogEvent, res *api.WriteResult) error {
+func (ci *clntIngestor) Write(ctx context.Context, tags, fields string, evs []*api.LogEvent, res *api.WriteResult) error {
 	var wp writePacket
 	wp.tags = tags
+	wp.fields = fields
 	wp.events = evs
 
 	buf, errOp, err := ci.rc.Call(ctx, cRpcEpIngestorWrite, &wp)
@@ -112,6 +116,7 @@ func (si *ServerIngestor) write(reqId int32, reqBody []byte, sc *rrpc.ServerConn
 // EncodedSize part of rrpc.Encoder interface
 func (wp *writePacket) WritableSize() int {
 	res := xbinary.WritableStringSize(wp.tags)
+	res += xbinary.WritableStringSize(wp.fields)
 	// array size goes as well
 	res += 4
 	for _, ev := range wp.events {
@@ -124,6 +129,12 @@ func (wp *writePacket) WritableSize() int {
 func (wp *writePacket) WriteTo(ow *xbinary.ObjectsWriter) (int, error) {
 	n, err := ow.WriteString(wp.tags)
 	nn := n
+	if err != nil {
+		return nn, err
+	}
+
+	n, err = ow.WriteString(wp.fields)
+	nn += n
 	if err != nil {
 		return nn, err
 	}
@@ -149,10 +160,24 @@ func (wpi *wpIterator) init(buf []byte) (err error) {
 		return err
 	}
 
-	ln := uint32(0)
 	var n int
+	var flds string
+	n, flds, err = xbinary.UnmarshalString(buf[idx:], false)
+	if err != nil {
+		return err
+	}
+	idx += n
+
+	ln := uint32(0)
 	n, ln, err = xbinary.UnmarshalUint32(buf[idx:])
 	if err != nil {
+		return err
+	}
+
+	// turns kvstring into the fields
+	wpi.lge.Fields, err = field.NewFieldsFromKVString(flds, make([]byte, len(flds)))
+	if err != nil {
+		err = errors.Wrapf(err, "could not parse fields")
 		return err
 	}
 

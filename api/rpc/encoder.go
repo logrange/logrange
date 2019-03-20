@@ -37,11 +37,18 @@ func writeLogEvent(ev *api.LogEvent, ow *xbinary.ObjectsWriter) (int, error) {
 
 	n, err = ow.WriteString(ev.Tags)
 	nn += n
+	if err != nil {
+		return nn, err
+	}
+	n, err = ow.WriteString(ev.Fields)
+	nn += n
 	return nn, err
 }
 
 func getLogEventSize(ev *api.LogEvent) int {
-	return xbinary.WritableStringSize(ev.Message) + xbinary.WritableStringSize(ev.Tags) + 8
+	return xbinary.WritableStringSize(ev.Message) +
+		xbinary.WritableStringSize(ev.Tags) +
+		xbinary.WritableStringSize(ev.Fields) + 8
 }
 
 func unmarshalLogEvent(buf []byte, res *api.LogEvent, newBuf bool) (int, error) {
@@ -61,7 +68,13 @@ func unmarshalLogEvent(buf []byte, res *api.LogEvent, newBuf bool) (int, error) 
 
 	n, tags, err := xbinary.UnmarshalString(buf[nn:], newBuf)
 	nn += n
+	if err != nil {
+		return nn, err
+	}
 	res.Tags = tags
+
+	n, res.Fields, err = xbinary.UnmarshalString(buf[nn:], newBuf)
+	nn += n
 	return nn, err
 }
 

@@ -133,7 +133,10 @@ func (web *whereExpFuncBuilder) buildCond(cn *Condition) (err error) {
 		return web.buildMsgCond(cn)
 	}
 
-	return fmt.Errorf("Unknown operand %s, expected %s or %s", op, OPND_TIMESTAMP, OPND_MESSAGE)
+	if !strings.HasPrefix(op, "fields:") || len(op) < 8 {
+		return fmt.Errorf("operand must be ts, msg, or fields:<fieldname> with non-empty fieldname")
+	}
+	return web.buildFldCond(cn)
 }
 
 func (web *whereExpFuncBuilder) buildTsCond(cn *Condition) error {
@@ -198,6 +201,64 @@ func (web *whereExpFuncBuilder) buildMsgCond(cn *Condition) (err error) {
 				res, _ := path.Match(cn.Value, le.Msg)
 				return res
 			}
+		}
+	default:
+		err = fmt.Errorf("Unsupported operation %s for tag %s", cn.Op, cn.Operand)
+	}
+	return err
+}
+
+func (web *whereExpFuncBuilder) buildFldCond(cn *Condition) (err error) {
+	// the fldName is prefixed by `fields:`, so cut it
+	fldName := cn.Operand[7:]
+	op := strings.ToUpper(cn.Op)
+	switch op {
+	case CMP_CONTAINS:
+		web.wef = func(le *model.LogEvent) bool {
+			return strings.Contains(le.Fields.Value(fldName), cn.Value)
+		}
+	case CMP_HAS_PREFIX:
+		web.wef = func(le *model.LogEvent) bool {
+			return strings.HasPrefix(le.Fields.Value(fldName), cn.Value)
+		}
+	case CMP_HAS_SUFFIX:
+		web.wef = func(le *model.LogEvent) bool {
+			return strings.HasSuffix(le.Fields.Value(fldName), cn.Value)
+		}
+	case CMP_LIKE:
+		// test it first
+		_, err := path.Match(cn.Value, "abc")
+		if err != nil {
+			err = fmt.Errorf("Wrong 'like' expression for %s, err=%s", cn.Value, err.Error())
+		} else {
+			web.wef = func(le *model.LogEvent) bool {
+				res, _ := path.Match(cn.Value, le.Fields.Value(fldName))
+				return res
+			}
+		}
+	case "=":
+		web.wef = func(le *model.LogEvent) bool {
+			return le.Fields.Value(fldName) == cn.Value
+		}
+	case "!=":
+		web.wef = func(le *model.LogEvent) bool {
+			return le.Fields.Value(fldName) != cn.Value
+		}
+	case ">":
+		web.wef = func(le *model.LogEvent) bool {
+			return le.Fields.Value(fldName) > cn.Value
+		}
+	case "<":
+		web.wef = func(le *model.LogEvent) bool {
+			return le.Fields.Value(fldName) < cn.Value
+		}
+	case ">=":
+		web.wef = func(le *model.LogEvent) bool {
+			return le.Fields.Value(fldName) >= cn.Value
+		}
+	case "<=":
+		web.wef = func(le *model.LogEvent) bool {
+			return le.Fields.Value(fldName) <= cn.Value
 		}
 	default:
 		err = fmt.Errorf("Unsupported operation %s for tag %s", cn.Op, cn.Operand)

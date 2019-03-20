@@ -32,16 +32,16 @@ func TestQueryResult(t *testing.T) {
 	testQueryResult(t, &api.QueryResult{})
 	testQueryResult(t, &api.QueryResult{NextQueryRequest: api.QueryRequest{ReqId: 123412349182374, Query: "select limit 10", Pos: "ddd", Limit: 1234},
 		Events: []*api.LogEvent{
-			&api.LogEvent{1, "mes1", ""},
-			&api.LogEvent{2, "mes2", "bbb=ttt"},
+			&api.LogEvent{1, "mes1", "", "a=b"},
+			&api.LogEvent{2, "mes2", "bbb=ttt", "a=b"},
 		}})
 }
 
 func TestQueryResultBuilder(t *testing.T) {
 	qb := &queryResultBuilder{}
 	qb.init(&bytes2.Pool{})
-	qb.writeLogEvent(&api.LogEvent{1, "mes1", ""})
-	qb.writeLogEvent(&api.LogEvent{2, "mes2", "aaa=bbb"})
+	qb.writeLogEvent(&api.LogEvent{1, "mes1", "", "a=b"})
+	qb.writeLogEvent(&api.LogEvent{2, "mes2", "aaa=bbb", "a=b"})
 	qb.writeQueryRequest(&api.QueryRequest{ReqId: 123412349182374, Query: "select source {aaa=bbb} limit 10", Pos: "ddd", Limit: 1234})
 	var rqr api.QueryResult
 	unmarshalQueryResult(qb.buf(), &rqr, true)
@@ -49,8 +49,8 @@ func TestQueryResultBuilder(t *testing.T) {
 
 	tqr := &api.QueryResult{NextQueryRequest: api.QueryRequest{ReqId: 123412349182374, Query: "select source {aaa=bbb} limit 10", Pos: "ddd", Limit: 1234},
 		Events: []*api.LogEvent{
-			{1, "mes1", ""},
-			{2, "mes2", "aaa=bbb"},
+			{1, "mes1", "", "a=b"},
+			{2, "mes2", "aaa=bbb", "a=b"},
 		}}
 	if !reflect.DeepEqual(tqr, &rqr) {
 		t.Fatal("tqr=", tqr.Events, ", must be equal to ", rqr)

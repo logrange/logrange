@@ -26,24 +26,24 @@ func tstGetFirst(ev1, ev2 LogEvent) bool {
 
 func TestMixer(t *testing.T) {
 	testMix(t, tstGetFirst,
-		[]LogEvent{{1, "1"}, {2, "2"}},
-		[]LogEvent{{3, "1"}, {4, "2"}},
-		[]LogEvent{{1, "1"}, {2, "2"}, {3, "1"}, {4, "2"}})
+		[]LogEvent{{1, "1", ""}, {2, "2", ""}},
+		[]LogEvent{{3, "1", ""}, {4, "2", ""}},
+		[]LogEvent{{1, "1", ""}, {2, "2", ""}, {3, "1", ""}, {4, "2", ""}})
 
 	testMix(t, GetEarliest,
-		[]LogEvent{{1, "1"}, {3, "2"}},
-		[]LogEvent{{2, "1"}, {4, "2"}},
-		[]LogEvent{{1, "1"}, {2, "1"}, {3, "2"}, {4, "2"}})
+		[]LogEvent{{1, "1", ""}, {3, "2", ""}},
+		[]LogEvent{{2, "1", ""}, {4, "2", ""}},
+		[]LogEvent{{1, "1", ""}, {2, "1", ""}, {3, "2", ""}, {4, "2", ""}})
 
 	testMix(t, GetEarliest,
 		[]LogEvent{},
-		[]LogEvent{{2, "1"}, {4, "2"}},
-		[]LogEvent{{2, "1"}, {4, "2"}})
+		[]LogEvent{{2, "1", ""}, {4, "2", ""}},
+		[]LogEvent{{2, "1", ""}, {4, "2", ""}})
 
 	testMix(t, GetEarliest,
-		[]LogEvent{{1, "1"}, {3, "2"}},
+		[]LogEvent{{1, "1", ""}, {3, "2", ""}},
 		[]LogEvent{},
-		[]LogEvent{{1, "1"}, {3, "2"}})
+		[]LogEvent{{1, "1", ""}, {3, "2", ""}})
 
 	testMix(t, GetEarliest,
 		[]LogEvent{},

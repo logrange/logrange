@@ -21,7 +21,7 @@ import (
 )
 
 func TestLogEventIterator(t *testing.T) {
-	les := []LogEvent{{1, "asdfasdf"}, {2, "asdf"}, {3, "asdf"}}
+	les := []LogEvent{{1, "asdfasdf", ""}, {2, "asdf", ""}, {3, "asdf", ""}}
 	lew := newTestLogEventsWrapper(les)
 
 	lei := &LogEventIterator{}

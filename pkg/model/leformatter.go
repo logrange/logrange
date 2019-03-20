@@ -17,6 +17,7 @@ package model
 import (
 	"fmt"
 	"github.com/logrange/logrange/pkg/model/tag"
+	"github.com/logrange/logrange/pkg/utils/kvstring"
 	"strings"
 	"time"
 )
@@ -38,8 +39,8 @@ type (
 const (
 	frmtFldTs = iota
 	frmtFldMsg
-	frmtFldTag
-	frmtFldTags
+	frmtFldVar
+	frmtFldVars
 	frmtFldConst
 )
 
@@ -49,15 +50,15 @@ const (
 // LogEvent's field names, tags and time-stamp format should be placed into curly braces '{', '}':
 // {msg} 	- LogEvent message
 // {ts} 	- LogEvent timestamp in RFC3339 format
-// {tags}	- All known tags associated with the LogEvent source
+// {vars}	- All known tags and fields associated with the LogEvent source
 // {ts:<format>} 	- LogEvent timestamp in the format provided
-// {tag:<tag-name>}	- Value of the tag
+// {vars:<tag or field name>}	- Value of the tag or filed name provided
 //
 // Example:
-// 	"app:{tag:name}\t{ts:15:04:05.000}: {msg}" - will print app name associated with the tag "name",
+// 	"app:{vars:name}\t{ts:15:04:05.000}: {msg}" - will print app name associated with the tag "name",
 //												then timestamp and the log message
 // 	"{msg}" - will print the log message body only
-//	"{tags} - {msg}"	- will print all tags associated with the source and the message body
+//	"{vars} - {msg}"	- will print all tags and fields associated with the source and the message body
 func NewFormatParser(fstr string) (*FormatParser, error) {
 	fields := make([]formatField, 0, 10)
 	state := 0
@@ -73,21 +74,37 @@ func NewFormatParser(fstr string) (*FormatParser, error) {
 				startIdx = i + 1
 			}
 		case 1:
+			// we are in open curly brace state. the sequence `{{` and `{}` considered as  escaped for '{' and '}' chars.
+			if rune == '{' {
+				if startIdx == i {
+					// ok the '{' is part of constant, go ahead with them
+					state = 0
+					continue
+				}
+				return nil, fmt.Errorf("unexpected { without closing the previous one \"%s...\"", fstr[:i+1])
+			}
+
 			if rune == '}' {
+				if startIdx == i {
+					// ok the '}' is part of constant, go ahead with them
+					state = 0
+					continue
+				}
+
 				val := strings.Trim(fstr[startIdx:i], " ")
 				cv := strings.ToLower(val)
 				if cv == "msg" {
 					fields = append(fields, formatField{frmtFldMsg, ""})
-				} else if cv == "tags" {
-					fields = append(fields, formatField{frmtFldTags, ""})
+				} else if cv == "vars" {
+					fields = append(fields, formatField{frmtFldVars, ""})
 				} else if cv == "ts" {
 					fields = append(fields, formatField{frmtFldTs, time.RFC3339})
 				} else if strings.HasPrefix(cv, "ts:") {
 					fields = append(fields, formatField{frmtFldTs, val[3:]})
-				} else if strings.HasPrefix(cv, "tag:") {
-					fields = append(fields, formatField{frmtFldTag, val[4:]})
+				} else if strings.HasPrefix(cv, "vars:") && len(val) > 5 {
+					fields = append(fields, formatField{frmtFldVar, val[5:]})
 				} else {
-					return nil, fmt.Errorf("unknown field {%s}. Expected values are: {msg}, {tags}, {ts}, {ts:<time format>}, {tag:<tag name>}", val)
+					return nil, fmt.Errorf("unknown field {%s}. Expected values are: {msg}, {vars}, {ts}, {ts:<time format>}, {vars:<tag or field name>}", val)
 				}
 				startIdx = i + 1
 				state = 0
@@ -121,13 +138,22 @@ func (fp *FormatParser) FormatStr(le *LogEvent, tl string) string {
 			}
 		case frmtFldMsg:
 			buf.WriteString(lge.Msg)
-		case frmtFldTag:
-			ts := fp.tagSet(tl)
-			if ts != nil {
-				buf.WriteString(ts.Tag(ff.value))
+		case frmtFldVar:
+			v := le.Fields.Value(ff.value)
+			if v == "" {
+				ts := fp.tagSet(tl)
+
+				if ts != nil {
+					v = ts.Tag(ff.value)
+				}
 			}
-		case frmtFldTags:
+			buf.WriteString(v)
+		case frmtFldVars:
 			buf.WriteString(string(tl))
+			if !le.Fields.IsEmpty() {
+				buf.WriteString(kvstring.FieldsSeparator)
+				buf.WriteString(le.Fields.AsKVString())
+			}
 		case frmtFldConst:
 			buf.WriteString(ff.value)
 		}

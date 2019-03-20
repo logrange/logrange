@@ -15,54 +15,19 @@
 package tag
 
 import (
-	"reflect"
+	"strconv"
 	"testing"
 )
 
-func TestRemoveCurlyBraces(t *testing.T) {
-	testRemoveCurlyBraces(t, "aaa", "aaa", false)
-	testRemoveCurlyBraces(t, "   aaa", "aaa", false)
-	testRemoveCurlyBraces(t, "a  aa   ", "a  aa", false)
-	testRemoveCurlyBraces(t, "   aaa  ", "aaa", false)
-	testRemoveCurlyBraces(t, "{aaa}", "aaa", false)
-	testRemoveCurlyBraces(t, "   {aaa}", "aaa", false)
-	testRemoveCurlyBraces(t, "{a  aa}   ", "a  aa", false)
-	testRemoveCurlyBraces(t, "   {aaa}  ", "aaa", false)
-	testRemoveCurlyBraces(t, "{ {aaa}}", "aaa", false)
-	testRemoveCurlyBraces(t, "   {{aaa} }", "aaa", false)
-	testRemoveCurlyBraces(t, "{{a  aa}}   ", "a  aa", false)
-	testRemoveCurlyBraces(t, "  { {aaa} } ", "aaa", false)
-	testRemoveCurlyBraces(t, "{aaa", "", true)
-	testRemoveCurlyBraces(t, "   aaa}", "", true)
-	testRemoveCurlyBraces(t, "{a  aa} }   ", "", true)
-	testRemoveCurlyBraces(t, "   {a{aa  ", "", true)
-
-}
-
-func TestSplitString(t *testing.T) {
-	testsplitString(t, "", []string{""}, false)
-	testsplitString(t, "=", []string{"", ""}, false)
-	testsplitString(t, "=name", []string{"", "name"}, false)
-	testsplitString(t, "name=", []string{"name", ""}, false)
-	testsplitString(t, "name=app1", []string{"name", "app1"}, false)
-	testsplitString(t, "name=app1, name=app2", []string{"name", "app1", " name", "app2"}, false)
-	testsplitString(t, "name=ap\"p1,=\"p", []string{"name", "ap\"p1,=\"p"}, false)
-	testsplitString(t, "name=ap\"p1,=p", []string{}, true)
-	testsplitString(t, "\"name=app1,=p", []string{}, true)
-}
-
-func TestParseTags(t *testing.T) {
-	testParseTags(t, "", emptyMap, false)
-	testParseTags(t, "name=app", tagMap{"name": "app"}, false)
-	testParseTags(t, " { name = app}", tagMap{"name": "app"}, false)
-	testParseTags(t, " { name = \"app\"}", tagMap{"name": "app"}, false)
-	testParseTags(t, " { name = \"a\\\\pp\"}", tagMap{"name": "a\\pp"}, false)
-	testParseTags(t, " { name = app, t2=tt}", tagMap{"name": "app", "t2": "tt"}, false)
-	testParseTags(t, " { name = app, t2=  \"tt\"}", tagMap{"name": "app", "t2": "tt"}, false)
-	testParseTags(t, "name=", tagMap{"name": ""}, false)
-	testParseTags(t, "name=-\"app\"", tagMap{"name": "-\"app\""}, false)
-	testParseTags(t, "name-app", emptyMap, true)
-	testParseTags(t, "name=-a\"pp", emptyMap, true)
+func BenchmarkLogEventParser(b *testing.B) {
+	b.ReportAllocs()
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		_, err := strconv.Unquote(`"aldkfjhal;kdsdf=sfj,lkasdjflasdjflj"`)
+		if err != nil {
+			b.Fatal(err)
+		}
+	}
 }
 
 func TestTagLine(t *testing.T) {
@@ -112,65 +77,11 @@ func TestSubset(t *testing.T) {
 }
 
 func testTagLine(t *testing.T, tags string, line Line) {
-	tm, err := parseTags(tags)
+	tm, err := Parse(tags)
 	if err != nil {
 		t.Fatal("unexpected err=", err)
 	}
-	if tm.line() != line {
-		t.Fatal("Expected ", line, " but received ", tm.line())
-	}
-}
-
-func testParseTags(t *testing.T, tags string, expm tagMap, errOk bool) {
-	m, err := parseTags(tags)
-	if err != nil {
-		if errOk {
-			return
-		}
-		t.Fatal("unexpected err=", err)
-	}
-
-	if errOk {
-		t.Fatal("must be an error, but it is nil")
-	}
-
-	if !m.equalTo(expm) {
-		t.Fatal("expected ", expm, " but returned", m)
-	}
-}
-
-func testsplitString(t *testing.T, in string, exp []string, errOk bool) {
-	res, err := splitString(in, '=', ',', []string{})
-	if err != nil {
-		if errOk {
-			return
-		}
-		t.Fatal("unexpected err=", err)
-	}
-
-	if errOk {
-		t.Fatal("must be an error, but it is nil")
-	}
-
-	if !reflect.DeepEqual(res, exp) {
-		t.Fatal(" expected ", exp, " but the result is ", res, " reslen=", len(res))
-	}
-}
-
-func testRemoveCurlyBraces(t *testing.T, in, out string, errOk bool) {
-	out2, err := removeCurlyBraces(in)
-	if err != nil {
-		if !errOk {
-			t.Fatal("Must not be error, but err=", err)
-		}
-		return
-	}
-
-	if errOk {
-		t.Fatal("must be an error, but it is nil ", in)
-	}
-
-	if out != out2 {
-		t.Fatal("expected ", out, ", but got ", out2)
+	if tm.Line() != line {
+		t.Fatal("Expected ", line, " but received ", tm.Line())
 	}
 }

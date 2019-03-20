@@ -51,7 +51,9 @@ func Run(ctx context.Context, cfg *client.Config,
 			break
 		case ev := <-events:
 			for ctx.Err() == nil {
-				err = cl.Write(ctx, toTagLine(ev), toApiEvents(ev), &wr)
+				tl := toTagLine(ev)
+				// TODO: writing the tags and fields are all together. Must be changed when ready
+				err = cl.Write(ctx, tl, tl, toApiEvents(ev), &wr)
 				if err != nil {
 					logger.Info("Communication error, retry in ", 5, "sec; cause: ", err)
 					utils.Sleep(ctx, 5*time.Second)

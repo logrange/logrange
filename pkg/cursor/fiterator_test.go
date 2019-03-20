@@ -49,8 +49,8 @@ func (tle *testLogEventsWrapper) Get(ctx context.Context) (records.Record, error
 }
 
 func TestFilter(t *testing.T) {
-	les := []model.LogEvent{{1, "asdfasdf"}, {2, "as2df"}, {3, "asd3f"}, {4, "jjjj"},
-		{5, "jjjjee"}}
+	les := []model.LogEvent{{1, "asdfasdf", ""}, {2, "as2df", ""}, {3, "asd3f", ""}, {4, "jjjj", ""},
+		{5, "jjjjee", ""}}
 	lew := (&model.LogEventIterator{}).Wrap(tag.Line("aaa=bbb"), newTestLogEventsWrapper(les))
 
 	exp, err := lql.ParseExpr("ts = 4 OR msg contains 'asdf'")

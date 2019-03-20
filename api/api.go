@@ -22,6 +22,10 @@ type (
 		// Message is the message itself
 		Message string
 		// Tag line for the message. It could be empty
+		// The tag line has the form like `tag1=value1,tag2=value2...`
 		Tags string
+		// Fields line for the message. It could be empty
+		// The fields line has the form like `field1=value1,field2=value2...`
+		Fields string
 	}
 )

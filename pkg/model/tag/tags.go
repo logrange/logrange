@@ -17,8 +17,7 @@ package tag
 import (
 	"bytes"
 	"encoding/json"
-	"fmt"
-	"github.com/pkg/errors"
+	"github.com/logrange/logrange/pkg/utils/kvstring"
 	"sort"
 	"strconv"
 	"strings"
@@ -34,11 +33,6 @@ type (
 		line Line
 		tmap tagMap
 	}
-)
-
-const (
-	cTagValueSeparator = "="
-	cTagSeparator      = ","
 )
 
 var (
@@ -57,10 +51,11 @@ func Parse(tags string) (Set, error) {
 		return emptySet, nil
 	}
 
-	tm, err := parseTags(tags)
+	m, err := kvstring.ToMap(tags)
 	if err != nil {
 		return emptySet, err
 	}
+	tm := tagMap(m)
 
 	return Set{tm.line(), tm}, nil
 }
@@ -134,17 +129,11 @@ func (m tagMap) equalTo(m2 tagMap) bool {
 	if len(m) != len(m2) {
 		return false
 	}
-
 	return m.subsetOf(m2)
 }
 
 func (m tagMap) subsetOf(m2 tagMap) bool {
-	for k, v := range m {
-		if v2, ok := m2[k]; !ok || v2 != v {
-			return false
-		}
-	}
-	return true
+	return kvstring.MapSubset(m, m2)
 }
 
 func (m tagMap) line() Line {
@@ -163,152 +152,16 @@ func (m tagMap) line() Line {
 	first := true
 	for _, k := range srtKeys {
 		if !first {
-			b.WriteString(cTagSeparator)
+			b.WriteString(kvstring.FieldsSeparator)
 		}
 		b.WriteString(k)
-		b.WriteString(cTagValueSeparator)
+		b.WriteString(kvstring.KeyValueSeparator)
 		v := m[k]
-		if len(v) == 0 || strings.IndexByte(v, cTagValueSeparator[0]) >= 0 || strings.IndexByte(v, cTagSeparator[0]) >= 0 {
+		if len(v) == 0 || strings.IndexByte(v, kvstring.KeyValueSeparator[0]) >= 0 || strings.IndexByte(v, kvstring.FieldsSeparator[0]) >= 0 {
 			v = strconv.Quote(v)
 		}
 		b.WriteString(v)
 		first = false
 	}
 	return Line(b.String())
-}
-
-func parseTags(tags string) (tagMap, error) {
-	fine, err := removeCurlyBraces(tags)
-	if err != nil {
-		return nil, err
-	}
-	if len(fine) == 0 {
-		return emptyMap, nil
-	}
-
-	var buf [40]string
-	res, err := splitString(fine, cTagValueSeparator[0], cTagSeparator[0], buf[:0])
-	if err != nil {
-		return nil, err
-	}
-
-	if len(res)&1 == 1 {
-		return nil, fmt.Errorf("the tag must be a pair of <key>=<value>")
-	}
-
-	mp := make(tagMap, len(res)/2)
-	for i := 0; i < len(res); i += 2 {
-		k := trimSpaces(res[i])
-		v := trimSpaces(res[i+1])
-		if len(k) == 0 {
-			return nil, errors.Errorf("tag name (for value=%s) could not be empty: %s", tags, v)
-		}
-
-		if len(v) > 0 && (v[0] == '"' || v[0] == '`') {
-			v1 := v
-			v, err = strconv.Unquote(v)
-			if err != nil {
-				return nil, errors.Wrapf(err, "wrong value for tag \"%s\" which is %s, seems quotated, but could not unqote it", k, v1)
-			}
-		}
-		mp[k] = v
-	}
-
-	return mp, nil
-}
-
-func splitString(str string, cc1, cc2 byte, buf []string) ([]string, error) {
-	inStr := false
-	expCC := cc1
-	stIdx := 0
-	endIdx := 0
-	for ; endIdx < len(str); endIdx++ {
-		c := str[endIdx]
-		if c == '"' {
-			inStr = !inStr
-			continue
-		}
-
-		if c == '\\' && inStr {
-			endIdx++
-			continue
-		}
-
-		if (c == cc1 || c == cc2) && !inStr {
-			if c != expCC {
-				return nil, fmt.Errorf("unexpected separator at %d of %s. Expected %c, but actually %c", endIdx, str, expCC, c)
-			}
-			if expCC == cc1 {
-				expCC = cc2
-			} else {
-				expCC = cc1
-			}
-			buf = append(buf, str[stIdx:endIdx])
-			stIdx = endIdx + 1
-
-			continue
-		}
-	}
-	if inStr {
-		return nil, fmt.Errorf("unexpected end of string %s. Quotation %t is not closed", str, inStr)
-	}
-
-	buf = append(buf, str[stIdx:endIdx])
-
-	return buf, nil
-}
-
-func trimSpaces(str string) string {
-	i := 0
-	for ; i < len(str); i++ {
-		if str[i] == ' ' {
-			continue
-		}
-		break
-	}
-
-	j := len(str) - 1
-	for ; j > i; j-- {
-		if str[j] == ' ' {
-			continue
-		}
-		break
-	}
-	return str[i : j+1]
-}
-
-// removeCurlyBraces trims leadin and trailing spaces and curle braces
-func removeCurlyBraces(str string) (string, error) {
-	idx := 0
-	cnt := 0
-	for ; idx < len(str); idx++ {
-		c := str[idx]
-		if c == ' ' {
-			continue
-		}
-		if c == '{' {
-			cnt++
-			continue
-		}
-		break
-	}
-
-	tidx := len(str) - 1
-	for ; tidx > idx && cnt >= 0; tidx-- {
-		c := str[tidx]
-		if c == ' ' {
-			continue
-		}
-		if c == '}' {
-			cnt--
-			continue
-		}
-		break
-	}
-
-	if tidx == idx || cnt != 0 {
-		return str, fmt.Errorf("improperly formated tags string %s, expected format must be either {k=v, ...} or k=v,.. ", str)
-	}
-
-	return str[idx : tidx+1], nil
 }
