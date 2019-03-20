@@ -27,3 +27,27 @@ func GetStringVal(ptr *string, defVal string) string {
 	}
 	return defVal
 }
+
+// returns (ptr value, ok), ok == false if ptr is nil
+func PtrBool(b *bool) (bool, bool) {
+	if b == nil {
+		return false, false
+	}
+	return *b, true
+}
+
+func BoolPtr(b bool) *bool {
+	return &b
+}
+
+// returns (ptr value, ok), ok == false if ptr is nil
+func PtrInt(i *int) (int, bool) {
+	if i == nil {
+		return 0, false
+	}
+	return *i, true
+}
+
+func IntPtr(i int) *int {
+	return &i
+}
