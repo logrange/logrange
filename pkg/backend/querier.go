@@ -89,10 +89,10 @@ func (q *Querier) Query(ctx context.Context, req *api.QueryRequest) (*api.QueryR
 		if err == nil {
 			if flds != lge.Fields {
 				kvsFields = lge.Fields.AsKVString()
-				flds = lge.Fields.Copy()
+				flds = lge.Fields.MakeCopy()
 			}
 			le := new(api.LogEvent)
-			sb.WriteString(lge.Msg)
+			sb.WriteString(lge.Msg.AsWeakString())
 			le.Tags = string(tags)
 			le.Message = sb.String()
 			le.Timestamp = lge.Timestamp

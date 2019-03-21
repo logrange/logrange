@@ -15,9 +15,10 @@
 package tag
 
 import (
-	"bytes"
 	"encoding/json"
 	"github.com/logrange/logrange/pkg/utils/kvstring"
+	"github.com/logrange/range/pkg/records"
+	"github.com/logrange/range/pkg/utils/bytes"
 	"sort"
 	"strconv"
 	"strings"
@@ -41,23 +42,30 @@ var (
 	emptySet  = Set{"", emptyMap}
 )
 
-// Parse expects a string in format either "{name=value,name2=value...}" or
+// ParseUnsafe expects a string in format either "{name=value,name2=value...}" or
 // "name=value,name2=value..." and returns the Set object or an error, if any.
+// The ParseUnsafe forms the result from the string tags, and it tries to avoid new
+// allocations. If the passed string is not safe
 //
 // The value for any tag could be in escaped (double quoted by "). This case the value
 // can contain the following symbols '{', '}', ',', '\', '"' escaped by backslash
-func Parse(tags string) (Set, error) {
+func ParseUnsafe(tags records.Record) (Set, error) {
 	if len(tags) == 0 {
 		return emptySet, nil
 	}
 
-	m, err := kvstring.ToMap(tags)
+	m, err := kvstring.ToMap(bytes.ByteArrayToString(tags))
 	if err != nil {
 		return emptySet, err
 	}
 	tm := tagMap(m)
 
 	return Set{tm.line(), tm}, nil
+}
+
+// Parse parses tags and make a copy of tags
+func Parse(tags string) (Set, error) {
+	return ParseUnsafe([]byte(tags))
 }
 
 // MapToSet receives a map of values mp and returns the Set of tags, formed from there.
@@ -114,7 +122,7 @@ func (s *Set) UnmarshalJSON(buf []byte) error {
 	var ln string
 	err := json.Unmarshal(buf, &ln)
 	if err == nil && len(ln) > 0 {
-		*s, err = Parse(ln)
+		*s, err = ParseUnsafe(bytes.StringToByteArray(ln))
 	} else {
 		*s = emptySet
 	}
@@ -148,20 +156,20 @@ func (m tagMap) line() Line {
 		srtKeys[idx] = k
 	}
 
-	var b bytes.Buffer
+	var sb strings.Builder
 	first := true
 	for _, k := range srtKeys {
 		if !first {
-			b.WriteString(kvstring.FieldsSeparator)
+			sb.WriteString(kvstring.FieldsSeparator)
 		}
-		b.WriteString(k)
-		b.WriteString(kvstring.KeyValueSeparator)
+		sb.WriteString(k)
+		sb.WriteString(kvstring.KeyValueSeparator)
 		v := m[k]
 		if len(v) == 0 || strings.IndexByte(v, kvstring.KeyValueSeparator[0]) >= 0 || strings.IndexByte(v, kvstring.FieldsSeparator[0]) >= 0 {
 			v = strconv.Quote(v)
 		}
-		b.WriteString(v)
+		sb.WriteString(v)
 		first = false
 	}
-	return Line(b.String())
+	return Line(sb.String())
 }

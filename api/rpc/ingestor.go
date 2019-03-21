@@ -23,6 +23,7 @@ import (
 	"github.com/logrange/logrange/pkg/model/field"
 	"github.com/logrange/logrange/pkg/model/tag"
 	rrpc "github.com/logrange/range/pkg/rpc"
+	"github.com/logrange/range/pkg/utils/bytes"
 	"github.com/logrange/range/pkg/utils/encoding/xbinary"
 	"github.com/pkg/errors"
 	"io"
@@ -155,13 +156,16 @@ func (wp *writePacket) WriteTo(ow *xbinary.ObjectsWriter) (int, error) {
 func (wpi *wpIterator) init(buf []byte) (err error) {
 	wpi.buf = buf
 	var idx int
-	idx, wpi.tags, err = xbinary.UnmarshalString(buf, false)
+	// must be extremely care here. the tags could be stored later and leak to another components,
+	// so arrange them using new buf
+	idx, wpi.tags, err = xbinary.UnmarshalString(buf, true)
 	if err != nil {
 		return err
 	}
 
 	var n int
 	var flds string
+	// flds using the buffer, we will transform them to new fields shortly
 	n, flds, err = xbinary.UnmarshalString(buf[idx:], false)
 	if err != nil {
 		return err
@@ -175,7 +179,7 @@ func (wpi *wpIterator) init(buf []byte) (err error) {
 	}
 
 	// turns kvstring into the fields
-	wpi.lge.Fields, err = field.NewFieldsFromKVString(flds, make([]byte, len(flds)))
+	wpi.lge.Fields, err = field.NewFieldsFromKVString(flds)
 	if err != nil {
 		err = errors.Wrapf(err, "could not parse fields")
 		return err
@@ -215,7 +219,7 @@ func (wpi *wpIterator) Get(ctx context.Context) (model.LogEvent, tag.Line, error
 	wpi.read = true
 
 	wpi.lge.Timestamp = le.Timestamp
-	wpi.lge.Msg = le.Message
+	wpi.lge.Msg = bytes.StringToByteArray(le.Message)
 
 	return wpi.lge, tag.EmptyLine, nil
 }

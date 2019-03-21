@@ -70,6 +70,7 @@ func (fit *fiterator) Get(ctx context.Context) (model.LogEvent, tag.Line, error)
 
 func (fit *fiterator) Release() {
 	fit.it.Release()
-	fit.le.Release()
-	fit.valid = false
+	if fit.valid {
+		fit.le.MakeItSafe()
+	}
 }

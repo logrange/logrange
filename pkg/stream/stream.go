@@ -12,16 +12,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package tindex
+package stream
 
-import (
-	"fmt"
-	"github.com/logrange/logrange/pkg/utils"
+type (
+	Service interface {
+	}
+
+	WriteEvent struct {
+	}
 )
-
-func newSrc() string {
-	id := utils.NextSimpleId()
-	// making 2 last digits changing from one id to another to be sure the journals will go to different sub-folders
-	// (see NextSimpleId() implementation for details)
-	return fmt.Sprintf("%X%02X", id, (id>>16)&0xFF)
-}

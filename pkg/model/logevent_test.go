@@ -22,7 +22,7 @@ import (
 )
 
 func BenchmarkLogEventMarshal(b *testing.B) {
-	le := &LogEvent{1, "asdfasdfasdf asdfasdf asdf", "al;sdkf';lasdfl;kasdjflkajsdflkjasdflkjlk"}
+	le := &LogEvent{1, []byte("asdfasdfasdf asdfasdf asdf"), "al;sdkf';lasdfl;kasdjflkajsdflkjasdflkjlk"}
 	var bb [1000]byte
 	buf := bb[:]
 	b.ReportAllocs()
@@ -33,7 +33,7 @@ func BenchmarkLogEventMarshal(b *testing.B) {
 }
 
 func BenchmarkLogEventWriteTo(b *testing.B) {
-	le := &LogEvent{1, "asdfasdfasdf asdfasdf asdf", "askdfjhasdkfjhaskdjfhaksdjfhkasdjfhkasdjfh"}
+	le := &LogEvent{1, []byte("asdfasdfasdf asdfasdf asdf"), "askdfjhasdkfjhaskdjfhaksdjfhkasdjfhkasdjfh"}
 	var buf bytes.Buffer
 	ow := &xbinary.ObjectsWriter{Writer: &buf}
 	b.ReportAllocs()
@@ -60,9 +60,9 @@ func TestMarshalEmpty(t *testing.T) {
 func TestMarshalUnmarshal(t *testing.T) {
 	testMarshalUnmarshal(t, &LogEvent{}, 10)
 	testMarshalUnmarshal(t, &LogEvent{Timestamp: 1234}, 10)
-	testMarshalUnmarshal(t, &LogEvent{Msg: "abc"}, 13)
+	testMarshalUnmarshal(t, &LogEvent{Msg: []byte("abc")}, 13)
 	testMarshalUnmarshal(t, &LogEvent{Fields: "abc"}, 14)
-	testMarshalUnmarshal(t, &LogEvent{Msg: "a", Fields: "abc"}, 15)
+	testMarshalUnmarshal(t, &LogEvent{Msg: []byte("a"), Fields: "abc"}, 15)
 }
 
 func testMarshalUnmarshal(t *testing.T, le *LogEvent, sz int) {
@@ -76,7 +76,7 @@ func testMarshalUnmarshal(t *testing.T, le *LogEvent, sz int) {
 		t.Fatal("n must be ", sz, ", but it is ", n, ", err=", err)
 	}
 
-	le2 := &LogEvent{1, "22", ""}
+	le2 := &LogEvent{1, []byte("22"), ""}
 	n, err = le2.Unmarshal(bb[:], true)
 	if n != sz || !reflect.DeepEqual(le2, le) || err != nil {
 		t.Fatal("le2=", le2, " must be same as le=", le, ", expected sz=", sz, ", but n=", n, ", err=", err)

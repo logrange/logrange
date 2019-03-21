@@ -15,6 +15,7 @@
 package tag
 
 import (
+	"github.com/logrange/range/pkg/utils/bytes"
 	"strconv"
 	"testing"
 )
@@ -57,6 +58,15 @@ func TestSet(t *testing.T) {
 	}
 	if v := set.Tag("ip"); v != "1.2" {
 		t.Fatal("wrong tag value ", set)
+	}
+}
+
+func TestParse(t *testing.T) {
+	b := []byte{'a', '=', 'b'}
+	st, _ := Parse(bytes.ByteArrayToString(b))
+	b[2] = 'c'
+	if st.Tag("a") != "b" {
+		t.Fatal("something wrong with parse! ", st.Tag("a"), st.Line().String())
 	}
 }
 

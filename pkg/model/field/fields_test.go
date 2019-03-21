@@ -29,17 +29,16 @@ func BenchmarkLogEventParser(b *testing.B) {
 }
 
 func BenchmarkMapAccess(b *testing.B) {
-	var buf [1000]byte
 	b.ReportAllocs()
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		NewFieldsFromKVString("name=alkdjfl;akjdf;lkadjflajdfkl, c=12387491kjhkjhlkjhlkjhlkjhlkjhlkjhlkjhk41934", buf[:])
+		NewFieldsFromKVString("name=alkdjfl;akjdf;lkadjflajdfkl, c=12387491kjhkjhlkjhlkjhlkjhlkjhlkjhlkjhk41934")
 		//kvstring.ToMap("name=alkdjfl;akjdf;lkadjflajdfkl, c=12387491kjhkjhlkjhlkjhlkjhlkjhlkjhlkjhk41934")
 	}
 }
 
 func BenchmarkWriteKVS(b *testing.B) {
-	fld, _ := NewFieldsFromKVString("aaa=bbbb,name=asdf1234123412341234", nil)
+	fld, _ := NewFieldsFromKVString("aaa=bbbb,name=asdf1234123412341234")
 	b.ReportAllocs()
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
@@ -81,7 +80,7 @@ func testFieldValue(t *testing.T, mp map[string]string) {
 }
 
 func testNewFieldsFromKVString(t *testing.T, kvs string, flds Fields) {
-	fld, err := NewFieldsFromKVString(kvs, nil)
+	fld, err := NewFieldsFromKVString(kvs)
 	if err != nil {
 		t.Fatal("uexpected error ", err)
 	}
@@ -91,7 +90,7 @@ func testNewFieldsFromKVString(t *testing.T, kvs string, flds Fields) {
 }
 
 func testWriteAsKVS(t *testing.T, kvs, exp string) {
-	fld, err := NewFieldsFromKVString(kvs, nil)
+	fld, err := NewFieldsFromKVString(kvs)
 	if err != nil {
 		t.Fatal("uexpected error ", err)
 	}

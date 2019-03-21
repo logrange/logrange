@@ -15,6 +15,7 @@
 package lql
 
 import (
+	bytes2 "bytes"
 	"fmt"
 	"github.com/logrange/logrange/pkg/model"
 	"github.com/logrange/logrange/pkg/scanner/parser/date"
@@ -178,18 +179,19 @@ func (web *whereExpFuncBuilder) buildTsCond(cn *Condition) error {
 
 func (web *whereExpFuncBuilder) buildMsgCond(cn *Condition) (err error) {
 	op := strings.ToUpper(cn.Op)
+	val := bytes.StringToByteArray(cn.Value)
 	switch op {
 	case CMP_CONTAINS:
 		web.wef = func(le *model.LogEvent) bool {
-			return strings.Contains(le.Msg, cn.Value)
+			return bytes2.Contains(le.Msg, val)
 		}
 	case CMP_HAS_PREFIX:
 		web.wef = func(le *model.LogEvent) bool {
-			return strings.HasPrefix(le.Msg, cn.Value)
+			return bytes2.HasPrefix(le.Msg, val)
 		}
 	case CMP_HAS_SUFFIX:
 		web.wef = func(le *model.LogEvent) bool {
-			return strings.HasSuffix(le.Msg, cn.Value)
+			return bytes2.HasSuffix(le.Msg, val)
 		}
 	case CMP_LIKE:
 		// test it first
@@ -198,7 +200,7 @@ func (web *whereExpFuncBuilder) buildMsgCond(cn *Condition) (err error) {
 			err = fmt.Errorf("Wrong 'like' expression for %s, err=%s", cn.Value, err.Error())
 		} else {
 			web.wef = func(le *model.LogEvent) bool {
-				res, _ := path.Match(cn.Value, le.Msg)
+				res, _ := path.Match(cn.Value, le.Msg.AsWeakString())
 				return res
 			}
 		}

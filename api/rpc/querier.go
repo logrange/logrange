@@ -156,10 +156,10 @@ func (sq *ServerQuerier) query(reqId int32, reqBody []byte, sc *rrpc.ServerConn)
 		if err == nil {
 			if lge.Fields != flds {
 				kvsFields = lge.Fields.AsKVString()
-				flds = lge.Fields.Copy()
+				flds = lge.Fields.MakeCopy()
 			}
 			le.Tags = string(tags)
-			le.Message = lge.Msg
+			le.Message = lge.Msg.AsWeakString()
 			le.Timestamp = lge.Timestamp
 			le.Fields = kvsFields
 			qr.writeLogEvent(&le)

@@ -43,7 +43,7 @@ func testWhereExpGeneral(t *testing.T, exp string, le *model.LogEvent, expRes bo
 
 func TestWhereExpGeneral(t *testing.T) {
 	flds, _ := field.NewFields(map[string]string{"f1": "val1", "f2": "val2"})
-	le := &model.LogEvent{Timestamp: 123, Msg: "aaaabbbb", Fields: flds}
+	le := &model.LogEvent{Timestamp: 123, Msg: []byte("aaaabbbb"), Fields: flds}
 	testWhereExpGeneral(t, "msg like \"aaa*\"", le, true)
 	testWhereExpGeneral(t, "msg contains ab", le, true)
 	testWhereExpGeneral(t, "msg prefix aa", le, true)

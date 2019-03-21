@@ -43,13 +43,13 @@ func NewFields(mp map[string]string) (Fields, error) {
 // Parse turns kvs to Fields and it doesn't care about error. If kvs is not right string the Fields will be
 // silently empty
 func Parse(kvs string) Fields {
-	flds, _ := NewFieldsFromKVString(kvs, make([]byte, len(kvs)))
+	flds, _ := NewFieldsFromKVString(kvs)
 	return flds
 }
 
 // NewFieldsFromKVString receives a kv-stream in form `field1=value1, field2=value2...` and turn
 // it to Fields using the buffer buf. If the buf is empty than new string will be created
-func NewFieldsFromKVString(kvs string, buf []byte) (Fields, error) {
+func NewFieldsFromKVString(kvs string) (Fields, error) {
 	if len(kvs) == 0 {
 		return "", nil
 	}
@@ -71,6 +71,7 @@ func NewFieldsFromKVString(kvs string, buf []byte) (Fields, error) {
 		return "", fmt.Errorf("the tag must be a pair of <key>=<value>")
 	}
 
+	var sb strings.Builder
 	idx := 0
 	for i, v := range res {
 		if len(v) > 255 {
@@ -89,23 +90,13 @@ func NewFieldsFromKVString(kvs string, buf []byte) (Fields, error) {
 			}
 		}
 
-		if len(buf)-idx < len(v)+1 {
-			ns := 2 * len(buf)
-			if len(buf) < len(v)+1 {
-				ns = 3*len(v) + len(buf) + 1
-			}
-			b := make([]byte, ns)
-			copy(b, buf[:idx])
-			buf = b
-		}
-
-		buf[idx] = byte(len(v))
+		sb.WriteByte(byte(len(v)))
 		idx++
-		copy(buf[idx:], bytes.StringToByteArray(v))
+		sb.WriteString(v)
 		idx += len(v)
 	}
 
-	return Fields(bytes.ByteArrayToString(buf[:idx])), nil
+	return Fields(sb.String()), nil
 }
 
 // Check tests whether the provided string is a properly coded fields or not
@@ -139,8 +130,8 @@ func (f Fields) Value(name string) string {
 	return ""
 }
 
-// Copy makes an unmutable copy of fields
-func (f Fields) Copy() Fields {
+// MakeCopy makes an unmutable copy of fields
+func (f Fields) MakeCopy() Fields {
 	return Fields(bytes.ByteArrayToString(bytes.BytesCopy(bytes.StringToByteArray(string(f)))))
 }
 

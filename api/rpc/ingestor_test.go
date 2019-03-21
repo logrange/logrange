@@ -73,7 +73,7 @@ func TestWritePacket(t *testing.T) {
 	if err != nil {
 		t.Fatal("err=", err)
 	}
-	if le.Timestamp != 1 || le.Msg != "mes1" {
+	if le.Timestamp != 1 || le.Msg.AsWeakString() != "mes1" {
 		t.Fatal("Something wrong with le=", le)
 	}
 
@@ -82,7 +82,7 @@ func TestWritePacket(t *testing.T) {
 	if err != nil {
 		t.Fatal("err=", err)
 	}
-	if le.Timestamp != 2 || le.Msg != "mes2" {
+	if le.Timestamp != 2 || le.Msg.AsWeakString() != "mes2" {
 		t.Fatal("Something wrong with le=", le)
 	}
 
@@ -118,7 +118,7 @@ func TestWritePacketWithTindex(t *testing.T) {
 	if err != nil {
 		t.Fatal("err=", err)
 	}
-	if le.Timestamp != 1 || le.Msg != "mes1" {
+	if le.Timestamp != 1 || le.Msg.AsWeakString() != "mes1" {
 		t.Fatal("Something wrong with le=", le)
 	}
 
@@ -127,7 +127,7 @@ func TestWritePacketWithTindex(t *testing.T) {
 	if err != nil {
 		t.Fatal("err=", err)
 	}
-	if le.Timestamp != 2 || le.Msg != "mes2" {
+	if le.Timestamp != 2 || le.Msg.AsWeakString() != "mes2" {
 		t.Fatal("Something wrong with le=", le)
 	}
 

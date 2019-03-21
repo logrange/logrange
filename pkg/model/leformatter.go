@@ -137,7 +137,7 @@ func (fp *FormatParser) FormatStr(le *LogEvent, tl string) string {
 				buf.WriteString(time.Unix(0, int64(lge.Timestamp)).Format(ff.value))
 			}
 		case frmtFldMsg:
-			buf.WriteString(lge.Msg)
+			buf.WriteString(lge.Msg.AsWeakString())
 		case frmtFldVar:
 			v := le.Fields.Value(ff.value)
 			if v == "" {
@@ -167,7 +167,7 @@ func (fp *FormatParser) tagSet(tl string) *tag.Set {
 	}
 	s, ok := fp.tags[tl]
 	if !ok {
-		s1, err := tag.Parse(string(tl))
+		s1, err := tag.Parse(tl)
 		if err != nil {
 			s = nil
 		} else {

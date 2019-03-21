@@ -208,7 +208,7 @@ func printResults(res *api.QueryResult, frmt *model.FormatParser, w io.Writer) {
 		}
 
 		le.Timestamp = e.Timestamp
-		le.Msg = strings.Trim(e.Message, "\n")
+		le.Msg = bytes.StringToByteArray(strings.Trim(e.Message, "\n"))
 		le.Fields = field.Parse(e.Fields)
 		_, _ = w.Write(bytes.StringToByteArray(frmt.FormatStr(&le, e.Tags)))
 	}

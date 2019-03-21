@@ -75,8 +75,9 @@ func (lei *LogEventIterator) Get(ctx context.Context) (LogEvent, tag.Line, error
 }
 
 func (lei *LogEventIterator) Release() {
-	lei.st = 0
-	lei.le.Release()
+	if lei.st != 0 {
+		lei.le.MakeItSafe()
+	}
 	lei.it.Release()
 }
 

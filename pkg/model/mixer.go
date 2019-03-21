@@ -85,11 +85,14 @@ func (mr *Mixer) Get(ctx context.Context) (LogEvent, tag.Line, error) {
 }
 
 func (mr *Mixer) Release() {
-	mr.st = 0
 	mr.src1.it.Release()
-	mr.src1.le.Release()
+	if mr.st == 1 {
+		mr.src1.le.MakeItSafe()
+	}
 	mr.src2.it.Release()
-	mr.src2.le.Release()
+	if mr.st == 2 {
+		mr.src2.le.MakeItSafe()
+	}
 }
 
 func (mr *Mixer) selectState(ctx context.Context) error {

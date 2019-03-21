@@ -16,6 +16,7 @@ package model
 
 import (
 	"github.com/logrange/logrange/pkg/model/field"
+	"github.com/logrange/range/pkg/records"
 	"github.com/logrange/range/pkg/utils/encoding/xbinary"
 )
 
@@ -26,8 +27,8 @@ type (
 		// message timestamp
 		Timestamp uint64
 
-		// Msg - the message iteself
-		Msg string
+		// Msg - the message iteself. Usually it is a slice of bytes that refer to a temporary buffer
+		Msg records.Record
 
 		// Fields contains fields associated with the log event
 		Fields field.Fields
@@ -38,13 +39,18 @@ const recVersion = 0x20 // bits 5-7 contains version. bits 0-4 contains mask for
 
 // Release drops references to the buffers if the logEvent has ones
 func (le *LogEvent) Release() {
-	le.Msg = ""
+	le.Msg = nil
 	le.Fields = ""
+}
+
+func (le *LogEvent) MakeItSafe() {
+	le.Msg = le.Msg.MakeCopy()
+	le.Fields = le.Fields.MakeCopy()
 }
 
 // WritableSize returns the number of bytes required to marshal the LogEvent
 func (le *LogEvent) WritableSize() int {
-	base := 1 + 8 + xbinary.WritableStringSize(le.Msg)
+	base := 1 + 8 + xbinary.WritebleBytesSize(le.Msg)
 	if len(le.Fields) > 0 {
 		base += xbinary.WritableStringSize(string(le.Fields))
 	}
@@ -72,7 +78,7 @@ func (le *LogEvent) WriteTo(ow *xbinary.ObjectsWriter) (int, error) {
 		return nn, err
 	}
 
-	n, err = ow.WriteString(le.Msg)
+	n, err = ow.WriteBytes(le.Msg)
 	nn += n
 	if hdr&1 != 0 && err == nil {
 		n, err = ow.WriteString(string(le.Fields))
@@ -94,7 +100,7 @@ func (le *LogEvent) Marshal(buf []byte) (int, error) {
 	if err != nil {
 		return nn, err
 	}
-	n, err = xbinary.MarshalString(le.Msg, buf[nn:])
+	n, err = xbinary.MarshalBytes(le.Msg, buf[nn:])
 	nn += n
 	if hdr&1 != 0 && err == nil {
 		n, err = xbinary.MarshalString(string(le.Fields), buf[nn:])
@@ -118,7 +124,7 @@ func (le *LogEvent) Unmarshal(buf []byte, newBuf bool) (int, error) {
 	}
 
 	le.Timestamp = ts
-	n, le.Msg, err = xbinary.UnmarshalString(buf[nn:], newBuf)
+	n, le.Msg, err = xbinary.UnmarshalBytes(buf[nn:], newBuf)
 	nn += n
 	if hdr&1 != 0 && err == nil {
 		var flds string
