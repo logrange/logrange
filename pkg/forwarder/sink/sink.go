@@ -29,7 +29,7 @@ type (
 	}
 
 	Sink interface {
-		OnEvent(e *api.LogEvent) error
+		OnEvent(e []*api.LogEvent) error
 		Close() error
 	}
 
@@ -75,8 +75,10 @@ func newStdSkink(cfg *Config) Sink {
 	return &stdoutSink{}
 }
 
-func (ss *stdoutSink) OnEvent(e *api.LogEvent) error {
-	fmt.Print(e.Message)
+func (ss *stdoutSink) OnEvent(events []*api.LogEvent) error {
+	for _, e := range events {
+		fmt.Print(e.Message)
+	}
 	return nil
 }
 
@@ -103,16 +105,21 @@ func newSyslogSkink(cfg *Config) (Sink, error) {
 	}, nil
 }
 
-func (ss *syslogSink) OnEvent(e *api.LogEvent) error {
-	m := &syslog.Message{
-		Severity: syslog.SeverityInfo,
-		Facility: syslog.FacilityLocal6,
-		Time:     time.Unix(0, int64(e.Timestamp)),
-		Hostname: "localhost",
-		Tag:      e.Tags,
-		Msg:      e.Message,
+func (ss *syslogSink) OnEvent(events []*api.LogEvent) error {
+	for _, e := range events {
+		err := ss.slog.Write(&syslog.Message{
+			Severity: syslog.SeverityInfo,
+			Facility: syslog.FacilityLocal6,
+			Time:     time.Unix(0, int64(e.Timestamp)),
+			Hostname: "localhost",
+			Tag:      e.Tags,
+			Msg:      e.Message,
+		})
+		if err != nil {
+			return err
+		}
 	}
-	return ss.slog.Write(m)
+	return nil
 }
 
 func (ss *syslogSink) Close() error {

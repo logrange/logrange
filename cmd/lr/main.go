@@ -210,7 +210,7 @@ func runForwarder(c *ucli.Context) error {
 		return err
 	}
 
-	return forwarder.Run(newCtx(), cfg, cli, strg)
+	return forwarder.Run(newCtx(), cfg.Forwarder, cli, strg)
 }
 
 //===================== query =====================

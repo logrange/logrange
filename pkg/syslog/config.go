@@ -82,8 +82,8 @@ func (c *Config) Check() error {
 	if c.RemoteAddr == "" {
 		return fmt.Errorf("invalid RemoteAddr=%v, must be non-empty", c.RemoteAddr)
 	}
-	if v, ok := utils.PtrInt(c.LineLenLimit); ok && v < 0 {
-		return fmt.Errorf("invalid LineLenLimit=%v, must be >= 0", c.LineLenLimit)
+	if v, ok := utils.PtrInt(c.LineLenLimit); ok && v <= 0 {
+		return fmt.Errorf("invalid LineLenLimit=%v, must be > 0", c.LineLenLimit)
 	}
 	if v, ok := utils.PtrInt(c.ConnectTimeoutSec); ok && v < 0 {
 		return fmt.Errorf("invalid ConnectTimeoutSec=%v, must be >= 0", c.ConnectTimeoutSec)

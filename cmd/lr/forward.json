@@ -3,7 +3,7 @@
     "Workers": [{
       "Name": "forwarder1",
       "Source": {
-        "Lql": "select all",
+        "Lql": "select limit 1000",
         "Filter": ""
       },
       "Sink": {
@@ -16,7 +16,7 @@
       }
     }],
     "StateStoreIntervalSec": 10,
-    "ConfigScanIntervalSec": 20
+    "ConfigReloadIntervalSec": 20
   },
 
   "Transport": {

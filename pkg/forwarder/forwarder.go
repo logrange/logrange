@@ -85,7 +85,7 @@ func (f *Forwarder) Run(ctx context.Context) error {
 	if err := f.init(ctx); err != nil {
 		return err
 	}
-	f.runScanConfig(ctx)
+	f.runReloadConfig(ctx)
 	f.runPersistState(ctx)
 	return nil
 }
@@ -140,21 +140,22 @@ func (f *Forwarder) toDescs(cfg *Config) descs {
 
 //===================== forwarder.jobs =====================
 
-func (f *Forwarder) runScanConfig(ctx context.Context) {
-	f.logger.Info("Running scanning config every ", f.cfg.ConfigScanIntervalSec, " seconds...")
+func (f *Forwarder) runReloadConfig(ctx context.Context) {
+	f.logger.Info("Running config reloading every ", f.cfg.ConfigReloadIntervalSec, " seconds...")
 	ticker := time.NewTicker(time.Second *
-		time.Duration(f.cfg.ConfigScanIntervalSec))
+		time.Duration(f.cfg.ConfigReloadIntervalSec))
 
 	f.waitWg.Add(1)
 	go func() {
 		for utils.Wait(ctx, ticker) {
 			if err := f.cfg.Reload(); err != nil {
-				f.logger.Warn("Failed scanning config this time, retry later, err=", err)
+				f.logger.Warn("Failed config reloading, retry later, err=", err)
 				continue
 			}
+			f.logger.Info("Syncing, got new config=", f.cfg)
 			f.update(ctx)
 		}
-		f.logger.Warn("Config scan stopped.")
+		f.logger.Warn("Config reloading stopped.")
 		f.waitWg.Done()
 	}()
 }
@@ -254,7 +255,7 @@ func (f *Forwarder) mergeDescs(old, new descs) descs {
 			a++
 			continue
 		}
-		if reflect.DeepEqual(od, nd) {
+		if reflect.DeepEqual(od.Worker, nd.Worker) {
 			res[name] = od
 			continue
 		}

@@ -31,7 +31,6 @@ type (
 		Collector *scanner.Config
 		Transport *transport.Config
 		Storage   *storage.Config
-		filePath  string
 	}
 )
 
@@ -45,9 +44,11 @@ func LoadCfgFromFile(path string) (*Config, error) {
 	if err != nil {
 		return nil, err
 	}
-	cfg.filePath = path
 	if cfg.Forwarder != nil {
-		cfg.Forwarder.ReloadFn = cfg.Reload
+		cfg.Forwarder.ReloadFn = func() (*forwarder.Config, error) {
+			cfg, err := LoadCfgFromFile(path)
+			return cfg.Forwarder, err
+		}
 	}
 	return cfg, nil
 }
@@ -73,17 +74,6 @@ func (c *Config) Apply(other *Config) {
 	c.Collector.Apply(other.Collector)
 	c.Storage.Apply(other.Storage)
 	c.Transport.Apply(other.Transport)
-}
-
-func (c *Config) Reload() error {
-	if c.filePath != "" {
-		cfg, err := LoadCfgFromFile(c.filePath)
-		if err != nil {
-			return err
-		}
-		c.Apply(cfg)
-	}
-	return nil
 }
 
 func (c *Config) String() string {

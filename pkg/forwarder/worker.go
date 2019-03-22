@@ -59,12 +59,20 @@ func newWorker(wc *workerConfig) *worker {
 func (w *worker) run(ctx context.Context) error {
 	qr, err := w.prepareQuery()
 	if err == nil {
+		totalCnt := uint64(0)
+		sleepDur := 5 * time.Second
+		nextStat := time.Now()
+
 		limit := qr.Limit
 		timeout := qr.WaitTimeout
-		sleepDur := 5 * time.Second
 		for ctx.Err() == nil && !w.stop {
 			qr.Limit = limit
 			qr.WaitTimeout = timeout
+
+			if time.Now().After(nextStat) {
+				w.logger.Info("Forwarded in total ", totalCnt, " events!")
+				nextStat = time.Now().Add(10 * time.Second)
+			}
 
 			res := &api.QueryResult{}
 			err := w.rpcc.Query(ctx, qr, res)
@@ -80,15 +88,16 @@ func (w *worker) run(ctx context.Context) error {
 				continue
 			}
 
-			err = w.doSink(res.Events)
+			err = w.sink.OnEvent(res.Events)
 			if err != nil {
-				w.logger.Warn("Failed to sink events, will retry in 5 sec...")
+				w.logger.Warn("Failed to sink events, will retry in 5 sec, err=", err)
 				utils.Sleep(ctx, sleepDur)
 				continue
 			}
 
 			qr = &res.NextQueryRequest
 			w.desc.setPosition(qr.Pos)
+			totalCnt += uint64(len(res.Events))
 		}
 	}
 
@@ -105,16 +114,6 @@ func (w *worker) stopGracefully() {
 }
 func (w *worker) isStopped() bool {
 	return w.stopped
-}
-
-func (w *worker) doSink(events []*api.LogEvent) error {
-	for _, e := range events {
-		err := w.sink.OnEvent(e)
-		if err != nil {
-			return err
-		}
-	}
-	return nil
 }
 
 func (w *worker) prepareQuery() (*api.QueryRequest, error) {

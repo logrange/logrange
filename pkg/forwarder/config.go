@@ -37,10 +37,10 @@ type (
 	}
 
 	Config struct {
-		Workers               []*WorkerConfig
-		StateStoreIntervalSec int
-		ConfigScanIntervalSec int
-		ReloadFn              func() error
+		Workers                 []*WorkerConfig
+		StateStoreIntervalSec   int
+		ConfigReloadIntervalSec int
+		ReloadFn                func() (*Config, error) `json:"-"`
 	}
 )
 
@@ -52,7 +52,7 @@ func NewDefaultConfig() *Config {
 			{
 				Name: "forwarder1",
 				Source: &SourceConfig{
-					Lql: "select all",
+					Lql: "select limit 1000",
 				},
 				Sink: &sink.Config{
 					Type:   "stdout",
@@ -60,8 +60,8 @@ func NewDefaultConfig() *Config {
 				},
 			},
 		},
-		StateStoreIntervalSec: 10,
-		ConfigScanIntervalSec: 20,
+		StateStoreIntervalSec:   10,
+		ConfigReloadIntervalSec: 20,
 	}
 }
 
@@ -72,11 +72,14 @@ func (c *Config) Apply(other *Config) {
 	if other.StateStoreIntervalSec != 0 {
 		c.StateStoreIntervalSec = other.StateStoreIntervalSec
 	}
-	if other.ConfigScanIntervalSec != 0 {
-		c.ConfigScanIntervalSec = other.ConfigScanIntervalSec
+	if other.ConfigReloadIntervalSec != 0 {
+		c.ConfigReloadIntervalSec = other.ConfigReloadIntervalSec
 	}
 	if len(other.Workers) != 0 {
 		c.Workers = deepcopy.Copy(other.Workers).([]*WorkerConfig)
+	}
+	if other.ReloadFn != nil {
+		c.ReloadFn = other.ReloadFn
 	}
 }
 
@@ -84,8 +87,8 @@ func (c *Config) Check() error {
 	if c.StateStoreIntervalSec <= 0 {
 		return fmt.Errorf("invalid StateStoreIntervalSec=%v, must be > 0sec", c.StateStoreIntervalSec)
 	}
-	if c.ConfigScanIntervalSec <= 0 {
-		return fmt.Errorf("invalid ConfigScanIntervalSec=%v, must be > 0sec", c.ConfigScanIntervalSec)
+	if c.ConfigReloadIntervalSec <= 0 {
+		return fmt.Errorf("invalid ConfigReloadIntervalSec=%v, must be > 0sec", c.ConfigReloadIntervalSec)
 	}
 
 	wNames := make(map[string]bool)
@@ -104,10 +107,14 @@ func (c *Config) Check() error {
 }
 
 func (c *Config) Reload() error {
+	var err error
 	if c.ReloadFn != nil {
-		return c.ReloadFn()
+		nc, err := c.ReloadFn()
+		if err == nil {
+			c.Apply(nc)
+		}
 	}
-	return nil
+	return err
 }
 
 func (c *Config) String() string {

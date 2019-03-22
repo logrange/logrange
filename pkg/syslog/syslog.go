@@ -73,10 +73,12 @@ func NewLogger(cfg *Config) (*Logger, error) {
 }
 
 func (l *Logger) Close() error {
+	var err error
 	if l.conn != nil {
-		return l.conn.Close()
+		err = l.conn.Close()
+		l.conn = nil
 	}
-	return nil
+	return err
 }
 
 func (l *Logger) Write(msg *Message) error {
@@ -91,10 +93,12 @@ func (l *Logger) Write(msg *Message) error {
 		}
 	}
 
-	timeout := time.Now().Add(time.Second *
-		time.Duration(*l.cfg.WriteTimeoutSec))
+	if *l.cfg.WriteTimeoutSec > 0 {
+		timeout := time.Now().Add(time.Second *
+			time.Duration(*l.cfg.WriteTimeoutSec))
+		err = l.conn.SetWriteDeadline(timeout)
+	}
 
-	err = l.conn.SetWriteDeadline(timeout)
 	if err == nil {
 		_, err = io.WriteString(l.conn, Format(msg,
 			*l.cfg.ReplaceNewLine, *l.cfg.LineLenLimit))
@@ -138,10 +142,8 @@ func (l *Logger) connect() error {
 		if l.rootCAs != nil {
 			config = &tls.Config{RootCAs: l.rootCAs}
 		}
-		dialer := &net.Dialer{
-			Timeout: timeout,
-		}
-		l.conn, err = tls.DialWithDialer(dialer, l.cfg.Protocol, l.cfg.RemoteAddr, config)
+		l.conn, err = tls.DialWithDialer(&net.Dialer{
+			Timeout: timeout}, l.cfg.Protocol, l.cfg.RemoteAddr, config)
 		return err
 	}
 
