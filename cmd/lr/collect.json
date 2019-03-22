@@ -1,5 +1,5 @@
 {
-  "Scanner": {
+  "Collector": {
     "IncludePaths": [
       "/var/log/*.log",
       "/var/log/*/*.log"

@@ -107,11 +107,17 @@ func (c *Config) Check() error {
 }
 
 func (c *Config) Reload() error {
-	var err error
+	var (
+		err error
+		nc  *Config
+	)
 	if c.ReloadFn != nil {
-		nc, err := c.ReloadFn()
+		nc, err = c.ReloadFn()
 		if err == nil {
-			c.Apply(nc)
+			err = nc.Check()
+			if err == nil {
+				c.Apply(nc)
+			}
 		}
 	}
 	return err
