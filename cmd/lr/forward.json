@@ -1,17 +1,23 @@
 {
-  "Forwarders": [
-    {
-      "Lql": "",
+  "Forwarder": {
+    "Workers": [{
+      "Name": "forwarder1",
+      "Source": {
+        "Lql": "select all",
+        "Filter": ""
+      },
       "Sink": {
         "Type": "syslog",
-        "Format": "",
         "Params": {
-          "Server": "",
-          "Certs": ""
+          "Protocol": "tcp",
+          "RemoteAddr": "127.0.0.1:5514",
+          "TlsCAFile": ""
         }
       }
-    }
-  ],
+    }],
+    "StateStoreIntervalSec": 10,
+    "ConfigScanIntervalSec": 20
+  },
 
   "Transport": {
     "ListenAddr": "127.0.0.1:9966",
@@ -24,6 +30,6 @@
 
   "Storage": {
     "Type": "file",
-    "Location": "/opt/logrange/lr/"
+    "Location": "/opt/logrange/lr/storage/"
   }
 }

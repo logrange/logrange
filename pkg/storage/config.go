@@ -49,22 +49,22 @@ func (c *Config) Apply(other *Config) {
 
 func (c *Config) Check() error {
 	if c.Type == "" {
-		return fmt.Errorf("invalid config; Type=%v, must be non-empty", c.Type)
+		return fmt.Errorf("invalid Type=%v, must be non-empty", c.Type)
 	}
 
 	switch c.Type {
 	case TypeFile:
 		if strings.TrimSpace(c.Location) == "" {
-			return fmt.Errorf("invalid config; Location=%v, "+
+			return fmt.Errorf("invalid Location=%v, "+
 				"must be non-empty for type=%v", c.Location, c.Type)
 		}
 	case TypeInMem:
 		if strings.TrimSpace(c.Location) != "" {
-			return fmt.Errorf("invalid config; Location=%v, "+
+			return fmt.Errorf("invalid Location=%v, "+
 				"must be empty for type=%v", c.Location, c.Type)
 		}
 	default:
-		return fmt.Errorf("invalid config; unknown Type=%v", c.Type)
+		return fmt.Errorf("unknown Type=%v", c.Type)
 	}
 
 	return nil

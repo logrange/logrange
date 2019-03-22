@@ -1,5 +1,5 @@
 {
-  "Collector": {
+  "Scanner": {
     "IncludePaths": [
       "/var/log/*.log",
       "/var/log/*/*.log"
@@ -36,6 +36,6 @@
 
   "Storage": {
     "Type": "file",
-    "Location": "/opt/logrange/lr/"
+    "Location": "/opt/logrange/lr/storage/"
   }
 }

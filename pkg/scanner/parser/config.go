@@ -30,18 +30,18 @@ type (
 
 func (c *Config) Check() error {
 	if strings.TrimSpace(c.File) == "" {
-		return fmt.Errorf("invalid config; File=%v, must be non-empty", c.File)
+		return fmt.Errorf("invalid File=%v, must be non-empty", c.File)
 	}
 
 	switch c.DataFmt {
 	case FmtText:
 	case FmtK8Json:
 		if len(c.DateFmts) > 0 {
-			return fmt.Errorf("invalid config; DateFmts=%v, "+
+			return fmt.Errorf("invalid DateFmts=%v, "+
 				"must be empty for DataFmt=%v", c.DateFmts, c.DataFmt)
 		}
 	default:
-		return fmt.Errorf("invalid config; unknown DataFmt=%v", c.DataFmt)
+		return fmt.Errorf("unknown DataFmt=%v", c.DataFmt)
 	}
 
 	return nil

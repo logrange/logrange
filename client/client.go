@@ -12,4 +12,28 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package forwarder
+package client
+
+import (
+	"fmt"
+	"github.com/logrange/logrange/api"
+	"github.com/logrange/logrange/api/rpc"
+	"github.com/logrange/logrange/pkg/storage"
+	"github.com/logrange/range/pkg/transport"
+)
+
+func NewClient(cfg transport.Config) (api.Client, error) {
+	cli, err := rpc.NewClient(cfg)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create client, err=%v", err)
+	}
+	return cli, err
+}
+
+func NewStorage(cfg *storage.Config) (storage.Storage, error) {
+	strg, err := storage.NewStorage(cfg)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create storage, err=%v", err)
+	}
+	return strg, err
+}

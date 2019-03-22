@@ -83,33 +83,32 @@ func (c *Config) Apply(other *Config) {
 
 func (c *Config) Check() error {
 	if len(c.IncludePaths) == 0 {
-		return fmt.Errorf("invalid config; IncludePaths=%v, must be non-empty", c.IncludePaths)
+		return fmt.Errorf("invalid IncludePaths=%v, must be non-empty", c.IncludePaths)
 	}
 	if c.EventMaxRecords <= 0 {
-		return fmt.Errorf("invalid config; EventMaxRecords=%v, must be > 0", c.EventMaxRecords)
+		return fmt.Errorf("invalid EventMaxRecords=%v, must be > 0", c.EventMaxRecords)
 	}
 	if c.ScanPathsIntervalSec <= 0 {
-		return fmt.Errorf("invalid config; ScanPathsIntervalSec=%v, must be > 0sec", c.ScanPathsIntervalSec)
+		return fmt.Errorf("invalid ScanPathsIntervalSec=%v, must be > 0sec", c.ScanPathsIntervalSec)
 	}
 	if c.StateStoreIntervalSec <= 0 {
-		return fmt.Errorf("invalid config; StateStoreIntervalSec=%v, must be > 0sec", c.StateStoreIntervalSec)
+		return fmt.Errorf("invalid StateStoreIntervalSec=%v, must be > 0sec", c.StateStoreIntervalSec)
 	}
 	if c.RecordMaxSizeBytes < 64 || c.RecordMaxSizeBytes > 65536 {
-		return fmt.Errorf("invalid config; RecordSizeMaxBytes=%v, must be in range [%v..%v]",
+		return fmt.Errorf("invalid RecordSizeMaxBytes=%v, must be in range [%v..%v]",
 			c.RecordMaxSizeBytes, 64, 65536)
 	}
 	if len(c.Schemas) == 0 {
-		return fmt.Errorf("invalid config; Schemas=%v, must be non-empty", c.Schemas)
+		return fmt.Errorf("invalid Schemas=%v, must be non-empty", c.Schemas)
 	}
 	for _, s := range c.Schemas {
 		if err := s.Check(); err != nil {
-			return fmt.Errorf("invalid config; invalid Schema=%v, %v", s, err)
+			return fmt.Errorf("invalid Schema=%v: %v", s, err)
 		}
 	}
 	for _, ex := range c.ExcludeMatchers {
 		if _, err := syntax.Parse(ex, syntax.Perl); err != nil {
-			return fmt.Errorf("invalid config; could not parse regular "+
-				"expression in ExcludeMatchers: %s, err=%v", ex, err)
+			return fmt.Errorf("invalid ExcludeMatchers=%s: %v", ex, err)
 		}
 	}
 	return nil

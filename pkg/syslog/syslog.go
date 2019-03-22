@@ -45,7 +45,7 @@ const (
 func NewLogger(cfg *Config) (*Logger, error) {
 	err := cfg.Check()
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("invalid config; %v", err)
 	}
 
 	l := new(Logger)

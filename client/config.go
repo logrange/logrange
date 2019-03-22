@@ -16,19 +16,40 @@ package client
 
 import (
 	"encoding/json"
-	"github.com/logrange/logrange/client/forwarder"
+	"github.com/logrange/logrange/pkg/forwarder"
 	"github.com/logrange/logrange/pkg/scanner"
 	"github.com/logrange/logrange/pkg/storage"
+	"github.com/logrange/logrange/pkg/utils"
 	"github.com/logrange/range/pkg/transport"
 	"io/ioutil"
 )
 
 // Config struct just aggregate different types of configs in one place
-type Config struct {
-	Forwarder *forwarder.Config
-	Collector *scanner.Config
-	Transport *transport.Config
-	Storage   *storage.Config
+type (
+	Config struct {
+		Forwarder *forwarder.Config
+		Collector *scanner.Config
+		Transport *transport.Config
+		Storage   *storage.Config
+		filePath  string
+	}
+)
+
+func LoadCfgFromFile(path string) (*Config, error) {
+	data, err := ioutil.ReadFile(path)
+	if err != nil {
+		return nil, err
+	}
+	cfg := &Config{}
+	err = json.Unmarshal(data, cfg)
+	if err != nil {
+		return nil, err
+	}
+	cfg.filePath = path
+	if cfg.Forwarder != nil {
+		cfg.Forwarder.ReloadFn = cfg.Reload
+	}
+	return cfg, nil
 }
 
 //===================== config =====================
@@ -43,20 +64,6 @@ func NewDefaultConfig() *Config {
 		},
 	}
 }
-
-func LoadCfgFromFile(path string) (*Config, error) {
-	data, err := ioutil.ReadFile(path)
-	if err != nil {
-		return nil, err
-	}
-	cfg := &Config{}
-	err = json.Unmarshal(data, cfg)
-	if err != nil {
-		return nil, err
-	}
-	return cfg, nil
-}
-
 func (c *Config) Apply(other *Config) {
 	if other == nil {
 		return
@@ -66,4 +73,19 @@ func (c *Config) Apply(other *Config) {
 	c.Collector.Apply(other.Collector)
 	c.Storage.Apply(other.Storage)
 	c.Transport.Apply(other.Transport)
+}
+
+func (c *Config) Reload() error {
+	if c.filePath != "" {
+		cfg, err := LoadCfgFromFile(c.filePath)
+		if err != nil {
+			return err
+		}
+		c.Apply(cfg)
+	}
+	return nil
+}
+
+func (c *Config) String() string {
+	return utils.ToJsonStr(c)
 }

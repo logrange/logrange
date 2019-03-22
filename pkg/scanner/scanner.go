@@ -66,14 +66,14 @@ type (
 )
 
 const (
-	storeKeyName = "scannerState.json"
+	storageKeyName = "scanner.json"
 )
 
 //===================== scanner =====================
 
 func NewScanner(cfg *Config, storage storage.Storage) (*Scanner, error) {
 	if err := cfg.Check(); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("invalid config; %v", err)
 	}
 
 	s := new(Scanner)
@@ -352,7 +352,7 @@ func (s *Scanner) getFilesToScan(paths []string) []string {
 
 func (s *Scanner) loadState() error {
 	s.logger.Info("Loading state from storage=", s.storage)
-	data, err := s.storage.ReadData(storeKeyName)
+	data, err := s.storage.ReadData(storageKeyName)
 	if err != nil && !os.IsNotExist(err) {
 		return err
 	}
@@ -376,7 +376,7 @@ func (s *Scanner) persistState() error {
 		return fmt.Errorf("cannot marshal state=%v; cause: %v", d, err)
 	}
 
-	err = s.storage.WriteData(storeKeyName, data)
+	err = s.storage.WriteData(storageKeyName, data)
 	if err == nil {
 		s.logger.Info("Persisted state (size=", len(data), "bytes)")
 	}

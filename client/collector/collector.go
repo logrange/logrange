@@ -19,7 +19,6 @@ import (
 	"fmt"
 	"github.com/jrivets/log4g"
 	"github.com/logrange/logrange/api"
-	"github.com/logrange/logrange/client"
 	"github.com/logrange/logrange/pkg/model/tag"
 	"github.com/logrange/logrange/pkg/scanner"
 	"github.com/logrange/logrange/pkg/scanner/model"
@@ -29,16 +28,14 @@ import (
 	"unsafe"
 )
 
-func Run(ctx context.Context, cfg *client.Config,
-	cl api.Client, storg storage.Storage) error {
+func Run(ctx context.Context, cfg *scanner.Config, cl api.Client, storg storage.Storage) error {
 
 	logger := log4g.GetLogger("collector")
-	scanr, err := scanner.NewScanner(cfg.Collector, storg)
+	scanr, err := scanner.NewScanner(cfg, storg)
 	if err != nil {
 		return fmt.Errorf("failed to create scanner, err=%v", err)
 	}
 
-	logger.Info("Running...")
 	events := make(chan *model.Event)
 	if err := scanr.Run(ctx, events); err != nil {
 		return fmt.Errorf("failed to run scanner, err=%v", err)
