@@ -16,17 +16,18 @@ package model
 
 import (
 	"fmt"
+	"github.com/logrange/logrange/pkg/model/field"
 	"github.com/logrange/logrange/pkg/model/tag"
 	"testing"
 	"time"
 )
 
 func BenchmarkLogEventParser(b *testing.B) {
-	le := LogEvent{Timestamp: uint64(time.Now().UnixNano()), Msg: " Test message"}
+	le := LogEvent{Timestamp: uint64(time.Now().UnixNano()), Msg: []byte(" Test message")}
 	tgs, _ := tag.Parse("aaa=bbb, ccc=ddd")
 
 	fmtParser := FormatParser{fields: []formatField{{frmtFldConst, "SOME CONSTANT "}, {frmtFldTs, time.RFC822},
-		{frmtFldMsg, ""}, {frmtFldConst, " Tag aa="}, {frmtFldTag, "aaa"}, {frmtFldTag, "ccc"}, {frmtFldTag, "aaa1234"}}}
+		{frmtFldMsg, ""}, {frmtFldConst, " Tag aa="}, {frmtFldVar, "aaa"}, {frmtFldVar, "ccc"}, {frmtFldVar, "aaa1234"}}}
 	b.ReportAllocs()
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
@@ -35,15 +36,15 @@ func BenchmarkLogEventParser(b *testing.B) {
 }
 
 func TestLogEventFormatter(t *testing.T) {
-	le := LogEvent{Timestamp: uint64(time.Now().UnixNano()), Msg: "Test message"}
+	le := LogEvent{Timestamp: uint64(time.Now().UnixNano()), Msg: []byte("Test message")}
 	tgs, _ := tag.Parse("aaa=bbb,ccc=ddd")
 
-	fmtParser, err := NewFormatParser("{msg}{tags}, aaa={tag:aaa}")
+	fmtParser, err := NewFormatParser("{msg}{vars}, aaa={vars:aaa}")
 	if err != nil {
 		t.Fatal("unexpected parsing err=", err)
 	}
 
-	exp := le.Msg + tgs.Line().String() + ", aaa=bbb"
+	exp := le.Msg.AsWeakString() + tgs.Line().String() + ", aaa=bbb"
 	if fmtParser.FormatStr(&le, tgs.Line().String()) != exp {
 		t.Fatal("Expected ", exp, " but really got ", fmtParser.FormatStr(&le, tgs.Line().String()))
 	}
@@ -51,14 +52,17 @@ func TestLogEventFormatter(t *testing.T) {
 
 func TestLogEventFormatter2(t *testing.T) {
 	tm := time.Now()
-	le := &LogEvent{Timestamp: uint64(tm.UnixNano()), Msg: "test message"}
+	le := &LogEvent{Timestamp: uint64(tm.UnixNano()), Msg: []byte("test message"), Fields: field.Parse("field1=value1, field2=value2")}
 	tgs, _ := tag.Parse("a=bbb,b=ddd")
 
-	testLogEventFormatter2(t, le, tgs.Line().String(), "AAA{msg}|{tags} aaa={tag:a} {ts}", fmt.Sprintf("AAA%s|%s aaa=%s %s", le.Msg, tgs.Line(), tgs.Tag("a"), time.Unix(0, int64(le.Timestamp)).Format(time.RFC3339)))
+	testLogEventFormatter2(t, le, tgs.Line().String(), "AAA{msg}|{vars} aaa={vars:a} {ts}", fmt.Sprintf("AAA%s|%s,%s aaa=%s %s", le.Msg, tgs.Line(), le.Fields.AsKVString(), tgs.Tag("a"), time.Unix(0, int64(le.Timestamp)).Format(time.RFC3339)))
 	testLogEventFormatter2(t, le, tgs.Line().String(), "AAA", "AAA")
-	testLogEventFormatter2(t, le, tgs.Line().String(), "{Msg}", le.Msg)
-	testLogEventFormatter2(t, le, tgs.Line().String(), "{Msg} {TAGS}", le.Msg+" "+tgs.Line().String())
+	testLogEventFormatter2(t, le, tgs.Line().String(), "{Msg}", le.Msg.AsWeakString())
+	testLogEventFormatter2(t, le, tgs.Line().String(), "{Msg} {VaRS}", le.Msg.AsWeakString()+" "+tgs.Line().String()+","+le.Fields.AsKVString())
 	testLogEventFormatter2(t, le, tgs.Line().String(), "{TS:3:04PM}", tm.Format(time.Kitchen))
+	testLogEventFormatter2(t, le, tgs.Line().String(), "{vars:field1}", le.Fields.Value("field1"))
+	testLogEventFormatter2(t, le, tgs.Line().String(), "{vars:field2}", le.Fields.Value("field2"))
+	testLogEventFormatter2(t, le, tgs.Line().String(), "{vars:field3}", "")
 }
 
 func TestLogEventFormatterErr(t *testing.T) {

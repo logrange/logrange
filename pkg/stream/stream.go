@@ -12,20 +12,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package api
+package stream
 
 type (
-	// LogEvent struct describes one message
-	LogEvent struct {
-		// Timestamp contains the time-stamp for the message.
-		Timestamp uint64
-		// Message is the message itself
-		Message string
-		// Tag line for the message. It could be empty
-		// The tag line has the form like `tag1=value1,tag2=value2...`
-		Tags string
-		// Fields line for the message. It could be empty
-		// The fields line has the form like `field1=value1,field2=value2...`
-		Fields string
+	Service interface {
+	}
+
+	WriteEvent struct {
 	}
 )

@@ -23,6 +23,7 @@ import (
 	"github.com/logrange/logrange/pkg/backend"
 	"github.com/logrange/logrange/pkg/cursor"
 	"github.com/logrange/logrange/pkg/model"
+	"github.com/logrange/logrange/pkg/model/field"
 	"github.com/logrange/logrange/pkg/model/tag"
 	"github.com/logrange/range/pkg/records"
 	rrpc "github.com/logrange/range/pkg/rpc"
@@ -147,12 +148,20 @@ func (sq *ServerQuerier) query(reqId int32, reqBody []byte, sc *rrpc.ServerConn)
 	var tags tag.Line
 
 	qr.init(sq.Pool)
+	flds := field.Fields("")
+	kvsFields := ""
+
 	for limit > 0 && err == nil {
 		lge, tags, err = cur.Get(sq.MainCtx)
 		if err == nil {
+			if lge.Fields != flds {
+				kvsFields = lge.Fields.AsKVString()
+				flds = lge.Fields.MakeCopy()
+			}
 			le.Tags = string(tags)
-			le.Message = lge.Msg
+			le.Message = lge.Msg.AsWeakString()
 			le.Timestamp = lge.Timestamp
+			le.Fields = kvsFields
 			qr.writeLogEvent(&le)
 			limit--
 			cur.Next(sq.MainCtx)

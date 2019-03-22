@@ -27,8 +27,8 @@ type (
 	// a public API
 	Ingestor interface {
 		// Write sends log events into the stream identified by tag provided. It expects a slice of events and
-		// the reference to the WriteResult. TagsCond field in LogEvents are ignored during the writing operation,
-		// but tag param will be applied to all of the events.
-		Write(ctx context.Context, tags string, evs []*LogEvent, res *WriteResult) error
+		// the reference to the WriteResult. Tags and Fields fields in LogEvents are ignored during the writing operation,
+		// but tags and fields params will be applied to all of the events.
+		Write(ctx context.Context, tags, fields string, evs []*LogEvent, res *WriteResult) error
 	}
 )

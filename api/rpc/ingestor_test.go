@@ -25,7 +25,7 @@ import (
 func BenchmarkIterator(b *testing.B) {
 	wp := &writePacket{tags: "aaa=bbb", events: []*api.LogEvent{}}
 	for i := 0; i < 1000; i++ {
-		wp.events = append(wp.events, &api.LogEvent{2, "measdkjfhalskdfjhalkdfjhalkdfjaksdjflasjdfs2", "kjhasldkfjhaslkfjhasdkfj=hasdklfjhasdlfkjh"})
+		wp.events = append(wp.events, &api.LogEvent{2, "measdkjfhalskdfjhalkdfjhalkdfjaksdjflasjdfs2", "kjhasldkfjhaslkfjhasdkfj=hasdklfjhasdlfkjh", "a=b"})
 	}
 
 	btb := &bytes.Buffer{}
@@ -49,8 +49,8 @@ func BenchmarkIterator(b *testing.B) {
 
 func TestWritePacket(t *testing.T) {
 	wp := &writePacket{tags: "aaa=bbb", events: []*api.LogEvent{
-		&api.LogEvent{1, "mes1", ""},
-		&api.LogEvent{2, "mes2", "bbb=ttt"},
+		&api.LogEvent{1, "mes1", "", "a=b"},
+		&api.LogEvent{2, "mes2", "bbb=ttt", "a=b"},
 	}}
 
 	btb := &bytes.Buffer{}
@@ -73,7 +73,7 @@ func TestWritePacket(t *testing.T) {
 	if err != nil {
 		t.Fatal("err=", err)
 	}
-	if le.Timestamp != 1 || le.Msg != "mes1" {
+	if le.Timestamp != 1 || le.Msg.AsWeakString() != "mes1" {
 		t.Fatal("Something wrong with le=", le)
 	}
 
@@ -82,7 +82,7 @@ func TestWritePacket(t *testing.T) {
 	if err != nil {
 		t.Fatal("err=", err)
 	}
-	if le.Timestamp != 2 || le.Msg != "mes2" {
+	if le.Timestamp != 2 || le.Msg.AsWeakString() != "mes2" {
 		t.Fatal("Something wrong with le=", le)
 	}
 
@@ -95,8 +95,8 @@ func TestWritePacket(t *testing.T) {
 
 func TestWritePacketWithTindex(t *testing.T) {
 	wp := &writePacket{tags: "aaa=bbb", events: []*api.LogEvent{
-		&api.LogEvent{1, "mes1", ""},
-		&api.LogEvent{2, "mes2", "bbb=ttt"},
+		&api.LogEvent{1, "mes1", "", "a=b"},
+		&api.LogEvent{2, "mes2", "bbb=ttt", "a=b"},
 	}}
 
 	btb := &bytes.Buffer{}
@@ -118,7 +118,7 @@ func TestWritePacketWithTindex(t *testing.T) {
 	if err != nil {
 		t.Fatal("err=", err)
 	}
-	if le.Timestamp != 1 || le.Msg != "mes1" {
+	if le.Timestamp != 1 || le.Msg.AsWeakString() != "mes1" {
 		t.Fatal("Something wrong with le=", le)
 	}
 
@@ -127,7 +127,7 @@ func TestWritePacketWithTindex(t *testing.T) {
 	if err != nil {
 		t.Fatal("err=", err)
 	}
-	if le.Timestamp != 2 || le.Msg != "mes2" {
+	if le.Timestamp != 2 || le.Msg.AsWeakString() != "mes2" {
 		t.Fatal("Something wrong with le=", le)
 	}
 

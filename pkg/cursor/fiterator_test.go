@@ -21,6 +21,7 @@ import (
 	"github.com/logrange/logrange/pkg/model/tag"
 	"github.com/logrange/range/pkg/records"
 	"io"
+	"reflect"
 	"testing"
 )
 
@@ -48,9 +49,13 @@ func (tle *testLogEventsWrapper) Get(ctx context.Context) (records.Record, error
 	return nil, io.EOF
 }
 
+func (tle *testLogEventsWrapper) Release() {
+
+}
+
 func TestFilter(t *testing.T) {
-	les := []model.LogEvent{{1, "asdfasdf"}, {2, "as2df"}, {3, "asd3f"}, {4, "jjjj"},
-		{5, "jjjjee"}}
+	les := []model.LogEvent{{1, []byte("asdfasdf"), ""}, {2, []byte("as2df"), ""}, {3, []byte("asd3f"), ""}, {4, []byte("jjjj"), ""},
+		{5, []byte("jjjjee"), ""}}
 	lew := (&model.LogEventIterator{}).Wrap(tag.Line("aaa=bbb"), newTestLogEventsWrapper(les))
 
 	exp, err := lql.ParseExpr("ts = 4 OR msg contains 'asdf'")
@@ -63,13 +68,13 @@ func TestFilter(t *testing.T) {
 	}
 
 	le, _, err := fit.Get(nil)
-	if le != les[0] {
+	if !reflect.DeepEqual(le, les[0]) {
 		t.Fatal("Expected ", les[0], " but received ", le)
 	}
 
 	fit.Next(nil)
 	le, _, err = fit.Get(nil)
-	if le != les[3] {
+	if !reflect.DeepEqual(le, les[3]) {
 		t.Fatal("Expected ", les[3], " but received ", le)
 	}
 

@@ -125,7 +125,7 @@ func (c *Client) Query(ctx context.Context, qr *api.QueryRequest, res *api.Query
 	return res.Err
 }
 
-func (c *Client) Write(ctx context.Context, tags string, evs []*api.LogEvent, res *api.WriteResult) error {
+func (c *Client) Write(ctx context.Context, tags, fields string, evs []*api.LogEvent, res *api.WriteResult) error {
 	if c.rc == nil {
 		err := c.connect()
 		if err != nil {
@@ -133,7 +133,7 @@ func (c *Client) Write(ctx context.Context, tags string, evs []*api.LogEvent, re
 		}
 	}
 
-	err := c.cing.Write(ctx, tags, evs, res)
+	err := c.cing.Write(ctx, tags, fields, evs, res)
 	if err != nil {
 		_ = c.Close()
 		return err

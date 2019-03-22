@@ -22,6 +22,7 @@ import (
 	"github.com/logrange/logrange/pkg/lql"
 	"github.com/logrange/logrange/pkg/model/tag"
 	"github.com/logrange/range/pkg/records/journal"
+	"github.com/logrange/range/pkg/utils/bytes"
 	errors2 "github.com/logrange/range/pkg/utils/errors"
 	"github.com/pkg/errors"
 	"io/ioutil"
@@ -418,7 +419,7 @@ func (ims *inmemService) loadState() error {
 	err = json.Unmarshal(data, &ims.tmap)
 	if err == nil {
 		for tln, td := range ims.tmap {
-			td.tags, err = tag.Parse(string(tln))
+			td.tags, err = tag.ParseUnsafe(bytes.StringToByteArray(tln.String()))
 			if err != nil {
 				ims.logger.Error("Could not parse tags ", tln, " which read from the index file")
 				break

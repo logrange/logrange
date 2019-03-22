@@ -47,7 +47,7 @@ func newFIterator(it model.Iterator, wExp *lql.Expression) (*fiterator, error) {
 // Next switches to the next event, if any
 func (fit *fiterator) Next(ctx context.Context) {
 	fit.it.Next(ctx)
-	fit.le.Msg = ""
+	fit.le.Release()
 	fit.valid = false
 }
 
@@ -66,4 +66,11 @@ func (fit *fiterator) Get(ctx context.Context) (model.LogEvent, tag.Line, error)
 		}
 	}
 	return fit.le, fit.ln, err
+}
+
+func (fit *fiterator) Release() {
+	fit.it.Release()
+	if fit.valid {
+		fit.le.MakeItSafe()
+	}
 }

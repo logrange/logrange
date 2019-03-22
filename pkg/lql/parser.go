@@ -28,7 +28,7 @@ import (
 var (
 	lqlLexer = lexer.Must(getRegexpDefinition(`(\s+)` +
 		`|(?P<Keyword>(?i)SELECT|DESCRIBE|TRUNCATE|DRYRUN|BEFORE|ALL|MAXSIZE|MINSIZE|FORMAT|SOURCE|WHERE|POSITION|LIMIT|OFFSET|AND|OR|LIKE|CONTAINS|PREFIX|SUFFIX|NOT)` +
-		`|(?P<Ident>[a-zA-Z_][a-z\./\-A-Z0-9_]*)` +
+		`|(?P<Ident>[a-zA-Z_][a-z\./\-A-Z0-9_:]*)` +
 		`|(?P<String>"([^\\"]|\\.)*"|'[^']*')` +
 		`|(?P<Operator><>|!=|<=|>=|[-+*/%,.=<>()])` +
 		`|(?P<Number>[-+]?\d*\.?\d+([eE][-+]?\d+|[mMkKgGtTbBpP][ib]{0,2})?)` +
