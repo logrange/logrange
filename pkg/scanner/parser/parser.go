@@ -79,7 +79,7 @@ const (
 
 func NewParser(cfg *Config) (Parser, error) {
 	if err := cfg.Check(); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("invalid config; %v", err)
 	}
 
 	var (

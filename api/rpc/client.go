@@ -16,6 +16,7 @@ package rpc
 
 import (
 	"context"
+	"fmt"
 	"github.com/logrange/logrange/api"
 	rrpc "github.com/logrange/range/pkg/rpc"
 	"github.com/logrange/range/pkg/transport"
@@ -35,6 +36,10 @@ type (
 
 // NewClient creates new Client for connecting to the server, using the transport config tcfg
 func NewClient(tcfg transport.Config) (*Client, error) {
+	if err := tcfg.Check(); err != nil {
+		return nil, fmt.Errorf("invalid config; %v", err)
+	}
+
 	c := new(Client)
 	c.cfg = tcfg
 

@@ -2,7 +2,7 @@
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
-// You may obtain a MakeCopy of the License at
+// You may obtain a copy of the License at
 //
 //     http://www.apache.org/licenses/LICENSE-2.0
 //
@@ -12,37 +12,33 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package parser
+package sink
 
 import (
 	"fmt"
-	"strings"
+	"github.com/logrange/logrange/api"
 )
 
 type (
-	Config struct {
-		File            string
-		MaxRecSizeBytes int
-		DataFmt         DataFormat
-		DateFmts        []string
+	stdoutSinkConfig struct {
+	}
+	stdoutSink struct {
 	}
 )
 
-func (c *Config) Check() error {
-	if strings.TrimSpace(c.File) == "" {
-		return fmt.Errorf("invalid File=%v, must be non-empty", c.File)
-	}
+//===================== stdoutSink =====================
 
-	switch c.DataFmt {
-	case FmtText:
-	case FmtK8Json:
-		if len(c.DateFmts) > 0 {
-			return fmt.Errorf("invalid DateFmts=%v, "+
-				"must be empty for DataFmt=%v", c.DateFmts, c.DataFmt)
-		}
-	default:
-		return fmt.Errorf("unknown DataFmt=%v", c.DataFmt)
-	}
+func newStdSkink(cfg *stdoutSinkConfig) (*stdoutSink, error) {
+	return &stdoutSink{}, nil
+}
 
+func (ss *stdoutSink) OnEvent(events []*api.LogEvent) error {
+	for _, e := range events {
+		fmt.Print(e.Message)
+	}
+	return nil
+}
+
+func (ss *stdoutSink) Close() error {
 	return nil
 }

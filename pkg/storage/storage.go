@@ -58,7 +58,7 @@ var (
 
 func NewStorage(cfg *Config) (Storage, error) {
 	if err := cfg.Check(); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("invalid config; %v", err)
 	}
 	switch cfg.Type {
 	case TypeFile:

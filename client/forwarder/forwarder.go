@@ -16,15 +16,28 @@ package forwarder
 
 import (
 	"context"
+	"fmt"
+	"github.com/jrivets/log4g"
 	"github.com/logrange/logrange/api"
+	"github.com/logrange/logrange/pkg/forwarder"
+	"github.com/logrange/logrange/pkg/storage"
 )
 
-type (
-	Sink interface {
-		OnNewData(events []*api.LogEvent) error
+func Run(ctx context.Context, cfg *forwarder.Config, cl api.Client, storg storage.Storage) error {
+
+	logger := log4g.GetLogger("forwarder")
+	fwd, err := forwarder.NewForwarder(cfg, cl, storg)
+	if err != nil {
+		return fmt.Errorf("failed to create forwarder, err=%v", err)
 	}
 
-	Scanner interface {
-		Run(context.Context) error
+	if err := fwd.Run(ctx); err != nil {
+		return fmt.Errorf("failed to run forwarder, err=%v", err)
 	}
-)
+
+	<-ctx.Done()
+	_ = fwd.Close()
+
+	logger.Info("Shutdown.")
+	return err
+}

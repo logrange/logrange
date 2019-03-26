@@ -43,7 +43,7 @@ var severities = map[string]Priority{
 }
 
 const (
-	FacilityKern = iota << 3
+	FacilityKern Priority = iota << 3
 	FacilityUser
 	FacilityMail
 	FacilityDaemon

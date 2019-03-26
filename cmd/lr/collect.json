@@ -36,6 +36,6 @@
 
   "Storage": {
     "Type": "file",
-    "Location": "/opt/logrange/lr/"
+    "Location": "/opt/logrange/lr/storage/"
   }
 }
