@@ -11,7 +11,14 @@
         "Params": {
           "Protocol": "tcp",
           "RemoteAddr": "127.0.0.1:5514",
-          "TlsCAFile": ""
+          "TlsCAFile": "",
+          "MessageSchema" : {
+            "Facility": "local6",
+            "Severity": "info",
+            "Hostname": "localhost",
+            "Tags": "{vars}",
+            "Msg": "{vars:file} {msg}"
+          }
         }
       }
     }],

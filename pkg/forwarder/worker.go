@@ -70,7 +70,7 @@ func (w *worker) run(ctx context.Context) error {
 			qr.WaitTimeout = timeout
 
 			if time.Now().After(nextStat) {
-				w.logger.Info("Forwarded in total ", totalCnt, " events!")
+				w.logger.Info("Forwarded ", totalCnt, " events (total), position=", qr.Pos)
 				nextStat = time.Now().Add(10 * time.Second)
 			}
 
@@ -103,7 +103,7 @@ func (w *worker) run(ctx context.Context) error {
 
 	_ = w.sink.Close()
 	w.stopped = true
-	w.logger.Warn("Stopped, err=", err)
+	w.logger.Warn("Stopped; pos=", qr.Pos, ", err=", err)
 	return nil
 }
 func (w *worker) stopGracefully() {

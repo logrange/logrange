@@ -17,27 +17,20 @@ package sink
 import (
 	"fmt"
 	"github.com/logrange/logrange/api"
-	"github.com/logrange/logrange/pkg/syslog"
 	"github.com/logrange/logrange/pkg/utils"
-	"time"
 )
 
 type (
+	Params map[string]interface{}
+
 	Config struct {
 		Type   string
-		Params map[string]interface{}
+		Params Params
 	}
 
 	Sink interface {
 		OnEvent(e []*api.LogEvent) error
 		Close() error
-	}
-
-	stdoutSink struct {
-	}
-
-	syslogSink struct {
-		slog *syslog.Logger
 	}
 )
 
@@ -46,87 +39,16 @@ const (
 	SnkTypeSyslog = "syslog"
 )
 
-const (
-	PrmSyslogProtocol   = "Protocol"
-	PrmSyslogRemoteAddr = "RemoteAddr"
-	PrmSyslogTlsCAFile  = "TlsCAFile"
-
-	//add more params...
-)
-
 func NewSink(cfg *Config) (Sink, error) {
-	if err := cfg.Check(); err != nil {
-		return nil, fmt.Errorf("invalid config; %v", err)
-	}
 
 	switch cfg.Type {
 	case SnkTypeStdout:
-		return newStdSkink(cfg), nil
+		return newStdSkink(cfg.Params)
 	case SnkTypeSyslog:
-		return newSyslogSkink(cfg)
+		return newSyslogSink(cfg.Params)
 	}
 
-	return nil, fmt.Errorf("unknown sink type=%v", cfg.Type)
-}
-
-//===================== stdoutSink =====================
-
-func newStdSkink(cfg *Config) Sink {
-	return &stdoutSink{}
-}
-
-func (ss *stdoutSink) OnEvent(events []*api.LogEvent) error {
-	for _, e := range events {
-		fmt.Print(e.Message)
-	}
-	return nil
-}
-
-func (ss *stdoutSink) Close() error {
-	return nil
-}
-
-//===================== syslogSink =====================
-
-func newSyslogSkink(cfg *Config) (Sink, error) {
-	slog, err := syslog.NewLogger(&syslog.Config{
-		Protocol:   cfg.Params[PrmSyslogProtocol].(string),
-		RemoteAddr: cfg.Params[PrmSyslogRemoteAddr].(string),
-		RootCAFile: cfg.Params[PrmSyslogTlsCAFile].(string),
-		//add more params...
-	})
-
-	if err != nil {
-		return nil, fmt.Errorf("failed creating syslog logger, err=%v", err)
-	}
-
-	return &syslogSink{
-		slog: slog,
-	}, nil
-}
-
-func (ss *syslogSink) OnEvent(events []*api.LogEvent) error {
-	for _, e := range events {
-		err := ss.slog.Write(&syslog.Message{
-			Severity: syslog.SeverityInfo,
-			Facility: syslog.FacilityLocal6,
-			Time:     time.Unix(0, int64(e.Timestamp)),
-			Hostname: "localhost",
-			Tag:      e.Tags,
-			Msg:      e.Message,
-		})
-		if err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
-func (ss *syslogSink) Close() error {
-	if ss.slog != nil {
-		return ss.slog.Close()
-	}
-	return nil
+	return nil, fmt.Errorf("unknown Type=%v", cfg.Type)
 }
 
 //===================== config =====================
@@ -135,30 +57,7 @@ func (c *Config) Check() error {
 	if c.Type != SnkTypeStdout && c.Type != SnkTypeSyslog {
 		return fmt.Errorf("unknown Type=%v", c.Type)
 	}
-
-	var pp []string
-
-	switch c.Type {
-	case SnkTypeStdout:
-	case SnkTypeSyslog:
-		pp = []string{PrmSyslogProtocol, PrmSyslogRemoteAddr}
-	}
-
-	for _, p := range pp {
-		if err := c.checkParamExists(p); err != nil {
-			return err
-		}
-	}
 	return nil
-}
-
-func (c *Config) checkParamExists(pName string) error {
-	if c.Params != nil {
-		if _, ok := c.Params[pName]; ok {
-			return nil
-		}
-	}
-	return fmt.Errorf("invalid Params=%v, must have param '%v'", c.Params, pName)
 }
 
 func (c *Config) String() string {

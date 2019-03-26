@@ -214,7 +214,7 @@ func (f *Forwarder) syncWorkers(ctx context.Context, ds descs) {
 func (f *Forwarder) newWorkerConfig(d *desc) (*workerConfig, error) {
 	snk, err := sink.NewSink(d.Worker.Sink)
 	if err != nil {
-		return nil, fmt.Errorf("failed to create sink=%v, err=%v", d.Worker.Sink, err)
+		return nil, fmt.Errorf("failed to create Sink=%v: %v", d.Worker.Sink, err)
 	}
 	return &workerConfig{
 		desc:   d,
