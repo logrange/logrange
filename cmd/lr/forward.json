@@ -17,7 +17,7 @@
             "Severity": "info",
             "Hostname": "localhost",
             "Tags": "{vars}",
-            "Msg": "{vars:file} {msg}"
+            "Msg": "{msg}"
           }
         }
       }

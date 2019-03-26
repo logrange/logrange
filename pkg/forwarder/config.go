@@ -48,18 +48,7 @@ type (
 
 func NewDefaultConfig() *Config {
 	return &Config{
-		Workers: []*WorkerConfig{
-			{
-				Name: "forwarder1",
-				Source: &SourceConfig{
-					Lql: "select limit 1000",
-				},
-				Sink: &sink.Config{
-					Type:   "stdout",
-					Params: map[string]interface{}{},
-				},
-			},
-		},
+		Workers:                 []*WorkerConfig{},
 		StateStoreIntervalSec:   10,
 		ConfigReloadIntervalSec: 20,
 	}

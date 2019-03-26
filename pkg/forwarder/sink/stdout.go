@@ -6,13 +6,15 @@ import (
 )
 
 type (
+	stdoutSinkConfig struct {
+	}
 	stdoutSink struct {
 	}
 )
 
 //===================== stdoutSink =====================
 
-func newStdSkink(params Params) (*stdoutSink, error) {
+func newStdSkink(cfg *stdoutSinkConfig) (*stdoutSink, error) {
 	return &stdoutSink{}, nil
 }
 

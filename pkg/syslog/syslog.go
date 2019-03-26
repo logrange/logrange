@@ -43,8 +43,7 @@ const (
 //===================== logger =====================
 
 func NewLogger(cfg *Config) (*Logger, error) {
-	err := cfg.Check()
-	if err != nil {
+	if err := cfg.Check(); err != nil {
 		return nil, fmt.Errorf("invalid config; %v", err)
 	}
 
@@ -55,17 +54,16 @@ func NewLogger(cfg *Config) (*Logger, error) {
 		l.cfg.ReplaceNewLine = utils.BoolPtr(false)
 	}
 	if _, ok := utils.PtrInt(cfg.LineLenLimit); !ok {
-		l.cfg.LineLenLimit = utils.IntPtr(0)
+		l.cfg.LineLenLimit = utils.IntPtr(1024)
 	}
 	if _, ok := utils.PtrInt(cfg.ConnectTimeoutSec); !ok {
-		l.cfg.ConnectTimeoutSec = utils.IntPtr(0)
+		l.cfg.ConnectTimeoutSec = utils.IntPtr(5)
 	}
 	if _, ok := utils.PtrInt(cfg.WriteTimeoutSec); !ok {
-		l.cfg.WriteTimeoutSec = utils.IntPtr(0)
+		l.cfg.WriteTimeoutSec = utils.IntPtr(5)
 	}
 
-	err = l.loadRootCA()
-	if err != nil {
+	if err := l.loadRootCA(); err != nil {
 		return nil, err
 	}
 
@@ -100,8 +98,8 @@ func (l *Logger) Write(msg *Message) error {
 	}
 
 	if err == nil {
-		_, err = io.WriteString(l.conn, Format(msg,
-			*l.cfg.ReplaceNewLine, *l.cfg.LineLenLimit))
+		line := Format(msg, *l.cfg.ReplaceNewLine, *l.cfg.LineLenLimit)
+		_, err = io.WriteString(l.conn, line)
 	}
 
 	if err != nil {

@@ -40,12 +40,15 @@ const (
 )
 
 func NewSink(cfg *Config) (Sink, error) {
-
 	switch cfg.Type {
 	case SnkTypeStdout:
-		return newStdSkink(cfg.Params)
+		return newStdSkink(&stdoutSinkConfig{})
 	case SnkTypeSyslog:
-		return newSyslogSink(cfg.Params)
+		scfg, err := newSyslogSinkConfig(cfg.Params)
+		if err == nil {
+			return newSyslogSink(scfg)
+		}
+		return nil, err
 	}
 
 	return nil, fmt.Errorf("unknown Type=%v", cfg.Type)
@@ -54,10 +57,18 @@ func NewSink(cfg *Config) (Sink, error) {
 //===================== config =====================
 
 func (c *Config) Check() error {
-	if c.Type != SnkTypeStdout && c.Type != SnkTypeSyslog {
-		return fmt.Errorf("unknown Type=%v", c.Type)
+	switch c.Type {
+	case SnkTypeStdout:
+		return nil
+	case SnkTypeSyslog:
+		cfg, err := newSyslogSinkConfig(c.Params)
+		if err == nil {
+			return cfg.Check()
+		}
+		return err
 	}
-	return nil
+
+	return fmt.Errorf("unknown Type=%v", c.Type)
 }
 
 func (c *Config) String() string {
