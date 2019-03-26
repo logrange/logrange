@@ -73,23 +73,23 @@ func (c *Config) Apply(other *Config) {
 
 func (c *Config) Check() error {
 	if c.Protocol != ProtoTLS && c.Protocol != ProtoUDP && c.Protocol != ProtoTCP {
-		return fmt.Errorf("invalid config; unknown Protocol=%v", c.Protocol)
+		return fmt.Errorf("unknown Protocol=%v", c.Protocol)
 	}
 	if c.Protocol != ProtoTLS && c.RootCAFile != "" {
-		return fmt.Errorf("invalid config; RootCAFile=%v, must be empty if Protocol == %v",
+		return fmt.Errorf("invalid RootCAFile=%v, must be empty if Protocol == %v",
 			c.RootCAFile, c.Protocol)
 	}
 	if c.RemoteAddr == "" {
-		return fmt.Errorf("invalid config; RemoteAddr=%v, must be non-empty", c.RemoteAddr)
+		return fmt.Errorf("invalid RemoteAddr=%v, must be non-empty", c.RemoteAddr)
 	}
-	if v, ok := utils.PtrInt(c.LineLenLimit); ok && v < 0 {
-		return fmt.Errorf("invalid config; LineLenLimit=%v, must be >= 0", c.LineLenLimit)
+	if v, ok := utils.PtrInt(c.LineLenLimit); ok && v <= 0 {
+		return fmt.Errorf("invalid LineLenLimit=%v, must be > 0", c.LineLenLimit)
 	}
 	if v, ok := utils.PtrInt(c.ConnectTimeoutSec); ok && v < 0 {
-		return fmt.Errorf("invalid config; ConnectTimeoutSec=%v, must be >= 0", c.ConnectTimeoutSec)
+		return fmt.Errorf("invalid ConnectTimeoutSec=%v, must be >= 0", c.ConnectTimeoutSec)
 	}
 	if v, ok := utils.PtrInt(c.WriteTimeoutSec); ok && v < 0 {
-		return fmt.Errorf("invalid config; WriteTimeoutSec=%v, must be >= 0", c.WriteTimeoutSec)
+		return fmt.Errorf("invalid WriteTimeoutSec=%v, must be >= 0", c.WriteTimeoutSec)
 	}
 	return nil
 }

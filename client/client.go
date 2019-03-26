@@ -12,26 +12,28 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package sink
+package client
 
 import (
 	"fmt"
 	"github.com/logrange/logrange/api"
-	"github.com/logrange/logrange/client/forwarder"
+	"github.com/logrange/logrange/api/rpc"
+	"github.com/logrange/logrange/pkg/storage"
+	"github.com/logrange/range/pkg/transport"
 )
 
-type (
-	stdoutSink struct {
+func NewClient(cfg transport.Config) (api.Client, error) {
+	cli, err := rpc.NewClient(cfg)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create client, err=%v", err)
 	}
-)
-
-func NewStdSkink(cfg forwarder.SinkConfig) forwarder.Sink {
-	return &stdoutSink{}
+	return cli, err
 }
 
-func (ss *stdoutSink) OnNewData(events []*api.LogEvent) error {
-	for _, e := range events {
-		fmt.Println(e.Message)
+func NewStorage(cfg *storage.Config) (storage.Storage, error) {
+	strg, err := storage.NewStorage(cfg)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create storage, err=%v", err)
 	}
-	return nil
+	return strg, err
 }

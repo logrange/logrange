@@ -43,9 +43,8 @@ const (
 //===================== logger =====================
 
 func NewLogger(cfg *Config) (*Logger, error) {
-	err := cfg.Check()
-	if err != nil {
-		return nil, err
+	if err := cfg.Check(); err != nil {
+		return nil, fmt.Errorf("invalid config; %v", err)
 	}
 
 	l := new(Logger)
@@ -55,17 +54,16 @@ func NewLogger(cfg *Config) (*Logger, error) {
 		l.cfg.ReplaceNewLine = utils.BoolPtr(false)
 	}
 	if _, ok := utils.PtrInt(cfg.LineLenLimit); !ok {
-		l.cfg.LineLenLimit = utils.IntPtr(0)
+		l.cfg.LineLenLimit = utils.IntPtr(1024)
 	}
 	if _, ok := utils.PtrInt(cfg.ConnectTimeoutSec); !ok {
-		l.cfg.ConnectTimeoutSec = utils.IntPtr(0)
+		l.cfg.ConnectTimeoutSec = utils.IntPtr(5)
 	}
 	if _, ok := utils.PtrInt(cfg.WriteTimeoutSec); !ok {
-		l.cfg.WriteTimeoutSec = utils.IntPtr(0)
+		l.cfg.WriteTimeoutSec = utils.IntPtr(5)
 	}
 
-	err = l.loadRootCA()
-	if err != nil {
+	if err := l.loadRootCA(); err != nil {
 		return nil, err
 	}
 
@@ -73,10 +71,12 @@ func NewLogger(cfg *Config) (*Logger, error) {
 }
 
 func (l *Logger) Close() error {
+	var err error
 	if l.conn != nil {
-		return l.conn.Close()
+		err = l.conn.Close()
+		l.conn = nil
 	}
-	return nil
+	return err
 }
 
 func (l *Logger) Write(msg *Message) error {
@@ -91,13 +91,15 @@ func (l *Logger) Write(msg *Message) error {
 		}
 	}
 
-	timeout := time.Now().Add(time.Second *
-		time.Duration(*l.cfg.WriteTimeoutSec))
+	if *l.cfg.WriteTimeoutSec > 0 {
+		timeout := time.Now().Add(time.Second *
+			time.Duration(*l.cfg.WriteTimeoutSec))
+		err = l.conn.SetWriteDeadline(timeout)
+	}
 
-	err = l.conn.SetWriteDeadline(timeout)
 	if err == nil {
-		_, err = io.WriteString(l.conn, Format(msg,
-			*l.cfg.ReplaceNewLine, *l.cfg.LineLenLimit))
+		line := Format(msg, *l.cfg.ReplaceNewLine, *l.cfg.LineLenLimit)
+		_, err = io.WriteString(l.conn, line)
 	}
 
 	if err != nil {
@@ -138,10 +140,8 @@ func (l *Logger) connect() error {
 		if l.rootCAs != nil {
 			config = &tls.Config{RootCAs: l.rootCAs}
 		}
-		dialer := &net.Dialer{
-			Timeout: timeout,
-		}
-		l.conn, err = tls.DialWithDialer(dialer, l.cfg.Protocol, l.cfg.RemoteAddr, config)
+		l.conn, err = tls.DialWithDialer(&net.Dialer{
+			Timeout: timeout}, l.cfg.Protocol, l.cfg.RemoteAddr, config)
 		return err
 	}
 
