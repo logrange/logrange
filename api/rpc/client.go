@@ -25,11 +25,12 @@ import (
 type (
 	// Client is rpc client which provides the API interface for clients
 	Client struct {
-		rc     rrpc.Client
-		cfg    transport.Config
-		cing   *clntIngestor
-		cqrier *clntQuerier
-		admin  *clntAdmin
+		rc      rrpc.Client
+		cfg     transport.Config
+		cing    *clntIngestor
+		cqrier  *clntQuerier
+		admin   *clntAdmin
+		streams *clntStreams
 	}
 )
 
@@ -140,4 +141,20 @@ func (c *Client) Write(ctx context.Context, tags, fields string, evs []*api.LogE
 	}
 
 	return res.Err
+}
+
+func (c *Client) EnsureStream(ctx context.Context, stm api.Stream, res *api.StreamCreateResult) error {
+	if c.rc == nil {
+		err := c.connect()
+		if err != nil {
+			return err
+		}
+	}
+
+	err := c.streams.EnsureStream(ctx, stm, res)
+	if err != nil {
+		_ = c.Close()
+	}
+
+	return err
 }

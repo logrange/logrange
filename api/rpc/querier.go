@@ -35,7 +35,7 @@ import (
 
 type (
 	ServerQuerier struct {
-		CurProvider *cursor.Provider `inject:""`
+		CurProvider cursor.Provider  `inject:""`
 		MainCtx     context.Context  `inject:"mainCtx"`
 		Pool        *bytes.Pool      `inject:""`
 		Querier     *backend.Querier `inject:""`

@@ -33,7 +33,7 @@ type (
 	// Querier is a backend structure used by an api implementation
 	Querier struct {
 		Journals    *journal.Service `inject:""`
-		CurProvider *cursor.Provider `inject:""`
+		CurProvider cursor.Provider  `inject:""`
 
 		logger log4g.Logger
 	}

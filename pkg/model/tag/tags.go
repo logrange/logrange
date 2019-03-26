@@ -39,7 +39,7 @@ type (
 var (
 	EmptyLine = Line("")
 	emptyMap  = tagMap(map[string]string{})
-	emptySet  = Set{"", emptyMap}
+	EmptySet  = Set{"", emptyMap}
 )
 
 // ParseUnsafe expects a string in format either "{name=value,name2=value...}" or
@@ -51,12 +51,12 @@ var (
 // can contain the following symbols '{', '}', ',', '\', '"' escaped by backslash
 func ParseUnsafe(tags records.Record) (Set, error) {
 	if len(tags) == 0 {
-		return emptySet, nil
+		return EmptySet, nil
 	}
 
 	m, err := kvstring.ToMap(bytes.ByteArrayToString(tags))
 	if err != nil {
-		return emptySet, err
+		return EmptySet, err
 	}
 	tm := tagMap(m)
 
@@ -71,7 +71,7 @@ func Parse(tags string) (Set, error) {
 // MapToSet receives a map of values mp and returns the Set of tags, formed from there.
 func MapToSet(mp map[string]string) Set {
 	if len(mp) == 0 {
-		return emptySet
+		return EmptySet
 	}
 
 	tm := make(tagMap, len(mp))
@@ -124,7 +124,7 @@ func (s *Set) UnmarshalJSON(buf []byte) error {
 	if err == nil && len(ln) > 0 {
 		*s, err = ParseUnsafe(bytes.StringToByteArray(ln))
 	} else {
-		*s = emptySet
+		*s = EmptySet
 	}
 	return err
 }

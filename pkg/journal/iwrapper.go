@@ -78,6 +78,11 @@ func (iw *iwrapper) Release() {
 	iw.read = false
 }
 
+func (iw *iwrapper) resetMinMaxTs() {
+	iw.maxTs = 0
+	iw.minTs = 0
+}
+
 func (iw *iwrapper) close() {
 	iw.Release()
 }

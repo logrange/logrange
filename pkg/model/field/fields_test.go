@@ -15,15 +15,20 @@
 package field
 
 import (
+	"github.com/logrange/logrange/pkg/utils/kvstring"
+	"github.com/logrange/range/pkg/utils/bytes"
 	"testing"
 )
 
 func BenchmarkLogEventParser(b *testing.B) {
-	f, _ := NewFields(map[string]string{"name": "app12345", "pod": "a;kldfj;alkdjflakjdsflkajdf;lkadf;kl", "ip": "1.1.1.2"})
+	f, _ := NewFields(map[string]string{"name": "app12345", "pod2": "a;kldfj;alkdjflakjdsflkajdf;lkadf;kl", "ip12": "1.1.1.2"})
 	b.ReportAllocs()
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		f.Value("pod3")
+		f.AsKVString()
+		//f.Value("pod3")
+		//m := make(map[string]string)
+		//m["pod3"] = f.Value("ip12")
 		//strings.Index(string(f), "ip")
 	}
 }
@@ -43,6 +48,27 @@ func BenchmarkWriteKVS(b *testing.B) {
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		fld.AsKVString()
+	}
+}
+
+func BenchmarkMerge(b *testing.B) {
+	fld := Parse("aaa=bbbb,name=asdf1234123412341234")
+	m := map[string]string{"name": "app12345", "pod2": "a;kldfj;alkdjflakjdsflkajdf;lkadf;kl", "ip12": "1.1.1.2"}
+	var w bytes.Writer
+	b.ReportAllocs()
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		fld.MergeWithMap(m, &w)
+	}
+}
+
+func BenchmarkConcat(b *testing.B) {
+	fld := Parse("aaa=bbbb,name=asdf1234123412341234")
+	var w bytes.Writer
+	b.ReportAllocs()
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		fld.Concat(fld, &w)
 	}
 }
 
@@ -67,6 +93,45 @@ func TestWriteAsKVS(t *testing.T) {
 	testWriteAsKVS(t, "", "")
 	testWriteAsKVS(t, "aa=1234", `aa=1234`)
 	testWriteAsKVS(t, `{aa=1234, name = "a=,pp12"}`, `aa=1234,name="a=,pp12"`)
+}
+
+func TestMerge(t *testing.T) {
+	testMerge(t, "a=b", map[string]string{}, map[string]string{"a": "b"})
+	testMerge(t, "a=bbb", map[string]string{"c": "d"}, map[string]string{"a": "bbb", "c": "d"})
+	testMerge(t, "a=b", map[string]string{"a": "d"}, map[string]string{"a": "d"})
+	testMerge(t, "a=b, b=c", map[string]string{"c": "d"}, map[string]string{"a": "b", "c": "d", "b": "c"})
+}
+
+func TestConcat(t *testing.T) {
+	testConcat(t, "", "", "")
+	testConcat(t, "", "c=d", "\x01c\x01d")
+	testConcat(t, "a=b", "", "\x01a\x01b")
+	testConcat(t, "a=b", "c=d", "\x01a\x01b\x01c\x01d")
+	testConcat(t, "a=b,c=ddd", "c=d1", "\x01a\x01b\x01c\x03ddd\x01c\x02d1")
+}
+
+func testMerge(t *testing.T, kvs string, m, res map[string]string) {
+	flds := Parse(kvs)
+	var w bytes.Writer
+	flds2 := flds.MergeWithMap(m, &w)
+
+	res2, err := kvstring.ToMap(flds2.AsKVString())
+	if err != nil {
+		t.Fatal("could not convert ", flds2.AsKVString(), " to map")
+	}
+	if !kvstring.MapsEquals(res2, res) {
+		t.Fatal("res2=", res2, " is not equal to expected ", res)
+	}
+}
+
+func testConcat(t *testing.T, kvs1, kvs2, res string) {
+	f1 := Parse(kvs1)
+	var w bytes.Writer
+	f2 := Parse(kvs2)
+	f := f1.Concat(f2, &w)
+	if string(f) != res {
+		t.Fatal("expected ", res, " but result is ", f)
+	}
 }
 
 func testFieldValue(t *testing.T, mp map[string]string) {

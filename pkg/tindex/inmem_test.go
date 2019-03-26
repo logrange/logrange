@@ -91,7 +91,7 @@ func BenchmarkFindIndex(b *testing.B) {
 	ims.Config = &InMemConfig{WorkingDir: dir}
 	ims.Journals = &testJournals{}
 	ims.Init(nil)
-	src, err := ims.GetOrCreateJournal("a=b,c=asdfasdfasdf")
+	src, _, err := ims.GetOrCreateJournal("a=b,c=asdfasdfasdf")
 	if err != nil {
 		b.Fatal("Must be able to create new journal")
 	}
@@ -99,7 +99,7 @@ func BenchmarkFindIndex(b *testing.B) {
 	b.ReportAllocs()
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		s, err := ims.GetOrCreateJournal("a=b,c=asdfasdfasdf")
+		s, _, err := ims.GetOrCreateJournal("a=b,c=asdfasdfasdf")
 		if err != nil || s != src {
 			b.Fatal("err must be nil, and s=", s, " must be ", src)
 		}
@@ -121,10 +121,15 @@ func TestCheckInit(t *testing.T) {
 		t.Fatal("err must be nil, but err=", err)
 	}
 
-	jrnl, err := ims.GetOrCreateJournal("aaa=bbb")
+	jrnl, ts, err := ims.GetOrCreateJournal("aaa=bbb")
 	if err != nil {
 		t.Fatal("Must be created, but err=", err)
 	}
+
+	if ts.Tag("aaa") != "bbb" || ts.Line() != "aaa=bbb" {
+		t.Fatal("Wrong ts= ", ts)
+	}
+
 	ims.Shutdown()
 
 	ims.Journals = &testJournals{[]string{jrnl}}
@@ -158,14 +163,14 @@ func TestCheckLoadReload(t *testing.T) {
 	}
 	set, _ := tag.Parse("{dda=basdfasdf,c=asdfasdfasdf}")
 	tags := set.Line()
-	src, _ := ims.GetOrCreateJournal("dda=basdfasdf,c=asdfasdfasdf")
-	src2, _ := ims.GetOrCreateJournal("c=asdfasdfasdf,dda=basdfasdf")
+	src, _, _ := ims.GetOrCreateJournal("dda=basdfasdf,c=asdfasdfasdf")
+	src2, _, _ := ims.GetOrCreateJournal("c=asdfasdfasdf,dda=basdfasdf")
 	if src != src2 {
 		t.Fatal("Src=", src, " must be equal to src2=", src2)
 	}
 
 	ims.Shutdown()
-	_, err = ims.GetOrCreateJournal(string(tags))
+	_, _, err = ims.GetOrCreateJournal(string(tags))
 	if err == nil {
 		t.Fatal("it must be an error here!")
 	}
@@ -173,12 +178,12 @@ func TestCheckLoadReload(t *testing.T) {
 	if err != nil {
 		t.Fatal("Init() err=", err)
 	}
-	src2, err = ims.GetOrCreateJournal(string(tags))
+	src2, _, err = ims.GetOrCreateJournal(string(tags))
 	if err != nil || src != src2 {
 		t.Fatal("err must be nil and src2==Src but src2=", src2, ", Src=", src)
 	}
 
-	src2, err = ims.GetOrCreateJournal("{dda=basdfasdf,c=asdfasdfasdfSSS}")
+	src2, _, err = ims.GetOrCreateJournal("{dda=basdfasdf,c=asdfasdfasdfSSS}")
 	if err != nil || src == src2 {
 		t.Fatal("err must be nil and src2!=Src but src2=", src2)
 	}
@@ -198,10 +203,10 @@ func TestVisitor(t *testing.T) {
 	ims.Init(nil)
 	set, _ := tag.Parse("{dda=basdfasdf,c=asdfasdfasdf}")
 	tags := set.Line()
-	src, _ := ims.GetOrCreateJournal("dda=basdfasdf,c=asdfasdfasdf")
+	src, _, _ := ims.GetOrCreateJournal("dda=basdfasdf,c=asdfasdfasdf")
 	set, _ = tag.Parse("{dda=basdfasdf,c=asdfasdfasdfddd}")
 	tags2 := set.Line()
-	src2, _ := ims.GetOrCreateJournal("dda=basdfasdf,c=asdfasdfasdfddd")
+	src2, _, _ := ims.GetOrCreateJournal("dda=basdfasdf,c=asdfasdfasdfddd")
 
 	ps, _ := lql.ParseSource("{dda=basdfasdf}")
 	res, err := getJournals(ims, ps)
@@ -253,8 +258,8 @@ func TestReAcquireExclusively(t *testing.T) {
 		t.Fatal("Must not be acquired")
 	}
 
-	src, _ := ims.GetOrCreateJournal("dda=a") //1st
-	ims.GetOrCreateJournal("dda=a")           // 2nd
+	src, _, _ := ims.GetOrCreateJournal("dda=a") //1st
+	ims.GetOrCreateJournal("dda=a")              // 2nd
 
 	if ims.tmap["dda=a"].readers != 2 {
 		t.Fatal("Wrong value for td=", ims.tmap["dda=a"])
@@ -342,7 +347,7 @@ func TestDelete(t *testing.T) {
 	ims.Config = &InMemConfig{WorkingDir: dir, DoNotSave: true}
 	ims.Init(nil)
 
-	src, _ := ims.GetOrCreateJournal("dda=a") //1st
+	src, _, _ := ims.GetOrCreateJournal("dda=a") //1st
 	// on not exclusive lock must fail
 	if ims.Delete(src) == nil {
 		t.Fatal("Must not be able to Delete!")
@@ -384,7 +389,7 @@ func TestVisitSkipping(t *testing.T) {
 	ims.Config = &InMemConfig{WorkingDir: dir, DoNotSave: true}
 	ims.Init(nil)
 
-	src, _ := ims.GetOrCreateJournal("dda=a") //1st
+	src, _, _ := ims.GetOrCreateJournal("dda=a") //1st
 
 	if ims.smap[src].readers != 1 {
 		t.Fatal("Must be 1 reader here")
@@ -417,7 +422,7 @@ func TestVisitSkipping(t *testing.T) {
 	}
 	ims.Release(src)
 
-	src2, _ := ims.GetOrCreateJournal("dda3=a") //1st
+	src2, _, _ := ims.GetOrCreateJournal("dda3=a") //1st
 	ims.Release(src2)
 
 	// Visit non-release

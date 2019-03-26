@@ -158,7 +158,7 @@ type queryResultBuilder struct {
 }
 
 func (qr *queryResultBuilder) init(p *bytes.Pool) {
-	qr.wrtr.Reset(4096, p)
+	qr.wrtr.Init(4096, p)
 	qr.ow.Writer = &qr.wrtr
 	qr.recs = 0
 	qr.ow.WriteUint32(0) // reserve for log event size

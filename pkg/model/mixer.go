@@ -89,9 +89,15 @@ func (mr *Mixer) Release() {
 	if mr.st == 1 {
 		mr.src1.le.MakeItSafe()
 	}
+	mr.src1.eof = false
+
 	mr.src2.it.Release()
 	if mr.st == 2 {
 		mr.src2.le.MakeItSafe()
+	}
+	mr.src2.eof = false
+	if mr.st == 3 {
+		mr.st = 0
 	}
 }
 

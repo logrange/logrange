@@ -28,6 +28,7 @@ import (
 	"github.com/logrange/range/pkg/records/chunk/chunkfs"
 	rjournal "github.com/logrange/range/pkg/records/journal"
 	"github.com/logrange/range/pkg/utils/bytes"
+	errors2 "github.com/logrange/range/pkg/utils/errors"
 	"github.com/pkg/errors"
 	"os"
 	"sort"
@@ -41,9 +42,11 @@ type (
 		Journals rjournal.Controller `inject:""`
 		TIndex   tindex.Service      `inject:""`
 		CIdxDir  string              `inject:"cindexDir"`
+		MainCtx  context.Context     `inject:"mainCtx"`
 
 		cIdx   *cindex
 		logger log4g.Logger
+		weCh   chan WriteEvent
 	}
 
 	// TruncateParams allows to provide parameters for Truncate() functions
@@ -71,12 +74,21 @@ type (
 		ChunksDeleted int
 		Deleted       bool
 	}
+
+	// WriteEvent structure contains inforamation about write event into a journal
+	WriteEvent struct {
+		Tags     tag.Set
+		Src      string
+		StartPos rjournal.Pos
+		EndPos   rjournal.Pos
+	}
 )
 
 func NewService() *Service {
 	s := new(Service)
 	s.cIdx = newCIndex()
 	s.logger = log4g.GetLogger("logrange.journal.Service")
+	s.weCh = make(chan WriteEvent, 100)
 	return s
 }
 
@@ -92,8 +104,9 @@ func (s *Service) Shutdown() {
 }
 
 // Write performs Write operation to a journal defined by tags.
-func (s *Service) Write(ctx context.Context, tags string, lit model.Iterator) error {
-	src, err := s.TIndex.GetOrCreateJournal(tags)
+// the flag noEvent shows whether the WriteEvent should be emitted (noEvent = false) on the write operation or not
+func (s *Service) Write(ctx context.Context, tags string, lit model.Iterator, noEvent bool) error {
+	src, ts, err := s.TIndex.GetOrCreateJournal(tags)
 	if err != nil {
 		return errors.Wrapf(err, "could not parse tags %s to turn it to journal source Id.", tags)
 	}
@@ -107,19 +120,42 @@ func (s *Service) Write(ctx context.Context, tags string, lit model.Iterator) er
 	var iw iwrapper
 	iw.pool = s.Pool
 	iw.it = lit
-	n, pos, err := jrnl.Write(ctx, &iw)
-	if err != nil {
-		s.TIndex.Release(src)
-		return errors.Wrapf(err, "could not write records to the journal %s by tags=%s", src, tags)
+
+	var we WriteEvent
+	weInit := false
+
+	for {
+		n, pos, err1 := jrnl.Write(ctx, &iw)
+		if n > 0 {
+			s.onWriteCIndex(src, &iw, n, pos)
+			if !weInit {
+				we.Tags = ts
+				we.Src = src
+				we.StartPos = pos
+				we.StartPos.Idx -= uint32(n)
+			}
+			weInit = true
+			we.EndPos = pos
+		}
+
+		if err1 != nil {
+			if n <= 0 {
+				err = errors.Wrapf(err1, "could not write records to the journal %s by tags=%s", src, tags)
+			}
+			break
+		}
+		if _, err1 = iw.Get(ctx); err1 != nil {
+			break
+		}
 	}
 
-	if n > 0 {
-		s.onWriteCIndex(src, &iw, n, pos)
+	if weInit && !noEvent {
+		s.onWriteEvent(we)
 	}
 
 	s.TIndex.Release(src)
 	iw.close() // free resources
-	return nil
+	return err
 }
 
 // GetJournals is part of cursor.JournalsProvider
@@ -297,6 +333,29 @@ func (s *Service) Truncate(ctx context.Context, tp TruncateParams, otf OnTruncat
 	s.logger.Info("Truncate(): ", cremoved, " chunk(s) were removed. Initial size of ALL journals was ", humanize.Bytes(ts),
 		"(", ts, "), and ", humanize.Bytes(rs), "(", rs, ") were removed. It took ", time.Now().Sub(start))
 	return nil
+}
+
+// GetWriteEvent reads next write event. It blocks caller until the contex is closed or new event comes
+func (s *Service) GetWriteEvent(ctx context.Context) (WriteEvent, error) {
+	select {
+	case <-s.MainCtx.Done():
+		return WriteEvent{}, s.MainCtx.Err()
+	case <-ctx.Done():
+		return WriteEvent{}, ctx.Err()
+	case we, ok := <-s.weCh:
+		if !ok {
+			return WriteEvent{}, errors2.ClosedState
+		}
+		return we, nil
+	}
+}
+
+func (s *Service) onWriteEvent(we WriteEvent) {
+	select {
+	case s.weCh <- we:
+	case <-s.MainCtx.Done():
+		s.logger.Warn("onWriteEvent(): Unblock a notirifcation")
+	}
 }
 
 // truncate receives a journal and the truncate params, truncate the journal and returns number of chunks truncated,
