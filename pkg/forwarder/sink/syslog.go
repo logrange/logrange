@@ -21,9 +21,9 @@ import (
 	"github.com/logrange/logrange/pkg/model/field"
 	"github.com/logrange/logrange/pkg/syslog"
 	"github.com/logrange/logrange/pkg/utils"
+	"github.com/logrange/range/pkg/utils/bytes"
 	"github.com/mitchellh/mapstructure"
 	"time"
-	"unsafe"
 )
 
 type (
@@ -73,12 +73,15 @@ func newSyslogSink(cfg *syslogSinkConfig) (*syslogSink, error) {
 }
 
 func (ss *syslogSink) OnEvent(events []*api.LogEvent) error {
-	me := &model.LogEvent{}
-	sm := &syslog.Message{}
+	var (
+		me model.LogEvent
+		sm syslog.Message
+	)
+
 	for _, e := range events {
-		copyEv(e, me)
-		ss.schm.format(me, e.Tags, sm)
-		err := ss.slog.Write(sm)
+		copyEv(e, &me)
+		ss.schm.format(&me, e.Tags, &sm)
+		err := ss.slog.Write(&sm)
 		if err != nil {
 			return err
 		}
@@ -95,7 +98,7 @@ func (ss *syslogSink) Close() error {
 
 func copyEv(e *api.LogEvent, me *model.LogEvent) {
 	me.Timestamp = e.Timestamp
-	me.Msg = *(*[]byte)(unsafe.Pointer(&e.Message))
+	me.Msg = bytes.StringToByteArray(e.Message)
 	me.Fields = field.Parse(e.Fields)
 }
 
@@ -190,7 +193,7 @@ func (s *syslogMessageSchema) format(me *model.LogEvent, tags string, sm *syslog
 	if s.tags != nil {
 		sm.Tag = s.tags.FormatStr(me, tags)
 	}
-	sm.Msg = *(*string)(unsafe.Pointer(&me.Msg))
+	sm.Msg = bytes.ByteArrayToString(me.Msg)
 	if s.msg != nil {
 		sm.Msg = s.msg.FormatStr(me, tags)
 	}
