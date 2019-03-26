@@ -108,7 +108,7 @@ func (si *ServerIngestor) write(reqId int32, reqBody []byte, sc *rrpc.ServerConn
 	var wpi wpIterator
 	err := wpi.init(reqBody)
 	if err == nil {
-		err = si.Journals.Write(si.MainCtx, wpi.tags, &wpi)
+		err = si.Journals.Write(si.MainCtx, wpi.tags, &wpi, false)
 	}
 
 	sc.SendResponse(reqId, err, cEmptyResponse)

@@ -15,7 +15,6 @@
 package cursor
 
 import (
-	"bytes"
 	"context"
 	"fmt"
 	"github.com/logrange/logrange/pkg/lql"
@@ -41,10 +40,18 @@ type (
 		Pos string
 	}
 
-	// Cursor struct describes a context of a query execution. Cursor state could be expressed in cursor.State and
-	// a new cursor could be created from the struct. Cursor supports model.Iterator interface which allows to access
+	Cursor interface {
+		model.Iterator
+		Id() uint64
+		ApplyState(state State) error
+		State(context.Context) State
+		WaitNewData(ctx context.Context) error
+	}
+
+	// crsr struct describes a context of a query execution. crsr state could be expressed in cursor.State and
+	// a new cursor could be created from the struct. crsr supports model.Iterator interface which allows to access
 	// to records the cursor selects
-	Cursor struct {
+	crsr struct {
 		state        State
 		it           model.Iterator
 		jrnlProvider JournalsProvider
@@ -69,7 +76,7 @@ type (
 )
 
 // newCursor creates the new cursor based on the state provided.
-func newCursor(ctx context.Context, state State, jrnlProvider JournalsProvider) (*Cursor, error) {
+func newCursor(ctx context.Context, state State, jrnlProvider JournalsProvider) (*crsr, error) {
 	l, err := lql.ParseLql(state.Query)
 	if err != nil || l.Select == nil {
 		return nil, errors.Wrapf(err, "could not parse lql=%s, expecting select statement", state.Query)
@@ -132,7 +139,7 @@ func newCursor(ctx context.Context, state State, jrnlProvider JournalsProvider) 
 		}
 	}
 
-	cur := new(Cursor)
+	cur := new(crsr)
 	cur.state = state
 	cur.it = it
 	cur.jDescs = jd
@@ -145,28 +152,41 @@ func newCursor(ctx context.Context, state State, jrnlProvider JournalsProvider) 
 }
 
 // String returns the cursor description
-func (cur *Cursor) String() string {
+func (cur *crsr) String() string {
 	return fmt.Sprintf("{descs:%d, state:%s}", len(cur.jDescs), cur.state.String())
 }
 
 // Id returns the cursor Id
-func (cur *Cursor) Id() uint64 {
+func (cur *crsr) Id() uint64 {
 	return cur.state.Id
 }
 
 // Next part of the model.Iterator
-func (cur *Cursor) Next(ctx context.Context) {
+func (cur *crsr) Next(ctx context.Context) {
 	cur.it.Next(ctx)
 }
 
 // Get part of the model.Iterator
-func (cur *Cursor) Get(ctx context.Context) (model.LogEvent, tag.Line, error) {
+func (cur *crsr) Get(ctx context.Context) (model.LogEvent, tag.Line, error) {
 	return cur.it.Get(ctx)
+}
+
+// Release part of the model.Iterator
+func (cur *crsr) Release() {
+	cur.it.Release()
+}
+
+// State returns current the cursor state
+func (cur *crsr) State(ctx context.Context) State {
+	// calling cur.Get(ctx) to fix the cursor position in case of last call was cur.Next()
+	cur.Get(ctx)
+	cur.state.Pos = cur.collectPos()
+	return cur.state
 }
 
 // ApplyState tries to apply state to the cursor. Returns an error, if the operation could not be completed.
 // Current implementation allows to apply position only
-func (cur *Cursor) ApplyState(state State) error {
+func (cur *crsr) ApplyState(state State) error {
 	if cur.state.Query != state.Query || cur.state.Id != state.Id {
 		return errors.Errorf("Could not apply state %s to the current cursor state %s", state, cur.state)
 	}
@@ -185,7 +205,8 @@ func (cur *Cursor) ApplyState(state State) error {
 
 // WaitNewData waits for the new data in the cursor. It returns nil if new data is arrived, or
 // ctx.Err() otherwise
-func (cur *Cursor) WaitNewData(ctx context.Context) error {
+func (cur *crsr) WaitNewData(ctx context.Context) error {
+	cur.it.Release()
 	ctx2, cancel := context.WithCancel(ctx)
 	for _, it := range cur.jDescs {
 		go func(jrnl journal.Journal, pos journal.Pos) {
@@ -201,32 +222,30 @@ const cPosJrnlSplit = ":"
 const cPosJrnlVal = "="
 
 // Commit is called by the cursor reader to indicate that the reading process is over and return the current state
-func (cur *Cursor) commit(ctx context.Context) State {
-	// calling cur.Get(ctx) to fix the cursor position in case of last call was cur.Next()
-	cur.Get(ctx)
-	cur.state.Pos = cur.collectPos()
+func (cur *crsr) commit(ctx context.Context) State {
+	st := cur.State(ctx)
 	cur.it.Release()
-	return cur.state
+	return st
 }
 
 // collectPos walks over all iterators to collect their current position
-func (cur *Cursor) collectPos() string {
-	var buf bytes.Buffer
+func (cur *crsr) collectPos() string {
+	var sb strings.Builder
 	first := true
 	for jn, jd := range cur.jDescs {
 		if !first {
-			buf.WriteString(cPosJrnlSplit)
+			sb.WriteString(cPosJrnlSplit)
 		} else {
 			first = false
 		}
-		buf.WriteString(jn)
-		buf.WriteString(cPosJrnlVal)
-		buf.WriteString(jd.it.Pos().String())
+		sb.WriteString(jn)
+		sb.WriteString(cPosJrnlVal)
+		sb.WriteString(jd.it.Pos().String())
 	}
-	return buf.String()
+	return sb.String()
 }
 
-func (cur *Cursor) close() {
+func (cur *crsr) close() {
 	for _, jd := range cur.jDescs {
 		jd.it.Close()
 		cur.jrnlProvider.Release(jd.j.Name())
@@ -236,7 +255,7 @@ func (cur *Cursor) close() {
 	cur.jDescs = nil
 }
 
-func (cur *Cursor) applyPos() error {
+func (cur *crsr) applyPos() error {
 	if !cur.applyCornerPos(cur.state.Pos) {
 		err := cur.applyStatePos()
 		if err != nil {
@@ -246,7 +265,7 @@ func (cur *Cursor) applyPos() error {
 	return nil
 }
 
-func (cur *Cursor) applyCornerPos(pstr string) bool {
+func (cur *crsr) applyCornerPos(pstr string) bool {
 	ps := strings.ToLower(pstr)
 	var p journal.Pos
 	if ps == "tail" {
@@ -262,7 +281,7 @@ func (cur *Cursor) applyCornerPos(pstr string) bool {
 	return true
 }
 
-func (cur *Cursor) applyStatePos() error {
+func (cur *crsr) applyStatePos() error {
 	vals := strings.Split(cur.state.Pos, cPosJrnlSplit)
 	m := make(map[string]journal.Pos, len(vals))
 	for _, v := range vals {

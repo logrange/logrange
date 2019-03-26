@@ -98,12 +98,12 @@ func (ims *inmemService) Shutdown() {
 	ims.done = true
 }
 
-func (ims *inmemService) GetOrCreateJournal(tags string) (res string, err error) {
+func (ims *inmemService) GetOrCreateJournal(tags string) (res string, ts tag.Set, err error) {
 	for {
 		ims.lock.Lock()
 		if ims.done {
 			ims.lock.Unlock()
-			return "", fmt.Errorf("already shut-down.")
+			return "", tag.EmptySet, fmt.Errorf("already shut-down.")
 		}
 
 		td, ok := ims.tmap[tag.Line(tags)]
@@ -111,12 +111,12 @@ func (ims *inmemService) GetOrCreateJournal(tags string) (res string, err error)
 			tgs, err := tag.Parse(tags)
 			if err != nil {
 				ims.lock.Unlock()
-				return "", fmt.Errorf("the line %s doesn't seem like properly formatted tag line: %s", tags, err)
+				return "", tag.EmptySet, fmt.Errorf("the line %s doesn't seem like properly formatted tag line: %s", tags, err)
 			}
 
 			if tgs.IsEmpty() {
 				ims.lock.Unlock()
-				return "", fmt.Errorf("at least one tag value is expected to define the source")
+				return "", tag.EmptySet, fmt.Errorf("at least one tag value is expected to define the source")
 			}
 
 			if td2, ok := ims.tmap[tgs.Line()]; !ok {
@@ -131,7 +131,7 @@ func (ims *inmemService) GetOrCreateJournal(tags string) (res string, err error)
 					delete(ims.smap, td.Src)
 					ims.logger.Error("could not save state for the new source ", td.Src, " formed for ", tgs.Line(), ", original Tags=", tags, ", err=", err)
 					ims.lock.Unlock()
-					return "", err
+					return "", tag.EmptySet, err
 				}
 			} else {
 				td = td2
@@ -139,6 +139,7 @@ func (ims *inmemService) GetOrCreateJournal(tags string) (res string, err error)
 		}
 
 		res = td.Src
+		ts = td.tags
 		locked := !td.exclusive
 		if locked {
 			td.readers++
@@ -151,7 +152,7 @@ func (ims *inmemService) GetOrCreateJournal(tags string) (res string, err error)
 		ims.logger.Debug("Oops, raise with an exclusive lock")
 		time.Sleep(time.Millisecond)
 	}
-	return res, err
+	return res, ts, err
 }
 
 func (ims *inmemService) Visit(srcCond *lql.Source, vf VisitorF, visitFlags int) error {

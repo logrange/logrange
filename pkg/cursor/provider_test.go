@@ -22,19 +22,20 @@ import (
 )
 
 func TestGetOrCreate(t *testing.T) {
-	p := NewProvider()
+	p := NewProvider().(*provider)
 	defer p.Shutdown()
 
 	p.JrnlsProvider = &testJrnlsProvider{j: map[tag.Line]*testJrnl{"j1=j1": &testJrnl{"j1"}}}
-	cur, err := p.GetOrCreate(nil, State{Query: "select limit 10"}, true)
+	c1, err := p.GetOrCreate(nil, State{Query: "select limit 10"}, true)
 	if err != nil {
 		t.Fatal("err must be nil, but err=", err)
 	}
-	if e, ok := p.curs[cur.Id()]; !ok || e != p.busy {
-		t.Fatal("cur=", cur, ", was not found ")
+	if e, ok := p.curs[c1.Id()]; !ok || e != p.busy {
+		t.Fatal("cur=", c1, ", was not found ")
 	}
-	p.Release(nil, cur)
+	p.Release(nil, c1)
 
+	cur := c1.(*crsr)
 	cur2, err := p.GetOrCreate(nil, cur.state, false)
 	if err != nil || cur2 != cur || p.curs[cur.Id()] != p.busy {
 		t.Fatal("err=", err, ", cur2=", cur2, " p.busy=", p.busy, ", p.curs[cur.Id()]=", p.curs[cur.Id()])
@@ -50,7 +51,7 @@ func TestGetOrCreate(t *testing.T) {
 }
 
 func TestRelease(t *testing.T) {
-	p := NewProvider()
+	p := NewProvider().(*provider)
 	defer p.Shutdown()
 
 	p.JrnlsProvider = &testJrnlsProvider{j: map[tag.Line]*testJrnl{"j1=j1": &testJrnl{"j1"}}}
@@ -76,7 +77,7 @@ func TestRelease(t *testing.T) {
 }
 
 func TestSweepByTime(t *testing.T) {
-	p := NewProvider()
+	p := NewProvider().(*provider)
 	p.idleTo = time.Millisecond
 	defer p.Shutdown()
 
@@ -116,7 +117,7 @@ func TestSweepByTime(t *testing.T) {
 }
 
 func TestSweepBySize(t *testing.T) {
-	p := NewProvider()
+	p := NewProvider().(*provider)
 	p.maxCurs = 1
 	defer p.Shutdown()
 

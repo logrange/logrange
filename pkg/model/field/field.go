@@ -48,7 +48,7 @@ func Parse(kvs string) Fields {
 }
 
 // NewFieldsFromKVString receives a kv-stream in form `field1=value1, field2=value2...` and turn
-// it to Fields using the buffer buf. If the buf is empty than new string will be created
+// it to Fields.
 func NewFieldsFromKVString(kvs string) (Fields, error) {
 	if len(kvs) == 0 {
 		return "", nil
@@ -133,6 +133,49 @@ func (f Fields) Value(name string) string {
 // MakeCopy makes an unmutable copy of fields
 func (f Fields) MakeCopy() Fields {
 	return Fields(bytes.ByteArrayToString(bytes.BytesCopy(bytes.StringToByteArray(string(f)))))
+}
+
+// Merge got fields f and merges them with values from map m. Result is written to Writer w and it returns
+// result based on the buffer from w. The result cannot be stored in any collection, but copied only.
+// Use the method with extra care.
+func (f Fields) MergeWithMap(m map[string]string, w *bytes.Writer) Fields {
+	w.Reset()
+	if len(m) == 0 {
+		return f
+	}
+
+	for i := 0; i < len(f); {
+		k := int(f[i])
+		v := int(f[i+k+1])
+		key := string(f[i+1 : i+k+1])
+		i += k + 2
+		if _, ok := m[key]; !ok {
+			w.WriteByte(byte(k))
+			w.WriteString(key)
+			w.WriteByte(byte(v))
+			w.WriteString(string(f[i : i+v]))
+		}
+		i += v
+	}
+
+	for k, v := range m {
+		w.WriteByte(byte(len(k)))
+		w.WriteString(k)
+		w.WriteByte(byte(len(v)))
+		w.WriteString(v)
+	}
+
+	return Fields(bytes.ByteArrayToString(w.Buf()))
+}
+
+// Concat adds fields from f1 to f using writer's w buffer for the result. It just
+// adds all fields from f1 to f, so if f contains some fields from f1, they will added as well
+// Use the method with extra care.
+func (f Fields) Concat(f1 Fields, w *bytes.Writer) Fields {
+	w.Reset()
+	w.WriteString(string(f))
+	w.WriteString(string(f1))
+	return Fields(bytes.ByteArrayToString(w.Buf()))
 }
 
 // IsEmpty returns whether the field list is empty

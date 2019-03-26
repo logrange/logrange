@@ -26,7 +26,16 @@ import (
 )
 
 type (
-	Provider struct {
+	// Provider interface provides interface for managing cursors
+	Provider interface {
+		// GetOrCreate creates a new, or returns already exist cursor by its state (which contains cursor Id)
+		GetOrCreate(ctx context.Context, state State, cache bool) (Cursor, error)
+
+		// Release allows to release a cursor
+		Release(ctx context.Context, curs Cursor) State
+	}
+
+	provider struct {
 		JrnlsProvider JournalsProvider `inject:""`
 
 		logger     log4g.Logger
@@ -46,16 +55,16 @@ type (
 
 	curHldr struct {
 		busy    bool
-		cur     *Cursor
+		cur     *crsr
 		expTime time.Time
 	}
 )
 
-func NewProvider() *Provider {
-	p := new(Provider)
+func NewProvider() Provider {
+	p := new(provider)
 	p.curs = make(map[uint64]*container.CLElement)
 	p.clsdCh = make(chan struct{})
-	p.logger = log4g.GetLogger("cursor.Provider")
+	p.logger = log4g.GetLogger("cursor.provider")
 	// TODO, put some constants directly here, but may be we have to move it to the config later?
 	p.maxCurs = 50000
 	p.idleTo = time.Duration(60 * time.Second)
@@ -64,27 +73,27 @@ func NewProvider() *Provider {
 }
 
 // Init for implementing linker.Initializer
-func (p *Provider) Init(ctx context.Context) error {
+func (p *provider) Init(ctx context.Context) error {
 	go p.sweeper()
 	return nil
 }
 
 // Shutdown is a part o linker.Shutdowner
-func (p *Provider) Shutdown() {
+func (p *provider) Shutdown() {
 	close(p.clsdCh)
 }
 
 // GetOrCreate gets existing or creates a new cursor. if state.Id is 0, the new cursor will be always created.
 // If the cursor is returned it must be released explicitly by Release() to be garbage collected properly
-func (p *Provider) GetOrCreate(ctx context.Context, state State, cache bool) (*Cursor, error) {
-	var res *Cursor
+func (p *provider) GetOrCreate(ctx context.Context, state State, cache bool) (Cursor, error) {
+	var res *crsr
 	if state.Id > 0 {
 		p.lock.Lock()
 		if e, ok := p.curs[state.Id]; ok {
 			ch := e.Val.(*curHldr)
 			if ch.busy {
 				p.lock.Unlock()
-				return nil, errors.Errorf("Cursor usage violation: concurrent request for id=%d", state.Id)
+				return nil, errors.Errorf("crsr usage violation: concurrent request for id=%d", state.Id)
 			}
 
 			if err := ch.cur.ApplyState(state); err != nil {
@@ -102,7 +111,7 @@ func (p *Provider) GetOrCreate(ctx context.Context, state State, cache bool) (*C
 	}
 
 	if res != nil {
-		p.logger.Debug("Cursor for ", state, " found in the cache. ")
+		p.logger.Debug("crsr for ", state, " found in the cache. ")
 		return res, nil
 	}
 
@@ -141,7 +150,8 @@ func (p *Provider) GetOrCreate(ctx context.Context, state State, cache bool) (*C
 	return cur, nil
 }
 
-func (p *Provider) Release(ctx context.Context, cur *Cursor) State {
+func (p *provider) Release(ctx context.Context, curs Cursor) State {
+	cur := curs.(*crsr)
 	res := cur.commit(ctx)
 	p.lock.Lock()
 	e, ok := p.curs[cur.Id()]
@@ -166,7 +176,7 @@ func (p *Provider) Release(ctx context.Context, cur *Cursor) State {
 	return res
 }
 
-func (p *Provider) sweeper() {
+func (p *provider) sweeper() {
 	p.logger.Info("sweeper(): starting")
 	defer p.logger.Info("sweeper(): over")
 
@@ -185,7 +195,7 @@ func (p *Provider) sweeper() {
 	}
 }
 
-func (p *Provider) sweepBySize() {
+func (p *provider) sweepBySize() {
 	cnt := 0
 	for len(p.curs) > p.maxCurs {
 		e := p.busy.Prev()
@@ -203,7 +213,7 @@ func (p *Provider) sweepBySize() {
 	}
 }
 
-func (p *Provider) sweepByTime() {
+func (p *provider) sweepByTime() {
 	now := time.Now()
 	e := p.busy
 	cnt := len(p.curs)

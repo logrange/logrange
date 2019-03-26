@@ -22,11 +22,13 @@ import (
 	"github.com/logrange/logrange/pkg/backend"
 	"github.com/logrange/logrange/pkg/cursor"
 	"github.com/logrange/logrange/pkg/journal"
+	"github.com/logrange/logrange/pkg/stream"
 	"github.com/logrange/logrange/pkg/tindex"
 	"github.com/logrange/range/pkg/cluster/model"
 	"github.com/logrange/range/pkg/kv/inmem"
 	"github.com/logrange/range/pkg/records/journal/ctrlr"
 	"github.com/logrange/range/pkg/utils/bytes"
+	"path"
 )
 
 // Start starts the logrange server using the configuration provided. It will
@@ -43,6 +45,7 @@ func Start(ctx context.Context, cfg *Config) error {
 		linker.Component{Name: "HostRegistryConfig", Value: cfg},
 		linker.Component{Name: "JournalControllerConfig", Value: &cfg.JrnlCtrlConfig},
 		linker.Component{Name: "cindexDir", Value: cfg.JrnlCtrlConfig.JournalsDir},
+		linker.Component{Name: "streamsDir", Value: path.Join(cfg.JrnlCtrlConfig.JournalsDir, "streams")},
 		linker.Component{Name: "publicRpcTransport", Value: cfg.PublicApiRpc},
 		linker.Component{Name: "inmemServiceConfig", Value: imsCfg},
 		linker.Component{Name: "mainCtx", Value: ctx},
@@ -50,11 +53,13 @@ func Start(ctx context.Context, cfg *Config) error {
 		linker.Component{Name: "", Value: inmem.New()},
 		linker.Component{Name: "", Value: tindex.NewInmemService()},
 		linker.Component{Name: "", Value: journal.NewService()},
+		linker.Component{Name: "", Value: stream.NewService()},
 		linker.Component{Name: "", Value: model.NewHostRegistry()},
 		linker.Component{Name: "", Value: model.NewJournalCatalog()},
 		linker.Component{Name: "", Value: rpc.NewServerIngestor()},
 		linker.Component{Name: "", Value: rpc.NewServerQuerier()},
 		linker.Component{Name: "", Value: rpc.NewServerAdmin()},
+		linker.Component{Name: "", Value: rpc.NewServerStreams()},
 		linker.Component{Name: "", Value: rpc.NewServer()},
 		linker.Component{Name: "", Value: ctrlr.NewJournalController()},
 		linker.Component{Name: "", Value: cursor.NewProvider()},

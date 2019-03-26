@@ -36,6 +36,16 @@ type (
 
 var positiveWhereExpFunc = func(*model.LogEvent) bool { return true }
 
+// BuildWhereExpFunc buildw WHERE condition by the condition human readable form like `a=b AND c=d`
+func BuildWhereExpFunc(wCond string) (WhereExpFunc, error) {
+	exp, err := ParseExpr(wCond)
+	if err != nil {
+		return nil, err
+	}
+	return BuildWhereExpFuncByExpression(exp)
+}
+
+// BuildWhereExpFuncByExpression builds where function by the Expression provided
 func BuildWhereExpFuncByExpression(exp *Expression) (WhereExpFunc, error) {
 	if exp == nil {
 		return positiveWhereExpFunc, nil

@@ -25,7 +25,7 @@ type (
 	Service interface {
 		// GetOrCreateJournal returns the journal name for the unique Tags combination. If the result
 		// is returned with no error, the JournalName MUST be released using the Release method later
-		GetOrCreateJournal(tags string) (string, error)
+		GetOrCreateJournal(tags string) (string, tag.Set, error)
 
 		// Visit walks over the tags-sources that corresponds to the srcCond. VF_SKIP_IF_LOCKED allows to skip the source if it
 		// is locked. If VF_SKIP_IF_LOCKED is not set, the Visit will wait until the source become available or removed.
