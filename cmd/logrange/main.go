@@ -62,12 +62,10 @@ func main() {
 					&cli.IntFlag{
 						Name:  argStartHostHostId,
 						Usage: "unique host id, if 0 the id will be automatically assigned",
-						Value: int(cfg.HostHostId),
 					},
 					&cli.StringFlag{
 						Name:  argStartJournalDir,
 						Usage: "path to the journals database directory",
-						Value: cfg.JrnlCtrlConfig.JournalsDir,
 					},
 				},
 			},
