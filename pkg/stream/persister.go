@@ -83,7 +83,7 @@ func (sp *streamPersister) saveStreams(strms []Stream) error {
 
 func (sp *streamPersister) streamFileName(name string) string {
 	efn := fileutil.EscapeToFileName(name)
-	return path.Join(sp.dir, "stram"+efn+".dat")
+	return path.Join(sp.dir, "stream"+efn+".dat")
 }
 
 func (sp *streamPersister) loadStreamInfo(name string, res map[string]*ssDesc) error {

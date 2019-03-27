@@ -144,6 +144,7 @@ func (s *Service) Write(ctx context.Context, tags string, lit model.Iterator, no
 			}
 			break
 		}
+
 		if _, err1 = iw.Get(ctx); err1 != nil {
 			break
 		}

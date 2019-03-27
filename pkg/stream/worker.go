@@ -67,13 +67,20 @@ func (w *worker) run(ctx context.Context) {
 	flds := field.Parse(w.srcTags.String())
 	var si siterator
 	si.init(flds, cur)
+	werrs := 1
 
 	for ctx.Err() == nil {
 		err = w.strm.svc.Journals.Write(ctx, w.dstTags.String(), &si, true)
 		if err != nil {
-			context2.Sleep(ctx, time.Second)
+			werrs *= 2
+			if werrs > 60 {
+				werrs = 60
+			}
+			w.logger.Warn("could not write data into the journal ", w.dstTags.String(), " will sleep for ", werrs, " second(s) and try again, err=", err)
+			context2.Sleep(ctx, time.Duration(werrs)*time.Second)
 			continue
 		}
+		werrs = 1
 
 		if err = w.strm.saveState(w.src, cur.State(ctx)); err != nil {
 			w.logger.Error("Could not save the existing state, may be deleted?")
