@@ -24,8 +24,8 @@ import (
 	"github.com/logrange/logrange/pkg/scanner/model"
 	"github.com/logrange/logrange/pkg/storage"
 	"github.com/logrange/logrange/pkg/utils"
+	"github.com/logrange/range/pkg/utils/bytes"
 	"time"
-	"unsafe"
 )
 
 func Run(ctx context.Context, cfg *scanner.Config, cl api.Client, storg storage.Storage) error {
@@ -83,7 +83,7 @@ func toApiEvents(ev *model.Event) []*api.LogEvent {
 	for _, r := range ev.Records {
 		res = append(res, &api.LogEvent{
 			Timestamp: uint64(r.Date.UnixNano()),
-			Message:   *(*string)(unsafe.Pointer(&r.Data)),
+			Message:   bytes.ByteArrayToString(r.Data),
 		})
 	}
 	return res
