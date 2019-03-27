@@ -56,7 +56,6 @@ func main() {
 		&ucli.StringFlag{
 			Name:  argServerAddr,
 			Usage: "server address",
-			Value: cfg.Transport.ListenAddr,
 		},
 		&ucli.StringFlag{
 			Name:  argStorageDir,
