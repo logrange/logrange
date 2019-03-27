@@ -182,8 +182,8 @@ func doSelect(ctx context.Context, qr *api.QueryRequest, cli api.Client, streamM
 
 		if len(res.Events) != 0 {
 			handler(res)
-			qr = &res.NextQueryRequest
 		}
+		qr = &res.NextQueryRequest
 
 		if !streamMode {
 			if limit <= 0 || len(res.Events) == 0 {
