@@ -34,6 +34,7 @@ const (
 	argStartCfgFile    = "config-file"
 	argStartHostHostId = "host-id"
 	argStartJournalDir = "journals-dir"
+	argMaxReadFDS      = "max-read-fds"
 )
 
 var cfg = server.GetDefaultConfig()
@@ -66,6 +67,10 @@ func main() {
 					&cli.StringFlag{
 						Name:  argStartJournalDir,
 						Usage: "path to the journals database directory",
+					},
+					&cli.IntFlag{
+						Name:  argMaxReadFDS,
+						Usage: "maximum number of file desrcriptors used for read operations",
 					},
 				},
 			},
@@ -115,6 +120,9 @@ func applyArgsToCfg(c *cli.Context, cfg *server.Config) {
 	}
 	if jd := c.String(argStartJournalDir); jd != "" {
 		cfg.JrnlCtrlConfig.JournalsDir = jd
+	}
+	if mfds := c.Int(argMaxReadFDS); mfds > 0 {
+		cfg.JrnlCtrlConfig.MaxOpenFileDescs = mfds
 	}
 }
 

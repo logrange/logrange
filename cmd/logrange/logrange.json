@@ -18,7 +18,7 @@
     "CheckFullScan": false,
     "RecoverDisabled": false,
     "RecoverLostDataOk": false,
-    "WriteIdleSec": 120,
+    "WriteIdleSec": 30,
     "WriteFlushMs": 500,
     "MaxChunkSize": 104857600,
     "MaxRecordSize": 1048576

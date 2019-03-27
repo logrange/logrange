@@ -212,17 +212,18 @@ func (c *JCtrlrConfig) StorageDir() string {
 	return c.JournalsDir
 }
 
-func (c *JCtrlrConfig) String() string {
+func (c JCtrlrConfig) String() string {
 	return fmt.Sprint(
-		"\n\tJournalsDir=", c.JournalsDir,
-		"\n\tMaxOpenFileDescs=", c.MaxOpenFileDescs,
-		"\n\tCheckFullScan=", c.CheckFullScan,
-		"\n\tRecoverDisabled=", c.RecoverDisabled,
-		"\n\tRecoverLostDataOk=", c.RecoverLostDataOk,
-		"\n\tWriteIdleSec=", c.WriteIdleSec,
-		"\n\tWriteFlushMs=", c.WriteFlushMs,
-		"\n\tMaxChunkSize=", c.MaxChunkSize,
-		"\n\tMaxRecordSize=", c.MaxRecordSize,
+		"\n\t{\n\t\tJournalsDir=", c.JournalsDir,
+		"\n\t\tMaxOpenFileDescs=", c.MaxOpenFileDescs,
+		"\n\t\tCheckFullScan=", c.CheckFullScan,
+		"\n\t\tRecoverDisabled=", c.RecoverDisabled,
+		"\n\t\tRecoverLostDataOk=", c.RecoverLostDataOk,
+		"\n\t\tWriteIdleSec=", c.WriteIdleSec,
+		"\n\t\tWriteFlushMs=", c.WriteFlushMs,
+		"\n\t\tMaxChunkSize=", c.MaxChunkSize,
+		"\n\t\tMaxRecordSize=", c.MaxRecordSize,
+		"\n\t}",
 	)
 }
 
