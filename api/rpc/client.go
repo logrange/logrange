@@ -73,6 +73,8 @@ func (c *Client) connect() error {
 	c.cqrier.rc = c.rc
 	c.admin = new(clntAdmin)
 	c.admin.rc = c.rc
+	c.streams = new(clntStreams)
+	c.streams.rc = c.rc
 	return nil
 }
 
