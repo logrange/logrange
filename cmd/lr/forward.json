@@ -2,8 +2,8 @@
   "Forwarder": {
     "Workers": [{
       "Name": "forwarder1",
-      "Source": {
-        "Lql": "select limit 1000",
+      "Stream": {
+        "Source": "",
         "Filter": ""
       },
       "Sink": {
@@ -22,8 +22,8 @@
         }
       }
     }],
-    "StateStoreIntervalSec": 10,
-    "ConfigReloadIntervalSec": 20
+    "StateStoreIntervalSec": 20,
+    "ConfigReloadIntervalSec": 5
   },
 
   "Transport": {

@@ -20,6 +20,7 @@ import (
 	"github.com/logrange/logrange/api"
 	rrpc "github.com/logrange/range/pkg/rpc"
 	"github.com/logrange/range/pkg/transport"
+	"net"
 )
 
 type (
@@ -61,7 +62,20 @@ func (c *Client) connect() error {
 		_ = c.Close()
 	}
 
-	conn, err := transport.NewClientConn(c.cfg)
+	var (
+		conn net.Conn
+		err  error
+	)
+
+	maxRetry := 3
+	for {
+		maxRetry--
+		conn, err = transport.NewClientConn(c.cfg)
+		if err == nil || maxRetry <= 0 {
+			break
+		}
+	}
+
 	if err != nil {
 		return err
 	}
@@ -73,6 +87,8 @@ func (c *Client) connect() error {
 	c.cqrier.rc = c.rc
 	c.admin = new(clntAdmin)
 	c.admin.rc = c.rc
+	c.streams = new(clntStreams)
+	c.streams.rc = c.rc
 	return nil
 }
 

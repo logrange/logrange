@@ -20,19 +20,20 @@ import (
 	"github.com/logrange/logrange/pkg/lql"
 	"github.com/logrange/logrange/pkg/utils"
 	"github.com/mohae/deepcopy"
+	"reflect"
 	"regexp/syntax"
 	"strings"
 )
 
 type (
-	SourceConfig struct {
-		Lql    string
+	StreamConfig struct {
+		Source string
 		Filter string
 	}
 
 	WorkerConfig struct {
 		Name   string
-		Source *SourceConfig
+		Stream *StreamConfig
 		Sink   *sink.Config
 	}
 
@@ -95,21 +96,34 @@ func (c *Config) Check() error {
 	return nil
 }
 
-func (c *Config) Reload() error {
+func (c *Config) Reload() (bool, error) {
 	var (
 		err error
 		nc  *Config
 	)
 	if c.ReloadFn != nil {
 		nc, err = c.ReloadFn()
-		if err == nil {
-			err = nc.Check()
+		if !c.Equals(nc) {
 			if err == nil {
-				c.Apply(nc)
+				err = nc.Check()
+				if err == nil {
+					c.Apply(nc)
+					return true, nil
+				}
 			}
 		}
 	}
-	return err
+	return false, err
+}
+
+func (c *Config) Equals(other *Config) bool {
+	if other == nil {
+		return false
+	}
+
+	return c.StateStoreIntervalSec == other.StateStoreIntervalSec &&
+		c.ConfigReloadIntervalSec == other.ConfigReloadIntervalSec &&
+		reflect.DeepEqual(c.Workers, other.Workers)
 }
 
 func (c *Config) String() string {
@@ -122,16 +136,16 @@ func (wc *WorkerConfig) Check() error {
 	if strings.TrimSpace(wc.Name) == "" {
 		return fmt.Errorf("invalid Name=%v, must be non-empty", wc.Name)
 	}
-	if wc.Source == nil {
-		return fmt.Errorf("invalid Source=%v, must be non-nil", wc.Source)
+	if wc.Stream == nil {
+		return fmt.Errorf("invalid Stream=%v, must be non-nil", wc.Stream)
 	}
 	if wc.Sink == nil {
 		return fmt.Errorf("invalid Sink=%v, must be non-nil", wc.Sink)
 	}
 
-	err := wc.Source.Check()
+	err := wc.Stream.Check()
 	if err != nil {
-		return fmt.Errorf("invalid Source=%v: %v", wc.Source, err)
+		return fmt.Errorf("invalid Stream=%v: %v", wc.Stream, err)
 	}
 	err = wc.Sink.Check()
 	if err != nil {
@@ -145,14 +159,14 @@ func (wc *WorkerConfig) String() string {
 	return utils.ToJsonStr(wc)
 }
 
-//===================== sourceConfig =====================
+//===================== streamConfig =====================
 
-func (sc *SourceConfig) Check() error {
-	if strings.TrimSpace(sc.Lql) == "" {
-		return fmt.Errorf("invalid Lql=%v, must be non-empty", sc.Lql)
+func (sc *StreamConfig) Check() error {
+	if _, err := lql.ParseSource(sc.Source); err != nil {
+		return fmt.Errorf("invalid Source=%s: %v", sc.Source, err)
 	}
-	if _, err := lql.ParseLql(sc.Lql); err != nil {
-		return fmt.Errorf("invalid Lql=%s: %v", sc.Lql, err)
+	if _, err := lql.ParseExpr(sc.Filter); err != nil {
+		return fmt.Errorf("invalid Filter=%s: %v", sc.Filter, err)
 	}
 	if sc.Filter != "" {
 		if _, err := syntax.Parse(sc.Filter, syntax.Perl); err != nil {
@@ -162,6 +176,6 @@ func (sc *SourceConfig) Check() error {
 	return nil
 }
 
-func (sc *SourceConfig) String() string {
+func (sc *StreamConfig) String() string {
 	return utils.ToJsonStr(sc)
 }

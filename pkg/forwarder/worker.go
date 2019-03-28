@@ -16,12 +16,11 @@ package forwarder
 
 import (
 	"context"
+	"fmt"
 	"github.com/jrivets/log4g"
 	"github.com/logrange/logrange/api"
 	"github.com/logrange/logrange/pkg/forwarder/sink"
-	"github.com/logrange/logrange/pkg/lql"
 	"github.com/logrange/logrange/pkg/utils"
-	"math"
 	"time"
 )
 
@@ -57,48 +56,54 @@ func newWorker(wc *workerConfig) *worker {
 }
 
 func (w *worker) run(ctx context.Context) error {
-	qr, err := w.prepareQuery()
-	if err == nil {
-		totalCnt := uint64(0)
-		sleepDur := 5 * time.Second
-		nextStat := time.Now()
+	st, err := w.getStream(ctx)
+	if err != nil {
+		return err
+	}
+	qr, err := w.prepareQuery(st.Destination)
+	if err != nil {
+		return err
+	}
 
-		limit := qr.Limit
-		timeout := qr.WaitTimeout
-		for ctx.Err() == nil && !w.stop {
-			qr.Limit = limit
-			qr.WaitTimeout = timeout
+	totalCnt := uint64(0)
+	sleepDur := 5 * time.Second
+	nextStat := time.Now()
 
-			if time.Now().After(nextStat) {
-				w.logger.Info("Forwarded ", totalCnt, " events (total), position=", qr.Pos)
-				nextStat = time.Now().Add(10 * time.Second)
-			}
+	limit := qr.Limit
+	timeout := qr.WaitTimeout
+	for ctx.Err() == nil && !w.stop {
+		qr.Limit = limit
+		qr.WaitTimeout = timeout
 
-			res := &api.QueryResult{}
-			err = w.rpcc.Query(ctx, qr, res)
-			if err != nil {
-				w.logger.Error("Failed to execute query=", qr, ", will retry in 5 sec, err=", err)
-				utils.Sleep(ctx, sleepDur)
-				continue
-			}
-
-			if len(res.Events) == 0 {
-				w.logger.Info("No new events, sleep 5 sec...")
-				utils.Sleep(ctx, sleepDur)
-				continue
-			}
-
-			err = w.sink.OnEvent(res.Events)
-			if err != nil {
-				w.logger.Warn("Failed to sink events, will retry in 5 sec, err=", err)
-				utils.Sleep(ctx, sleepDur)
-				continue
-			}
-
-			qr = &res.NextQueryRequest
-			w.desc.setPosition(qr.Pos)
-			totalCnt += uint64(len(res.Events))
+		if time.Now().After(nextStat) {
+			w.logger.Info("Stats (every 10 sec): forwarded ", totalCnt, " events (total), position=", qr.Pos)
+			nextStat = time.Now().Add(10 * time.Second)
 		}
+
+		res := &api.QueryResult{}
+		err = w.rpcc.Query(ctx, qr, res)
+		if err != nil {
+			w.logger.Error("Failed to execute query=", qr, ", will retry in 5 sec, err=", err)
+			utils.Sleep(ctx, sleepDur)
+			continue
+		}
+
+		if len(res.Events) == 0 {
+			w.logger.Info("No new events, sleep 5 sec...")
+			utils.Sleep(ctx, sleepDur)
+			continue
+		}
+
+		err = w.sink.OnEvent(res.Events)
+		if err != nil {
+			w.logger.Warn("Failed to sink events, will retry in 5 sec, err=", err)
+			utils.Sleep(ctx, sleepDur)
+			continue
+		}
+
+		qr = &res.NextQueryRequest
+		w.desc.setPosition(qr.Pos)
+		totalCnt += uint64(len(res.Events))
 	}
 
 	_ = w.sink.Close()
@@ -116,27 +121,27 @@ func (w *worker) isStopped() bool {
 	return w.stopped
 }
 
-func (w *worker) prepareQuery() (*api.QueryRequest, error) {
-	l, err := lql.ParseLql(w.desc.Worker.Source.Lql)
+func (w *worker) getStream(ctx context.Context) (api.Stream, error) {
+	st := api.Stream{
+		Name:       w.desc.Worker.Name,
+		TagsCond:   w.desc.Worker.Stream.Source,
+		FilterCond: w.desc.Worker.Stream.Filter,
+	}
+
+	res := &api.StreamCreateResult{}
+	err := w.rpcc.EnsureStream(ctx, st, res)
 	if err != nil {
-		return nil, err
-	}
-	s := l.Select
-
-	pos := w.desc.getPosition()
-	if s.Position != nil {
-		pos = s.Position.PosId
+		return api.Stream{}, err
 	}
 
-	lim := utils.GetInt64Val(s.Limit, 0)
-	if lim > math.MaxInt32 {
-		lim = math.MaxInt32
-	}
+	return res.Stream, res.Err
+}
 
+func (w *worker) prepareQuery(dest string) (*api.QueryRequest, error) {
 	qr := &api.QueryRequest{
-		Query:       w.desc.Worker.Source.Lql,
-		Pos:         pos,
-		Limit:       int(lim),
+		Query:       fmt.Sprintf("select source %v", dest),
+		Pos:         w.desc.getPosition(),
+		Limit:       1000,
 		WaitTimeout: 10,
 	}
 	return qr, nil
