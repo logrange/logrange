@@ -6,7 +6,7 @@ Logrange is highly performant streaming database, which allows aggregating, stru
 __Highlights__
 * Size tollerant. Logrange performance doesn't depend on the database size either it is 100Kb or 100Tb of data.
 * Higly performant. Accepting millions records or hundred megabytes per second
-* Low latency. Written data is available for read within milliseconds.
+* Low latency. Written data becomes available for read within milliseconds.
 * Scalable by source. Supporting tens of thousands different streams
 * Fast data processing. No data indexing overhead, but effective streaming and batch data processing
 * Native for stream processing. Merging, filtering and search using LQL (Logrange Query Language)
