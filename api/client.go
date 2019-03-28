@@ -5,6 +5,7 @@ type (
 		Querier
 		Ingestor
 		Admin
+		Streams
 
 		Close() error
 	}

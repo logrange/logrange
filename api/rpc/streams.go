@@ -50,13 +50,13 @@ func (cs *clntStreams) EnsureStream(ctx context.Context, stm api.Stream, res *ap
 	}
 
 	if opErr == nil {
-		err = json.Unmarshal(resp, &res)
+		err = json.Unmarshal(resp, res)
 	}
 
 	res.Err = opErr
 	cs.rc.Collect(resp)
 
-	return nil
+	return err
 }
 
 func NewServerStreams() *ServerStreams {
@@ -86,7 +86,8 @@ func (ss *ServerStreams) ensureStream(reqId int32, reqBody []byte, sc *rrpc.Serv
 	req.FilterCond = dst.FltCond
 	req.Destination = dst.DestTags.Line().String()
 
-	buf, err := json.Marshal(req)
+	res := api.StreamCreateResult{Stream: req, Err: nil}
+	buf, err := json.Marshal(res)
 	if err != nil {
 		ss.logger.Warn("ensureStream(): could not marshal result err=", err)
 		sc.SendResponse(reqId, err, cEmptyResponse)

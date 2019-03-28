@@ -70,10 +70,18 @@ func (c *Config) Apply(other *Config) {
 		return
 	}
 
-	c.Forwarder.Apply(other.Forwarder)
-	c.Collector.Apply(other.Collector)
-	c.Storage.Apply(other.Storage)
-	c.Transport.Apply(other.Transport)
+	if c.Forwarder != nil {
+		c.Forwarder.Apply(other.Forwarder)
+	}
+	if c.Collector != nil {
+		c.Collector.Apply(other.Collector)
+	}
+	if c.Storage != nil {
+		c.Storage.Apply(other.Storage)
+	}
+	if c.Transport != nil {
+		c.Transport.Apply(other.Transport)
+	}
 }
 
 func (c *Config) String() string {

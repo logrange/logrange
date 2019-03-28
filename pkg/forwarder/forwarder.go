@@ -148,12 +148,15 @@ func (f *Forwarder) runReloadConfig(ctx context.Context) {
 	f.waitWg.Add(1)
 	go func() {
 		for utils.Wait(ctx, ticker) {
-			if err := f.cfg.Reload(); err != nil {
+			ncfg, err := f.cfg.Reload()
+			if err != nil {
 				f.logger.Warn("Failed config reloading, retry later, err=", err)
 				continue
 			}
-			f.logger.Info("Syncing, got new config=", f.cfg)
-			f.update(ctx)
+			if ncfg {
+				f.logger.Info("Got new config=", f.cfg)
+				f.update(ctx)
+			}
 		}
 		f.logger.Warn("Config reloading stopped.")
 		f.waitWg.Done()
