@@ -103,8 +103,8 @@ func (c *Config) Reload() (bool, error) {
 	)
 	if c.ReloadFn != nil {
 		nc, err = c.ReloadFn()
-		if !c.Equals(nc) {
-			if err == nil {
+		if err == nil {
+			if !c.Equals(nc) {
 				err = nc.Check()
 				if err == nil {
 					c.Apply(nc)

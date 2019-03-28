@@ -47,6 +47,9 @@ func LoadCfgFromFile(path string) (*Config, error) {
 	if cfg.Forwarder != nil {
 		cfg.Forwarder.ReloadFn = func() (*forwarder.Config, error) {
 			cfg, err := LoadCfgFromFile(path)
+			if err != nil {
+				return nil, err
+			}
 			return cfg.Forwarder, err
 		}
 	}
