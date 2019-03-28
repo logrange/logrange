@@ -92,7 +92,7 @@ func config() *Config {
 	log4g.SetLogLevel("", log4g.INFO)
 
 	cfg := NewDefaultConfig()
-	cfg.ScanPathsIntervalSec = 5
+	cfg.SyncWorkersIntervalSec = 5
 
 	_, d, _, _ := runtime.Caller(0)
 	cfg.IncludePaths = []string{

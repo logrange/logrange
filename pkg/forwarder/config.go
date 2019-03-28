@@ -38,10 +38,10 @@ type (
 	}
 
 	Config struct {
-		Workers                 []*WorkerConfig
-		StateStoreIntervalSec   int
-		ConfigReloadIntervalSec int
-		ReloadFn                func() (*Config, error) `json:"-"`
+		Workers                []*WorkerConfig
+		StateStoreIntervalSec  int
+		SyncWorkersIntervalSec int
+		ReloadFn               func() (*Config, error) `json:"-"`
 	}
 )
 
@@ -49,9 +49,9 @@ type (
 
 func NewDefaultConfig() *Config {
 	return &Config{
-		Workers:                 []*WorkerConfig{},
-		StateStoreIntervalSec:   10,
-		ConfigReloadIntervalSec: 20,
+		Workers:                []*WorkerConfig{},
+		StateStoreIntervalSec:  10,
+		SyncWorkersIntervalSec: 20,
 	}
 }
 
@@ -62,8 +62,8 @@ func (c *Config) Apply(other *Config) {
 	if other.StateStoreIntervalSec != 0 {
 		c.StateStoreIntervalSec = other.StateStoreIntervalSec
 	}
-	if other.ConfigReloadIntervalSec != 0 {
-		c.ConfigReloadIntervalSec = other.ConfigReloadIntervalSec
+	if other.SyncWorkersIntervalSec != 0 {
+		c.SyncWorkersIntervalSec = other.SyncWorkersIntervalSec
 	}
 	if len(other.Workers) != 0 {
 		c.Workers = deepcopy.Copy(other.Workers).([]*WorkerConfig)
@@ -77,8 +77,8 @@ func (c *Config) Check() error {
 	if c.StateStoreIntervalSec <= 0 {
 		return fmt.Errorf("invalid StateStoreIntervalSec=%v, must be > 0sec", c.StateStoreIntervalSec)
 	}
-	if c.ConfigReloadIntervalSec <= 0 {
-		return fmt.Errorf("invalid ConfigReloadIntervalSec=%v, must be > 0sec", c.ConfigReloadIntervalSec)
+	if c.SyncWorkersIntervalSec <= 0 {
+		return fmt.Errorf("invalid SyncWorkersIntervalSec=%v, must be > 0sec", c.SyncWorkersIntervalSec)
 	}
 
 	wNames := make(map[string]bool)
@@ -122,7 +122,7 @@ func (c *Config) Equals(other *Config) bool {
 	}
 
 	return c.StateStoreIntervalSec == other.StateStoreIntervalSec &&
-		c.ConfigReloadIntervalSec == other.ConfigReloadIntervalSec &&
+		c.SyncWorkersIntervalSec == other.SyncWorkersIntervalSec &&
 		reflect.DeepEqual(c.Workers, other.Workers)
 }
 

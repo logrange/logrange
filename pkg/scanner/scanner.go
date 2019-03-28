@@ -104,7 +104,7 @@ func (s *Scanner) Run(ctx context.Context, events chan<- *model.Event) error {
 		return err
 	}
 
-	s.runScanPaths(ctx, events)
+	s.runSyncWorkers(ctx, events)
 	s.runPersistState(ctx)
 	return nil
 }
@@ -121,12 +121,12 @@ func (s *Scanner) Close() error {
 func (s *Scanner) init(ctx context.Context, events chan<- *model.Event) error {
 	err := s.loadState()
 	if err == nil {
-		s.scan(ctx, events)
+		s.sync(ctx, events)
 	}
 	return err
 }
 
-func (s *Scanner) scan(ctx context.Context, events chan<- *model.Event) {
+func (s *Scanner) sync(ctx context.Context, events chan<- *model.Event) {
 	nd := s.scanPaths()
 	md := s.mergeDescs(s.getDescs(), nd)
 	s.syncWorkers(ctx, md, events)
@@ -143,17 +143,17 @@ func (s *Scanner) setDescs(d descs) {
 
 //===================== scanner.jobs =====================
 
-func (s *Scanner) runScanPaths(ctx context.Context, events chan<- *model.Event) {
-	s.logger.Info("Running scan paths every ", s.cfg.ScanPathsIntervalSec, " seconds...")
+func (s *Scanner) runSyncWorkers(ctx context.Context, events chan<- *model.Event) {
+	s.logger.Info("Running sync workers every ", s.cfg.SyncWorkersIntervalSec, " seconds...")
 	ticker := time.NewTicker(time.Second *
-		time.Duration(s.cfg.ScanPathsIntervalSec))
+		time.Duration(s.cfg.SyncWorkersIntervalSec))
 
 	s.waitWg.Add(1)
 	go func() {
 		for utils.Wait(ctx, ticker) {
-			s.scan(ctx, events)
+			s.sync(ctx, events)
 		}
-		s.logger.Warn("Scan paths stopped.")
+		s.logger.Warn("Sync workers stopped.")
 		s.waitWg.Done()
 	}()
 }

@@ -5,8 +5,8 @@
       "/var/log/*/*.log"
     ],
     "ExcludeMatchers": [],
-    "ScanPathsIntervalSec": 20,
-    "StateStoreIntervalSec": 10,
+    "SyncWorkersIntervalSec": 10,
+    "StateStoreIntervalSec": 20,
     "EventMaxRecords": 1000,
     "RecordMaxSizeBytes": 16384,
     "Schemas": [

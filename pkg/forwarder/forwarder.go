@@ -85,12 +85,12 @@ func (f *Forwarder) Run(ctx context.Context) error {
 	if err := f.init(ctx); err != nil {
 		return err
 	}
-	f.runReloadConfig(ctx)
+	f.runSyncWorkers(ctx)
 	f.runPersistState(ctx)
 	return nil
 }
 
-func (f *Forwarder) update(ctx context.Context) {
+func (f *Forwarder) sync(ctx context.Context) {
 	nd := f.toDescs(f.cfg)
 	if nd != nil {
 		md := f.mergeDescs(f.getDescs(), nd)
@@ -111,7 +111,7 @@ func (f *Forwarder) Close() error {
 func (f *Forwarder) init(ctx context.Context) error {
 	err := f.loadState()
 	if err == nil {
-		f.update(ctx)
+		f.sync(ctx)
 	}
 	return err
 }
@@ -140,25 +140,24 @@ func (f *Forwarder) toDescs(cfg *Config) descs {
 
 //===================== forwarder.jobs =====================
 
-func (f *Forwarder) runReloadConfig(ctx context.Context) {
-	f.logger.Info("Running config reloading every ", f.cfg.ConfigReloadIntervalSec, " seconds...")
+func (f *Forwarder) runSyncWorkers(ctx context.Context) {
+	f.logger.Info("Running sync workers every ", f.cfg.SyncWorkersIntervalSec, " seconds...")
 	ticker := time.NewTicker(time.Second *
-		time.Duration(f.cfg.ConfigReloadIntervalSec))
+		time.Duration(f.cfg.SyncWorkersIntervalSec))
 
 	f.waitWg.Add(1)
 	go func() {
 		for utils.Wait(ctx, ticker) {
-			ncfg, err := f.cfg.Reload()
+			newFlag, err := f.cfg.Reload()
 			if err != nil {
-				f.logger.Warn("Failed config reloading, retry later, err=", err)
-				continue
+				f.logger.Warn("Failed config reloading, using old one, err=", err)
 			}
-			if ncfg {
-				f.logger.Info("Got new config=", f.cfg)
-				f.update(ctx)
+			if newFlag {
+				f.logger.Info("Found new config=", f.cfg)
 			}
+			f.sync(ctx)
 		}
-		f.logger.Warn("Config reloading stopped.")
+		f.logger.Warn("Sync workers stopped.")
 		f.waitWg.Done()
 	}()
 }

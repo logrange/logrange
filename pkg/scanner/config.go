@@ -24,13 +24,13 @@ import (
 
 type (
 	Config struct {
-		IncludePaths          []string
-		ExcludeMatchers       []string
-		ScanPathsIntervalSec  int
-		StateStoreIntervalSec int
-		RecordMaxSizeBytes    int
-		EventMaxRecords       int
-		Schemas               []*SchemaConfig
+		IncludePaths           []string
+		ExcludeMatchers        []string
+		SyncWorkersIntervalSec int
+		StateStoreIntervalSec  int
+		RecordMaxSizeBytes     int
+		EventMaxRecords        int
+		Schemas                []*SchemaConfig
 	}
 )
 
@@ -38,11 +38,11 @@ type (
 
 func NewDefaultConfig() *Config {
 	return &Config{
-		IncludePaths:          []string{"/var/log/*.log", "/var/log/*/*.log"},
-		ScanPathsIntervalSec:  5,
-		StateStoreIntervalSec: 5,
-		RecordMaxSizeBytes:    16384,
-		EventMaxRecords:       1000,
+		IncludePaths:           []string{"/var/log/*.log", "/var/log/*/*.log"},
+		SyncWorkersIntervalSec: 10,
+		StateStoreIntervalSec:  20,
+		RecordMaxSizeBytes:     16384,
+		EventMaxRecords:        1000,
 		Schemas: []*SchemaConfig{
 			{
 				PathMatcher: "/*(?:.+/)*(?P<file>.+\\..+)",
@@ -64,8 +64,8 @@ func (c *Config) Apply(other *Config) {
 	if len(other.IncludePaths) != 0 {
 		c.IncludePaths = deepcopy.Copy(other.IncludePaths).([]string)
 	}
-	if other.ScanPathsIntervalSec != 0 {
-		c.ScanPathsIntervalSec = other.ScanPathsIntervalSec
+	if other.SyncWorkersIntervalSec != 0 {
+		c.SyncWorkersIntervalSec = other.SyncWorkersIntervalSec
 	}
 	if other.StateStoreIntervalSec != 0 {
 		c.StateStoreIntervalSec = other.StateStoreIntervalSec
@@ -88,8 +88,8 @@ func (c *Config) Check() error {
 	if c.EventMaxRecords <= 0 {
 		return fmt.Errorf("invalid EventMaxRecords=%v, must be > 0", c.EventMaxRecords)
 	}
-	if c.ScanPathsIntervalSec <= 0 {
-		return fmt.Errorf("invalid ScanPathsIntervalSec=%v, must be > 0sec", c.ScanPathsIntervalSec)
+	if c.SyncWorkersIntervalSec <= 0 {
+		return fmt.Errorf("invalid SyncWorkersIntervalSec=%v, must be > 0sec", c.SyncWorkersIntervalSec)
 	}
 	if c.StateStoreIntervalSec <= 0 {
 		return fmt.Errorf("invalid StateStoreIntervalSec=%v, must be > 0sec", c.StateStoreIntervalSec)
