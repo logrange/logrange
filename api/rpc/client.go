@@ -21,7 +21,6 @@ import (
 	rrpc "github.com/logrange/range/pkg/rpc"
 	"github.com/logrange/range/pkg/transport"
 	"net"
-	"time"
 )
 
 type (
@@ -75,7 +74,6 @@ func (c *Client) connect() error {
 		if err == nil || maxRetry <= 0 {
 			break
 		}
-		time.Sleep(time.Second)
 	}
 
 	if err != nil {
