@@ -119,7 +119,7 @@ func GetDefaultConfig() *Config {
 func GetDefaultJCtrlrConfig() JCtrlrConfig {
 	jcc := JCtrlrConfig{}
 	jcc.JournalsDir = "/opt/logrange/db/"
-	jcc.MaxOpenFileDescs = 5000
+	jcc.MaxOpenFileDescs = 250
 	jcc.WriteIdleSec = 30
 	jcc.WriteFlushMs = 500
 	jcc.MaxChunkSize = 100 * 1024 * 1024
