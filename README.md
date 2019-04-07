@@ -1,24 +1,25 @@
 [![Go Report Card](https://goreportcard.com/badge/logrange/logrange)](https://goreportcard.com/report/logrange/logrange) [![Build Status](https://travis-ci.org/logrange/logrange.svg?branch=master)](https://travis-ci.org/logrange/logrange) [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://github.com/logrange/logrange/blob/master/LICENSE)
 
 # Logrange - streaming database 
-Logrange is highly performant streaming database, which allows aggregating, structuring and persisting streams of records like application logs, system metrics, audit logs etc. Logrange persists input streams on the disk and provides an API for accessing the stored data.
+Logrange is highly performant streaming database, which allows aggregating, structuring and persisting streams of records like application logs, system metrics, audit logs etc. Logrange persists input streams on the disk and provides an API for accessing the stored data to build different analytic tools on top of it.
 
 __Highlights__
-* Size tollerant. Logrange performance doesn't depend on the database size either it is 100Kb or 100Tb of data.
-* Higly performant. Accepting millions records or hundred megabytes per second
-* Low latency. Written data becomes available for read within milliseconds.
-* Scalable by source. Supporting tens of thousands different streams
-* Fast data processing. No data indexing overhead, but effective streaming and batch data processing
-* Native for stream processing. Merging, filtering and search using LQL (Logrange Query Language)
-* Ready to use. Basic installation includes pre-configured log processing tools: collector, forwarder, cli tool and Logrange database service. 
-* Easy installation for both containerized or a custom environments.
+* _Size tollerant_. Logrange performance doesn't depend on the database size either it is 100Kb or 100Tb of data
+* _Higly performant_. Accepting millions of records or hundred megabytes per second
+* _Low latency_. Data becomes available for read within milliseconds after it is written
+* _Scalable_. Supporting tens of thousands different streams
+* _Fast data processing_. No data indexing overhead, but effective streaming and batch data processing
+* _Native for stream processing_. Merging, filtering and search using LQL (Logrange Query Language)
+* _Ready to use_. Basic installation includes pre-configured log processing tools: collector, forwarder, CLI tool and Logrange database service. 
+* _Easy installation_ for both containerized or a custom environments.
+* _Save first for further processing_ concept. 
 
-## What exactly does that mean?
-Modern systems can consist of thousands of different sub-systems and applications, which usually write information about their activity into a files as application logs. The application log is a stream of records, where the records appear in the order of writing them into the log.
+## Save first for further processing? What exactly does that mean?
+Modern systems produce huge amount of information which can help to build statistics, analytics, to understand the system anomalies or even discovering security breches. Usually the information is written in form of system or application logs. 
 
-Logrange allows to collect the logs in a very efficient manner and storing the log records on the disk for further processing.
+The modern tools by log processing offers the concept where the data should be analyzed and filtered before it is saved. This concept is caused by huge amount of information, which can impact the log processing tools performance significantly. The problem with the concept is it allows to drop essential data due to weak analyzis or imperfection of the data filtering.
 
-The data, which can be stored in the database is not limited by the application logs only. For example, other streaming data like system metrics, autdit logs, application events could be stored into Logrange as well.
+Logrange offers another concept. It is - _to save first and you can drop it later, if you don't need it_. Logrange is intended to be a tool, which allows to store whatever streaming data a system produces without worriying about the database size, or analyzing the data before saving it. 
 
 ## What does Logrange allow to do?
 Logrange does the following things: 
@@ -40,25 +41,24 @@ Logrange database can be run as stand-alone application or as a cluster (distrib
 
 ![Logrange Structure](https://raw.githubusercontent.com/logrange/logrange/master/doc/pics/Logrange%20Structure.png)
 
-## Data structures
-Logrange works with streams of records. Every named stream is called _source_. The _source_ has same meaning as _table_ in a relational database. _source_ is named _stream_ of stored records.
-Logrange recognizes the following entities:
-* _stream_ - a sequence of _records_. Every stream contains zero or a natural number of records.
-* _source_ - is a stream of _records_ stored into Logrange database. Every _source_ is distinguished by unique combination of _tags_ applied to the _source_
-* _tags_ - is a combination of key-value pairs, applied to a _source_
+Logrange works following entities:
+* _stream_ - a sequence of _records_. Stream can be imagined like an endless sequence of records. 
+* _partition_ - is a slice of _stream_ of _records_ stored into Logrange database. So _partition_ can contain 0 or more records. Every _partition_ has an unique identifier which is just a combination of _tags_. Comparing to relational databases _partition_ has the same meaninig as a table of records.
+* _tags_ - is a combination of key-value pairs, applied to a _partition_
 * _record_ - is an atomic piece of information from a _stream_. Every _record_ contains 2+fields.
 * _field_ - is a key-value pair, which is part of a record.
-### Sources and tags
-In Logrange every persisted stream of records is recoginized as a _source_. Every _source_ has an unique combination of _tags_. _tags_ are a comma separated key-value pairs written in the form like:
+
+### Partitions and tags
+In Logrange a persisted stream of records is called _partition_. Every _partition_ has an unique combination of _tags_. _tags_ are a comma separated key-value pairs written in the form like:
 ```
 name=application1,ip="127.0.0.1"
 ```
-To address a stream for __write__ operation an unique combintaion of _tags_ must be provided. For example, Collector, when writes records for a stream, must provide _tags_ combination that idenfies the source uniqueuly. 
+To address a partition for __write__ operation an unique combintaion of _tags_ must be provided. For example, Collector must provide _tags_ combination which identifies the partition where records should be written. 
 
-To select one or more sources the condition of tags should be provided. For example:
-* `name=application1,ip="127.0.0.1"` - select ALL sources which tags contain both of the pairs `name=application1` and `ip="127.0.0.1"`
-* `name=application1 OR ip="127.0.0.1"` - selects all sources which tags contain either `name=application1` pair, or `ip="127.0.0.1"`pair, or both of them
-* `name LIKE 'app*'` - selects all sources which tags contain key-value pair with the key="name" and the value which starts from "app"
+Tags are used for selecting partitions where records should be read. To select one or more partitions the condition of tags should be provided. For example:
+* `name=application1,ip="127.0.0.1"` - select ALL partitions which tags contain both of the pairs `name=application1` and `ip="127.0.0.1"`
+* `name=application1 OR ip="127.0.0.1"` - selects all partitions which tags contain either `name=application1` pair, or `ip="127.0.0.1"`pair, or both of them
+* `name LIKE 'app*'` - selects all partitions which tags contain key-value pair with the key="name" and the value which starts from "app"
 etc.
 
 ### Records and fields
