@@ -52,17 +52,14 @@ type (
 )
 
 const (
-	cmdSelectName = "select"
-	cmdDescName   = "describe"
-	cmdTruncName  = "truncate"
-	cmdSetOptName = "setoption"
-	cmdQuitName   = "quit"
-	cmdHelpName   = "help"
+	cmdSelectName     = "select"
+	cmdShowPartitions = "show partitions"
+	cmdTruncName      = "truncate"
+	cmdSetOptName     = "setoption"
+	cmdQuitName       = "quit"
+	cmdHelpName       = "help"
 
 	optStreamMode = "stream-mode"
-
-	rgTagsGrp = "tagsCond"
-	rgSizeGrp = "size"
 )
 
 var commands []command
@@ -76,10 +73,10 @@ func init() {
 			help:    "run LQL queries, e.g. 'select limit 1'",
 		},
 		{
-			name:    cmdDescName,
-			matcher: regexp.MustCompile("(?i)^describe.*$"),
+			name:    cmdShowPartitions,
+			matcher: regexp.MustCompile(`(?i)^show\s+partitions.*$`),
 			cmdFn:   descFn,
-			help:    "describe source(s), e.g. 'describe tag like \"*a*\"'",
+			help:    "show partitions, e.g. 'show partitions name like \"app*\"'",
 		},
 		{
 			name:    cmdTruncName,
@@ -260,14 +257,16 @@ func buildReq(selStr string, stream bool) (*api.QueryRequest, *model.FormatParse
 func descFn(ctx context.Context, cfg *config) error {
 	l, err := lql.ParseLql(cfg.query[0])
 	if err != nil {
+		fmt.Println("Could not parse ", cfg.query[0])
 		return err
 	}
-	if l.Describe == nil {
-		return fmt.Errorf("Oops, expected describe, but received %s", cfg.query[0])
+
+	if l.Show == nil || l.Show.Partitions == nil {
+		return fmt.Errorf("Oops, expected 'show partitions...', but received %s", cfg.query[0])
 	}
 
 	res := &api.SourcesResult{}
-	err = cfg.cli.Sources(ctx, l.Describe.Source.String(), res)
+	err = cfg.cli.Sources(ctx, l.Show.Partitions.Source.String(), res)
 	if err != nil {
 		return err
 	}

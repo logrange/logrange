@@ -29,13 +29,13 @@ func BenchmarkParse(b *testing.B) {
 }
 
 func TestParse(t *testing.T) {
-	testOk(t, "select all")
+	testOk(t, `select "all"`)
 	testOk(t, "select limit 100")
-	testOk(t, "select all limit 100")
+	testOk(t, `select "all" limit 100`)
 	testOk(t, "select offset 123 ")
-	testOk(t, "select format 'format-%ts-%pod' limit 100")
-	testOk(t, "select format 'format-%ts-%pod' position tail limit 100")
-	testOk(t, "select format 'format-%ts-%pod' position 'head' limit 100")
+	testOk(t, "select 'format-%ts-%pod' limit 100")
+	testOk(t, "select 'format-%ts-%pod' position tail limit 100")
+	testOk(t, "select 'format-%ts-%pod' position 'head' limit 100")
 	testOk(t, "select position head limit 100")
 	testOk(t, "select position asdf limit 100")
 	testOk(t, "select position 'hasdf123' limit 100")
@@ -49,12 +49,27 @@ func TestParse(t *testing.T) {
 	testOk(t, "select WHERE (NOT (a='1234' AND c=abc)) or not (x=123 or c = abc) limit 100")
 	testOk(t, "select WHERE a='1234' AND bbb>=adfadf234798 or xxx = yyy limit 100")
 	testOk(t, "select WHERE a='1234' AND bbb like 'adfadf234798*' or xxx = yyy limit 10")
-	testOk(t, "SELECT source a=b OR b contains 'r' WHERE filename=\"system.log\" or filename=\"wifi.log\" OFFSET 0 LIMIT -1")
-	testOk(t, "SELECT Source a=b AND c=d WHERE filename=\"system.log\" or filename=\"wifi.log\" OFFSET 0 LIMIT -1")
-	testOk(t, "SELECT SOURCE a>b WHERE from='this is tag value' or filename=\"wifi.log\" OFFSET 0 LIMIT -1")
-	testOk(t, "describe")
-	testOk(t, "describe {fff=aaa}")
-	testOk(t, "describe file=anme AND c=d")
+	testOk(t, "SELECT from a=b OR b contains 'r' WHERE filename=\"system.log\" or filename=\"wifi.log\" OFFSET 0 LIMIT -1")
+	testOk(t, "SELECT From a=b AND c=d WHERE filename=\"system.log\" or filename=\"wifi.log\" OFFSET 0 LIMIT -1")
+	testOk(t, `SELECT FROM a>b WHERE from='this is tag value' or filename="wifi.log" OFFSET 0 LIMIT -1`)
+	testOk(t, `show PARTITIONS`)
+	testOk(t, `SHOW PARTITIONs from1="abc"`)
+	testOk(t, `SHOW PARTITIONs from1="abc" offset 10`)
+	testOk(t, `SHOW PARTITIONs from1="abc" offset 10 limit 1`)
+	testOk(t, `SHOW PARTITIONs offset 10 limit 1`)
+	testOk(t, `SHOW PARTITIONs limit 1`)
+	testOk(t, `SHOW pipes`)
+	testOk(t, `SHOW Pipes offset 10 limit 1`)
+	testOk(t, `SHOW Pipes offset 10`)
+	testOk(t, `SHOW Pipes limit 1`)
+	testOk(t, `create Pipe asb`)
+	testOk(t, `create Pipe aaa from {a=1,b=2}`)
+	testOk(t, `create Pipe aaa from a=1 or b=2 where ts=1`)
+	testOk(t, `create Pipe aaa where ts=1`)
+	testOk(t, "describe partition {fff=aaa}")
+	testOk(t, "describe partition {file=anme,c=d}")
+	testOk(t, "describe pipe aaa")
+	testOk(t, "delete pipe aaa")
 	testOk(t, "truncate")
 	testOk(t, "truncate {fff=aaa}")
 	testOk(t, "truncate file=anme AND c=d minsize 3G maxsize 20 ")
@@ -62,25 +77,25 @@ func TestParse(t *testing.T) {
 }
 
 func TestParams(t *testing.T) {
-	l := testOk(t, "Select format 'abc' where a = '123' position tail offset -10 limit 13")
+	l := testOk(t, "Select 'abc' where a = '123' position tail offset -10 limit 13")
 	if utils.GetStringVal(l.Select.Format, "") != "abc" || l.Select.Position.PosId != "tail" || *l.Select.Offset != -10 || *l.Select.Limit != 13 {
 		t.Fatal("Something goes wrong ", l.Select)
 	}
 }
 
 func TestPosition(t *testing.T) {
-	l := testOk(t, "Select format 'abc' where a = '123' position 'tail' offset -10 limit 13")
+	l := testOk(t, "Select 'abc' where a = '123' position 'tail' offset -10 limit 13")
 	if l.Select.Position.PosId != "tail" {
 		t.Fatal("Something goes wrong ", l.Select)
 	}
 
-	l = testOk(t, "Select format 'abc' where a = '123' position tail offset -10 limit 13")
+	l = testOk(t, "Select 'abc' where a = '123' position tail offset -10 limit 13")
 	if l.Select.Position.PosId != "tail" {
 		t.Fatal("Something goes wrong ", l.Select)
 	}
 
 	posId := "AAAABXNyY0lkAAAE0gAAAAAAAeIqAAAAGHNyYzEyMzQ3OUAkJV8gQTIzNEF6cUlkMgAAAA4AAAAAAAAE0g=="
-	l = testOk(t, "Select format 'abc' where a = '123' position '"+posId+"' offset -10 limit 13")
+	l = testOk(t, "Select 'abc' where a = '123' position '"+posId+"' offset -10 limit 13")
 	if l.Select.Position.PosId != posId {
 		t.Fatal("Something goes wrong ", l.Select)
 	}
@@ -152,7 +167,7 @@ func testOk(t *testing.T, lql string) *Lql {
 
 	l2, err := ParseLql(l.String())
 	if err != nil {
-		t.Fatal("l.String()=\"", l.String(), "\" unexpected err=", err)
+		t.Fatal("Initial lql=", lql, ", l.String()=\"", l.String(), "\" unexpected err=", err)
 	}
 
 	if l.String() != l2.String() {
