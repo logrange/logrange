@@ -49,11 +49,11 @@ const (
 //
 // The following conventions is applied for the format string fstr: Special constructions like
 // LogEvent's field names, tags and time-stamp format should be placed into curly braces '{', '}':
-// {msg:<json>  	- LogEvent message (raw or json escaped)
-// {ts} 			- LogEvent timestamp in RFC3339 format
-// {vars}			- All known tags and fields associated with the LogEvent source
-// {ts:<format>} 	- LogEvent timestamp in the format provided
-// {vars:<tag or field name>}	- Value of the tag or filed name provided
+// {msg:<json>      - LogEvent message (raw or json escaped)
+// {ts}             - LogEvent timestamp in RFC3339 format
+// {vars}           - All known tags and fields associated with the LogEvent source
+// {ts:<format>}    - LogEvent timestamp in the format provided
+// {vars:<tag or field name>} - Value of the tag or filed name provided
 //
 // Example:
 // 	"app:{vars:name}\t{ts:15:04:05.000}: {msg}" - will print app name associated with the tag "name",
