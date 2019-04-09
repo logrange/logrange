@@ -13,8 +13,8 @@
 // limitations under the License.
 
 /*
-lql package contains parser and helper functions and structures for parsing Lograng Query Language (LQL)
-The LQL supports the following constructions:
+lql package contains parser's functions and structures for working with Logrange Query Language (LQL)
+The LQL supports the following constructions so far:
 	SELECT [<format string>] [FROM ({<tags>}|<tags expression)] [WHERE <fields expression>] [POSITION (head|tail|<specific pos>)] [OFFSET <number>][LIMIT <number>]
 	SHOW PARTITIONS [({<tags>}|<tags expression)][OFFSET <number>][LIMIT <number>]
 	SHOW PIPES [OFFSET <number>][LIMIT <number>]
