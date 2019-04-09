@@ -13,3 +13,33 @@
 // limitations under the License.
 
 package utils
+
+import (
+	"encoding/json"
+	"testing"
+)
+
+func TestEscapeJsonStr(t *testing.T) {
+	type args struct {
+		s string
+	}
+	tests := []struct {
+		name string
+		args args
+	}{
+		{name: "test1", args: struct{ s string }{s: ""}},
+		{name: "test2", args: struct{ s string }{s: "\""}},
+		{name: "test3", args: struct{ s string }{s: "ha\\\r\"haЛwПР\"" + string(0x19)}},
+		{name: "test4", args: struct{ s string }{s: string(0x20) + "\"\nЫqЛ\"\\ЫЗvz"}},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			bb, _ := json.Marshal(tt.args.s)
+			exp := string(bb)
+			act := EscapeJsonStr(tt.args.s)
+			if exp != act {
+				t.Fatalf("expected to match: exp=%v and act=%v", exp, act)
+			}
+		})
+	}
+}

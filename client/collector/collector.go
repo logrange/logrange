@@ -29,8 +29,8 @@ import (
 )
 
 func Run(ctx context.Context, cfg *scanner.Config, cl api.Client, storg storage.Storage) error {
-
 	logger := log4g.GetLogger("collector")
+
 	scanr, err := scanner.NewScanner(cfg, storg)
 	if err != nil {
 		return fmt.Errorf("failed to create scanner, err=%v", err)

@@ -17,6 +17,7 @@ package model
 import (
 	"fmt"
 	"github.com/logrange/logrange/pkg/model/tag"
+	"github.com/logrange/logrange/pkg/utils"
 	"github.com/logrange/logrange/pkg/utils/kvstring"
 	"strings"
 	"time"
@@ -48,9 +49,9 @@ const (
 //
 // The following conventions is applied for the format string fstr: Special constructions like
 // LogEvent's field names, tags and time-stamp format should be placed into curly braces '{', '}':
-// {msg} 	- LogEvent message
-// {ts} 	- LogEvent timestamp in RFC3339 format
-// {vars}	- All known tags and fields associated with the LogEvent source
+// {msg:<json>  	- LogEvent message (raw or json escaped)
+// {ts} 			- LogEvent timestamp in RFC3339 format
+// {vars}			- All known tags and fields associated with the LogEvent source
 // {ts:<format>} 	- LogEvent timestamp in the format provided
 // {vars:<tag or field name>}	- Value of the tag or filed name provided
 //
@@ -95,6 +96,8 @@ func NewFormatParser(fstr string) (*FormatParser, error) {
 				cv := strings.ToLower(val)
 				if cv == "msg" {
 					fields = append(fields, formatField{frmtFldMsg, ""})
+				} else if strings.HasPrefix(cv, "msg:") && (len(val[4:]) == 0 || val[4:] == "json") {
+					fields = append(fields, formatField{frmtFldMsg, val[4:]})
 				} else if cv == "vars" {
 					fields = append(fields, formatField{frmtFldVars, ""})
 				} else if cv == "ts" {
@@ -104,7 +107,7 @@ func NewFormatParser(fstr string) (*FormatParser, error) {
 				} else if strings.HasPrefix(cv, "vars:") && len(val) > 5 {
 					fields = append(fields, formatField{frmtFldVar, val[5:]})
 				} else {
-					return nil, fmt.Errorf("unknown field {%s}. Expected values are: {msg}, {vars}, {ts}, {ts:<time format>}, {vars:<tag or field name>}", val)
+					return nil, fmt.Errorf("unknown field {%s}. Expected values are: {msg:<json>}, {vars}, {ts}, {ts:<time format>}, {vars:<tag or field name>}", val)
 				}
 				startIdx = i + 1
 				state = 0
@@ -137,7 +140,11 @@ func (fp *FormatParser) FormatStr(le *LogEvent, tl string) string {
 				buf.WriteString(time.Unix(0, int64(lge.Timestamp)).Format(ff.value))
 			}
 		case frmtFldMsg:
-			buf.WriteString(lge.Msg.AsWeakString())
+			s := lge.Msg.AsWeakString()
+			if ff.value == "json" {
+				s = utils.EscapeJsonStr(s)
+			}
+			buf.WriteString(s)
 		case frmtFldVar:
 			v := le.Fields.Value(ff.value)
 			if v == "" {
