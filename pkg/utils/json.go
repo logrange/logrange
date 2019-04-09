@@ -37,8 +37,9 @@ func ToJsonStr(v interface{}) string {
 	return strings.TrimRight(s, "\n")
 }
 
-// Provides the same escaping/encoding as standard json.Marshal,
-// but does not escape HTML unsafe symbols, which are actually valid json
+// Slightly modified version of stringBytes() method from go's /src/encoding/json/encode.go
+// Provides the same escaping/encoding except for the part that it does not escape HTML unsafe
+// symbols and we don't care about jsonp as well...
 func EscapeJsonStr(s string) string {
 	e := &bytes.Buffer{}
 	e.WriteByte('"')
