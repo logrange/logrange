@@ -37,7 +37,7 @@ type (
 		tags      tag.Set
 		exclusive bool
 		readers   int
-		// Src contains the journal source. It is capitalized to be marshaled/unmarshaled properly
+		// Src contains the partition source. It is capitalized to be marshaled/unmarshaled properly
 		Src string
 	}
 
@@ -235,7 +235,7 @@ L1:
 			}
 
 			if _, ok := ims.smap[v.Src]; !ok {
-				ims.logger.Debug("the journal ", v.Src, ", seems to be removed while visiting. SKipping it.")
+				ims.logger.Debug("the partition ", v.Src, ", seems to be removed while visiting. SKipping it.")
 				ims.lock.Unlock()
 				vstd[i] = nil
 				continue L1
@@ -273,14 +273,14 @@ L1:
 	return nil
 }
 
-// Release allows to release the journal name which could be acquired by GetOrCreateJournal
+// Release allows to release the partition name which could be acquired by GetOrCreateJournal
 func (ims *inmemService) Release(jn string) {
 	ims.lock.Lock()
 	if td, ok := ims.smap[string(jn)]; ok {
 		if td.exclusive {
 			panic("Could not release the lock, which was locked exclusively " + td.String())
 		} else if td.readers <= 0 {
-			panic("Could not release journal, it was not acquired " + td.String())
+			panic("Could not release partition, it was not acquired " + td.String())
 		} else {
 			td.readers--
 		}
@@ -314,7 +314,7 @@ func (ims *inmemService) UnlockExclusively(jn string) {
 	ims.lock.Unlock()
 }
 
-// Delete allows to release and delete the journal name (and its tags association). If an error
+// Delete allows to release and delete the partition name (and its tags association). If an error
 // is returned, the jn must be released via Release method anyway
 func (ims *inmemService) Delete(jn string) error {
 	ims.lock.Lock()
@@ -382,7 +382,7 @@ func (ims *inmemService) checkConsistency(ctx context.Context) error {
 	ims.Journals.Visit(ctx, func(j journal.Journal) bool {
 		jCnt++
 		if _, ok := km[j.Name()]; !ok {
-			ims.logger.Error("found journal ", j.Name(), ", but it is not in the tindex")
+			ims.logger.Error("found partition ", j.Name(), ", but it is not in the tindex")
 			fail = true
 		} else {
 			delete(km, j.Name())

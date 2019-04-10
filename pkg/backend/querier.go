@@ -20,10 +20,10 @@ import (
 	"github.com/jrivets/log4g"
 	"github.com/logrange/logrange/api"
 	"github.com/logrange/logrange/pkg/cursor"
-	"github.com/logrange/logrange/pkg/journal"
 	"github.com/logrange/logrange/pkg/model"
 	"github.com/logrange/logrange/pkg/model/field"
 	"github.com/logrange/logrange/pkg/model/tag"
+	"github.com/logrange/logrange/pkg/partition"
 	"io"
 	"strings"
 	"time"
@@ -32,8 +32,8 @@ import (
 type (
 	// Querier is a backend structure used by an api implementation
 	Querier struct {
-		Journals    *journal.Service `inject:""`
-		CurProvider cursor.Provider  `inject:""`
+		Journals    *partition.Service `inject:""`
+		CurProvider cursor.Provider    `inject:""`
 
 		logger log4g.Logger
 	}
@@ -128,5 +128,7 @@ func (q *Querier) Query(ctx context.Context, req *api.QueryRequest) (*api.QueryR
 
 // Sources provides implementation for api.Querier.Source function
 func (q *Querier) Sources(ctx context.Context, tagsCond string) (*api.SourcesResult, error) {
-	return q.Journals.Sources(ctx, tagsCond)
+	//return q.Journals.Sources(ctx, tagsCond)
+	//TODO: should it be here???
+	return nil, fmt.Errorf("Not supported")
 }

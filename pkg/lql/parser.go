@@ -163,8 +163,8 @@ type (
 
 	Partitions struct {
 		Source *Source `(@@)?`
-		Offset *int64  `("OFFSET" @Number)?`
-		Limit  *int64  `("LIMIT" @Number)?`
+		Offset *int    `("OFFSET" @Number)?`
+		Limit  *int    `("LIMIT" @Number)?`
 	}
 
 	Pipes struct {
@@ -307,6 +307,16 @@ func addStringIfNotEmpty(pfx string, val *string, sb *strings.Builder) {
 }
 
 func addInt64IfNotEmpty(pfx string, val *int64, sb *strings.Builder) {
+	if val == nil {
+		return
+	}
+	sb.WriteByte(' ')
+	sb.WriteString(pfx)
+	sb.WriteByte(' ')
+	sb.WriteString(fmt.Sprintf("%d", *val))
+}
+
+func addIntIfNotEmpty(pfx string, val *int, sb *strings.Builder) {
 	if val == nil {
 		return
 	}
@@ -557,8 +567,8 @@ func (p *Partitions) makeString(sb *strings.Builder) {
 	if p.Source != nil {
 		p.Source.makeString(sb)
 	}
-	addInt64IfNotEmpty("OFFSET", p.Offset, sb)
-	addInt64IfNotEmpty("LIMIT", p.Limit, sb)
+	addIntIfNotEmpty("OFFSET", p.Offset, sb)
+	addIntIfNotEmpty("LIMIT", p.Limit, sb)
 }
 
 // === Create

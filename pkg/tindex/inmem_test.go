@@ -93,7 +93,7 @@ func BenchmarkFindIndex(b *testing.B) {
 	ims.Init(nil)
 	src, _, err := ims.GetOrCreateJournal("a=b,c=asdfasdfasdf")
 	if err != nil {
-		b.Fatal("Must be able to create new journal")
+		b.Fatal("Must be able to create new partition")
 	}
 
 	b.ReportAllocs()
@@ -269,7 +269,7 @@ func TestReAcquireExclusively(t *testing.T) {
 
 	// check visitior
 	if len(res) != 1 || res[tags] != src {
-		t.Fatal("Visitor must return the journal but res=", res)
+		t.Fatal("Visitor must return the partition but res=", res)
 	}
 
 	if ims.smap[src].readers != 2 {
@@ -287,10 +287,10 @@ func TestReAcquireExclusively(t *testing.T) {
 		t.Fatal("Must be acquired")
 	}
 
-	// visitor must not return the journal
+	// visitor must not return the partition
 	res, _ = getJournals(ims, ps)
 	if len(res) != 0 {
-		t.Fatal("Visitor must not return the journal but res=", res)
+		t.Fatal("Visitor must not return the partition but res=", res)
 	}
 
 	// releasing the exclusive
@@ -305,10 +305,10 @@ func TestReAcquireExclusively(t *testing.T) {
 		t.Fatal("Must not be acquired")
 	}
 
-	// visitor must return the journal again
+	// visitor must return the partition again
 	res, _ = getJournals(ims, ps)
 	if len(res) != 1 || res[tags] != src {
-		t.Fatal("Visitor must return the journal but res=", res)
+		t.Fatal("Visitor must return the partition but res=", res)
 	}
 
 	// Ok, re-acquire once again now

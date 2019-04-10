@@ -52,12 +52,12 @@ type (
 )
 
 const (
-	cmdSelectName     = "select"
-	cmdShowPartitions = "show partitions"
-	cmdTruncName      = "truncate"
-	cmdSetOptName     = "setoption"
-	cmdQuitName       = "quit"
-	cmdHelpName       = "help"
+	cmdSelectName = "select"
+	//cmdShowPartitions = "show partitions"
+	cmdTruncName  = "truncate"
+	cmdSetOptName = "setoption"
+	cmdQuitName   = "quit"
+	cmdHelpName   = "help"
 
 	optStreamMode = "stream-mode"
 )
@@ -71,12 +71,6 @@ func init() {
 			matcher: regexp.MustCompile("(?i)^select\\s.+$"),
 			cmdFn:   selectFn,
 			help:    "run LQL queries, e.g. 'select limit 1'",
-		},
-		{
-			name:    cmdShowPartitions,
-			matcher: regexp.MustCompile(`(?i)^show\s+partitions.*$`),
-			cmdFn:   descFn,
-			help:    "show partitions, e.g. 'show partitions name like \"app*\"'",
 		},
 		{
 			name:    cmdTruncName,
@@ -118,7 +112,8 @@ func execCmd(ctx context.Context, input string, cfg *config) error {
 		}
 		return d.cmdFn(ctx, cfg)
 	}
-	return fmt.Errorf("unknown command=%v, try help, or check the syntax.", input)
+	cfg.query = []string{input}
+	return exec(ctx, cfg)
 }
 
 func getInputVars(re *regexp.Regexp, input string) map[string]string {
@@ -254,46 +249,18 @@ func buildReq(selStr string, stream bool) (*api.QueryRequest, *model.FormatParse
 
 //===================== describe =====================
 
-func descFn(ctx context.Context, cfg *config) error {
-	l, err := lql.ParseLql(cfg.query[0])
-	if err != nil {
-		fmt.Println("Could not parse ", cfg.query[0])
-		return err
-	}
-
-	if l.Show == nil || l.Show.Partitions == nil {
-		return fmt.Errorf("Oops, expected 'show partitions...', but received %s", cfg.query[0])
-	}
-
-	res := &api.SourcesResult{}
-	err = cfg.cli.Sources(ctx, l.Show.Partitions.Source.String(), res)
+func exec(ctx context.Context, cfg *config) error {
+	res, err := cfg.cli.Execute(ctx, api.ExecRequest{cfg.query[0]})
 	if err != nil {
 		return err
 	}
 
-	first := true
-	for _, s := range res.Sources {
-		if first {
-			fmt.Printf("\n%10s  %13s  %s", "SIZE", "RECORDS", "TAGS")
-			fmt.Printf("\n----------  -------------  ----")
-			first = false
-		}
-
-		fmt.Printf("\n%10s %13s  %s", humanize.Bytes(s.Size), humanize.Comma(int64(s.Records)), s.Tags)
+	if res.Err != nil {
+		fmt.Printf("Execution error(%s): %s\n\n", cfg.query[0], res.Err)
+		return nil
 	}
 
-	if !first {
-		if len(res.Sources) < res.Count {
-			fmt.Printf("\n\n... and more recods ...\n")
-		}
-
-		if res.Count > 1 {
-			fmt.Printf("\n----------  -------------")
-			fmt.Printf("\n%10s  %13s\n", humanize.Bytes(res.TotalSize), humanize.Comma(int64(res.TotalRec)))
-		}
-	}
-
-	fmt.Printf("\ntotal: %d sources match the criteria\n\n", res.Count)
+	fmt.Println(res.Output)
 	return nil
 }
 

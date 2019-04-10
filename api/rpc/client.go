@@ -125,6 +125,23 @@ func (c *Client) Truncate(ctx context.Context, request api.TruncateRequest) (api
 	return res, nil
 }
 
+func (c *Client) Execute(ctx context.Context, req api.ExecRequest) (api.ExecResult, error) {
+	if c.rc == nil {
+		err := c.connect()
+		if err != nil {
+			return api.ExecResult{}, err
+		}
+	}
+
+	res, err := c.admin.Execute(ctx, req)
+	if err != nil {
+		_ = c.Close()
+		return api.ExecResult{}, err
+	}
+
+	return res, nil
+}
+
 func (c *Client) Query(ctx context.Context, qr *api.QueryRequest, res *api.QueryResult) error {
 	if c.rc == nil {
 		err := c.connect()

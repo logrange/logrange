@@ -58,13 +58,13 @@ type (
 		jDescs       map[string]*jrnlDesc
 	}
 
-	// JournalsProvider interface is used for creating new cursors. journal.Service most probably implements it.
+	// JournalsProvider interface is used for creating new cursors. partition.Service most probably implements it.
 	JournalsProvider interface {
-		// GetJournals returns map of journals by tags:journal.Journal or an error, if any. The returned journals
+		// GetJournals returns map of journals by tags:partition.Journal or an error, if any. The returned journals
 		// must be released after usage by Release() function
 		GetJournals(ctx context.Context, tagsCond *lql.Source, maxLimit int) (map[tag.Line]journal.Journal, error)
 
-		// Release releases the journal. Journal must not be used after the call
+		// Release releases the partition. Journal must not be used after the call
 		Release(jn string)
 	}
 
@@ -288,14 +288,14 @@ func (cur *crsr) applyStatePos() error {
 		kv := strings.Split(v, cPosJrnlVal)
 		if len(kv) != 2 {
 			return errors.Errorf(
-				"Could not parse position=%s, value the %s sub-string doesn't look like journal pos. Expecting <jrnlId>%s<jrnlPos>",
+				"Could not parse position=%s, value the %s sub-string doesn't look like partition pos. Expecting <jrnlId>%s<jrnlPos>",
 				cur.state.Pos, v, cPosJrnlVal)
 		}
 
 		jrnl := kv[0]
 		pos, err := journal.ParsePos(kv[1])
 		if err != nil {
-			return errors.Wrapf(err, "Could not parse pos %s to journal.Pos", kv[1])
+			return errors.Wrapf(err, "Could not parse pos %s to partition.Pos", kv[1])
 		}
 		m[jrnl] = pos
 	}

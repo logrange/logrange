@@ -50,14 +50,29 @@ type (
 		DryRun bool
 		// TagsCond contains the tags condition to select journals to be truncated
 		TagsCond string
-		// MaxSrcSize defines the upper level of a journal size, which will be truncated, if reached
+		// MaxSrcSize defines the upper level of a partition size, which will be truncated, if reached
 		MaxSrcSize uint64
-		// MinSrcSize defines the lower level of a journal size, which will not be cut if the journal will be less
+		// MinSrcSize defines the lower level of a partition size, which will not be cut if the partition will be less
 		// than this parameter after truncation
 		MinSrcSize uint64
 		// OldestTs defines the oldest record timestamp. Chunks with records less than the parameter are candidates
 		// for truncation
 		OldestTs uint64
+	}
+
+	// ExecResult struct returns in response of the request to execute a LQL query
+	ExecResult struct {
+		// Output contains formatted output result of the command execution
+		Output string
+
+		// Err contains the operation error, if any
+		Err error `json:"-"`
+	}
+
+	// ExecRequest struct must be provided as an input for Admin.Execute request
+	ExecRequest struct {
+		// Query contains a LQL statement to be executed
+		Query string
 	}
 
 	// Admin interface allows to perform some administrative actions
@@ -66,5 +81,9 @@ type (
 		// Truncate walks over all known sources and tries to truncate them if they match with the request
 		// It returns list of sources affected.
 		Truncate(ctx context.Context, req TruncateRequest) (res TruncateResult, err error)
+
+		// Execute runs the lql query on server and provides the execution result or an error, if the query could not be
+		// run
+		Execute(ctx context.Context, req ExecRequest) (ExecResult, error)
 	}
 )

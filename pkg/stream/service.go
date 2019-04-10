@@ -19,8 +19,8 @@ import (
 	"fmt"
 	"github.com/jrivets/log4g"
 	"github.com/logrange/logrange/pkg/cursor"
-	journal2 "github.com/logrange/logrange/pkg/journal"
 	"github.com/logrange/logrange/pkg/model/tag"
+	journal2 "github.com/logrange/logrange/pkg/partition"
 	context2 "github.com/logrange/range/pkg/context"
 	"github.com/logrange/range/pkg/utils/errors"
 	"github.com/logrange/range/pkg/utils/fileutil"
@@ -62,7 +62,7 @@ type (
 		// strms maps a stream name to *strm object
 		strms map[string]*strm
 
-		// weCache map of journal name to the list of streams for it.
+		// weCache map of partition name to the list of streams for it.
 		weCache map[string][]*strm
 
 		// wwg is workers watch group
@@ -188,7 +188,7 @@ func (s *Service) GetStream(name string) (StreamDesc, error) {
 }
 
 // DeleteStream delete the stream by its name provided, but it doesn't delete the data. The stream
-// data must be deleted via journal.Truncate method
+// data must be deleted via partition.Truncate method
 func (s *Service) DeleteStream(name string) error {
 	err := errors.NotFound
 	s.logger.Info("Deleting stream ", name)

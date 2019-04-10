@@ -18,10 +18,10 @@ import (
 	"context"
 	"fmt"
 	"github.com/logrange/logrange/api"
-	"github.com/logrange/logrange/pkg/journal"
 	"github.com/logrange/logrange/pkg/model"
 	"github.com/logrange/logrange/pkg/model/field"
 	"github.com/logrange/logrange/pkg/model/tag"
+	"github.com/logrange/logrange/pkg/partition"
 	rrpc "github.com/logrange/range/pkg/rpc"
 	"github.com/logrange/range/pkg/utils/bytes"
 	"github.com/logrange/range/pkg/utils/encoding/xbinary"
@@ -33,8 +33,8 @@ import (
 type (
 	// ServerIngestor is a struct, which provides the ingestor RPC functionality.
 	ServerIngestor struct {
-		Journals *journal.Service `inject:""`
-		MainCtx  context.Context  `inject:"mainCtx"`
+		Journals *partition.Service `inject:""`
+		MainCtx  context.Context    `inject:"mainCtx"`
 
 		wg sync.WaitGroup
 	}
@@ -50,7 +50,7 @@ type (
 	}
 
 	// wpIterator is the struct which receives the slice of bytes and provides a records.Iteratro, sutable for
-	// writing the data directly to a journal
+	// writing the data directly to a partition
 	wpIterator struct {
 		tags string
 		lge  model.LogEvent

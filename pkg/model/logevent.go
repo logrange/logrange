@@ -21,7 +21,7 @@ import (
 )
 
 type (
-	// LogEvent struct is used for storing one log-event record in a journal.
+	// LogEvent struct is used for storing one log-event record in a partition.
 	LogEvent struct {
 		// Timestamp of the message. It is filled by collector and can contain either collection timestamp or the
 		// message timestamp

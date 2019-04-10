@@ -76,7 +76,7 @@ func (w *worker) run(ctx context.Context) {
 			if werrs > 60 {
 				werrs = 60
 			}
-			w.logger.Warn("could not write data into the journal ", w.dstTags.String(), " will sleep for ", werrs, " second(s) and try again, err=", err)
+			w.logger.Warn("could not write data into the partition ", w.dstTags.String(), " will sleep for ", werrs, " second(s) and try again, err=", err)
 			context2.Sleep(ctx, time.Duration(werrs)*time.Second)
 			continue
 		}

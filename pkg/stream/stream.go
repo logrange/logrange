@@ -18,9 +18,9 @@ import (
 	"context"
 	"github.com/jrivets/log4g"
 	"github.com/logrange/logrange/pkg/cursor"
-	journal2 "github.com/logrange/logrange/pkg/journal"
 	"github.com/logrange/logrange/pkg/lql"
 	"github.com/logrange/logrange/pkg/model/tag"
+	journal2 "github.com/logrange/logrange/pkg/partition"
 	"github.com/logrange/range/pkg/records/journal"
 	errors2 "github.com/logrange/range/pkg/utils/errors"
 	"github.com/pkg/errors"
@@ -177,7 +177,7 @@ func (s *strm) getConfig() Stream {
 func (s *strm) curPos2JrnlPos(src, cpos string) (journal.Pos, error) {
 	res := strings.Split(cpos, "=")
 	if len(res) != 2 {
-		return journal.Pos{}, errors.Errorf("could not parse %s as a journal position ", cpos)
+		return journal.Pos{}, errors.Errorf("could not parse %s as a partition position ", cpos)
 	}
 
 	if res[0] != src {
