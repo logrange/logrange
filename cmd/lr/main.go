@@ -78,25 +78,25 @@ func main() {
 		Commands: []*ucli.Command{
 			{
 				Name:   "collect",
-				Usage:  "run data collection",
+				Usage:  "Run data collection",
 				Action: runCollector,
 				Flags:  cmnFlags,
 			},
 			{
 				Name:   "forward",
-				Usage:  "run data forwarding",
+				Usage:  "Run data forwarding",
 				Action: runForwarder,
 				Flags:  cmnFlags,
 			},
 			{
 				Name:   "shell",
-				Usage:  "run lql shell",
+				Usage:  "Run lql shell",
 				Action: runShell,
 				Flags:  []ucli.Flag{cmnFlags[0]},
 			},
 			{
 				Name:      "query",
-				Usage:     "execute lql query",
+				Usage:     "Execute lql query",
 				Action:    execQuery,
 				ArgsUsage: "[lql query]",
 				Flags: []ucli.Flag{cmnFlags[0],
