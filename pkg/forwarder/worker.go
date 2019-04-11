@@ -124,8 +124,8 @@ func (w *worker) isStopped() bool {
 func (w *worker) getStream(ctx context.Context) (api.Stream, error) {
 	st := api.Stream{
 		Name:       w.desc.Worker.Name,
-		TagsCond:   w.desc.Worker.Stream.Source,
-		FilterCond: w.desc.Worker.Stream.Filter,
+		TagsCond:   w.desc.Worker.Pipe.Source,
+		FilterCond: w.desc.Worker.Pipe.Filter,
 	}
 
 	res := &api.StreamCreateResult{}

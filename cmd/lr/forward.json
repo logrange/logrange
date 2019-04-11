@@ -2,7 +2,7 @@
   "Forwarder": {
     "Workers": [{
       "Name": "forwarder1",
-      "Stream": {
+      "Pipe": {
         "Source": "",
         "Filter": ""
       },
