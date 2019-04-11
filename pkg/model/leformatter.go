@@ -49,17 +49,17 @@ const (
 //
 // The following conventions is applied for the format string fstr: Special constructions like
 // LogEvent's field names, tags and time-stamp format should be placed into curly braces '{', '}':
-// {msg:<json>      - LogEvent message (raw or json escaped)
-// {ts}             - LogEvent timestamp in RFC3339 format
-// {vars}           - All known tags and fields associated with the LogEvent source
-// {ts:<format>}    - LogEvent timestamp in the format provided
+// {msg.<json()>            - LogEvent message (raw or json escaped)
+// {ts}                     - LogEvent timestamp in RFC3339 format
+// {vars}                   - All known tags and fields associated with the LogEvent source
+// {ts.<format(<ts fmt>)>}  - LogEvent timestamp in the format provided
 // {vars:<tag or field name>} - Value of the tag or filed name provided
 //
 // Example:
-// 	"app:{vars:name}\t{ts:15:04:05.000}: {msg}" - will print app name associated with the tag "name",
+// 	"app:{vars:name}\t{ts.format(15:04:05.000)}: {msg}" - will print app name associated with the tag "name",
 //												then timestamp and the log message
-// 	"{msg}" - will print the log message body only
-//	"{vars} - {msg}"	- will print all tags and fields associated with the source and the message body
+// 	"{msg.json()}"      - will print the log message body only (json escaped)
+//	"{vars} - {msg}"    - will print all tags and fields associated with the source and the message body
 func NewFormatParser(fstr string) (*FormatParser, error) {
 	fields := make([]formatField, 0, 10)
 	state := 0
@@ -96,18 +96,19 @@ func NewFormatParser(fstr string) (*FormatParser, error) {
 				cv := strings.ToLower(val)
 				if cv == "msg" {
 					fields = append(fields, formatField{frmtFldMsg, ""})
-				} else if strings.HasPrefix(cv, "msg:") && (len(val[4:]) == 0 || val[4:] == "json") {
-					fields = append(fields, formatField{frmtFldMsg, val[4:]})
-				} else if cv == "vars" {
-					fields = append(fields, formatField{frmtFldVars, ""})
+				} else if cv == "msg.json()" {
+					fields = append(fields, formatField{frmtFldMsg, cv[4:]})
 				} else if cv == "ts" {
 					fields = append(fields, formatField{frmtFldTs, time.RFC3339})
-				} else if strings.HasPrefix(cv, "ts:") {
-					fields = append(fields, formatField{frmtFldTs, val[3:]})
+				} else if strings.HasPrefix(cv, "ts.format(") && len(val) > 10 && val[len(val)-1] == ')' {
+					fields = append(fields, formatField{frmtFldTs, val[10 : len(val)-1]})
+				} else if cv == "vars" {
+					fields = append(fields, formatField{frmtFldVars, ""})
 				} else if strings.HasPrefix(cv, "vars:") && len(val) > 5 {
 					fields = append(fields, formatField{frmtFldVar, val[5:]})
 				} else {
-					return nil, fmt.Errorf("unknown field {%s}. Expected values are: {msg:<json>}, {vars}, {ts}, {ts:<time format>}, {vars:<tag or field name>}", val)
+					return nil, fmt.Errorf("unknown field {%s}. Expected values are: "+
+						"{msg}, {msg.<json()>}, {vars}, {ts}, {ts.<format(ts format)>}, {vars:<tag or field name>}", val)
 				}
 				startIdx = i + 1
 				state = 0
@@ -116,7 +117,7 @@ func NewFormatParser(fstr string) (*FormatParser, error) {
 	}
 
 	if state != 0 {
-		return nil, fmt.Errorf("unexpected end of string, '}' is not found.")
+		return nil, fmt.Errorf("unexpected end of string, '}' is not found")
 	}
 
 	if startIdx < len(fstr) {
@@ -141,7 +142,7 @@ func (fp *FormatParser) FormatStr(le *LogEvent, tl string) string {
 			}
 		case frmtFldMsg:
 			s := lge.Msg.AsWeakString()
-			if ff.value == "json" {
+			if ff.value == "json()" {
 				s = utils.EscapeJsonStr(s)
 			}
 			buf.WriteString(s)
