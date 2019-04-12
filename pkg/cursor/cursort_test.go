@@ -104,10 +104,8 @@ func TestNewCursoreWithPos(t *testing.T) {
 	}
 	pos := cur.collectPos()
 	t.Log("cur.collectPos=", pos)
-	for i := 100; i > 0; i-- {
-		if pos != "j1=000000000001234D00000ABC:j2=000000000000000000000000" && pos != "j2=000000000000000000000000:j1=000000000001234D00000ABC" {
-			t.Fatal("Wrong pos initialized. Expected j1=000000000001234D00000ABC:j2=000000000000000000000000, but cur.collectPos=", cur.collectPos())
-		}
+	if pos != "j1=000000000001234D00000ABC:j2=000000000000000000000000" && pos != "j2=000000000000000000000000:j1=000000000001234D00000ABC" {
+		t.Fatal("Wrong pos initialized. Expected j1=000000000001234D00000ABC:j2=000000000000000000000000, but cur.collectPos=", cur.collectPos())
 	}
 }
 
