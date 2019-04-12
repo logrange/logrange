@@ -26,15 +26,16 @@ import (
 )
 
 type (
-	StreamConfig struct {
+	PipeConfig struct {
+		Name   string
 		Source string
 		Filter string
 	}
 
 	WorkerConfig struct {
-		Name   string
-		Stream *StreamConfig
-		Sink   *sink.Config
+		Name string
+		Pipe *PipeConfig
+		Sink *sink.Config
 	}
 
 	Config struct {
@@ -136,16 +137,16 @@ func (wc *WorkerConfig) Check() error {
 	if strings.TrimSpace(wc.Name) == "" {
 		return fmt.Errorf("invalid Name=%v, must be non-empty", wc.Name)
 	}
-	if wc.Stream == nil {
-		return fmt.Errorf("invalid Stream=%v, must be non-nil", wc.Stream)
+	if wc.Pipe == nil {
+		return fmt.Errorf("invalid Pipe=%v, must be non-nil", wc.Pipe)
 	}
 	if wc.Sink == nil {
 		return fmt.Errorf("invalid Sink=%v, must be non-nil", wc.Sink)
 	}
 
-	err := wc.Stream.Check()
+	err := wc.Pipe.Check()
 	if err != nil {
-		return fmt.Errorf("invalid Stream=%v: %v", wc.Stream, err)
+		return fmt.Errorf("invalid Pipe=%v: %v", wc.Pipe, err)
 	}
 	err = wc.Sink.Check()
 	if err != nil {
@@ -161,21 +162,27 @@ func (wc *WorkerConfig) String() string {
 
 //===================== streamConfig =====================
 
-func (sc *StreamConfig) Check() error {
-	if _, err := lql.ParseSource(sc.Source); err != nil {
-		return fmt.Errorf("invalid Source=%s: %v", sc.Source, err)
+func (sc *PipeConfig) Check() error {
+	if sc.Name != "" && (sc.Source != "" || sc.Filter != "") {
+		return fmt.Errorf("both Source and Filter must be empty " +
+			"when Name is not empty")
 	}
-	if _, err := lql.ParseExpr(sc.Filter); err != nil {
-		return fmt.Errorf("invalid Filter=%s: %v", sc.Filter, err)
-	}
-	if sc.Filter != "" {
-		if _, err := syntax.Parse(sc.Filter, syntax.Perl); err != nil {
+	if sc.Name == "" {
+		if _, err := lql.ParseSource(sc.Source); err != nil {
+			return fmt.Errorf("invalid Source=%s: %v", sc.Source, err)
+		}
+		if _, err := lql.ParseExpr(sc.Filter); err != nil {
 			return fmt.Errorf("invalid Filter=%s: %v", sc.Filter, err)
+		}
+		if sc.Filter != "" {
+			if _, err := syntax.Parse(sc.Filter, syntax.Perl); err != nil {
+				return fmt.Errorf("invalid Filter=%s: %v", sc.Filter, err)
+			}
 		}
 	}
 	return nil
 }
 
-func (sc *StreamConfig) String() string {
+func (sc *PipeConfig) String() string {
 	return utils.ToJsonStr(sc)
 }

@@ -150,7 +150,7 @@ func selectFn(ctx context.Context, cfg *config) error {
 
 		total := 0
 		start := time.Now()
-		err = doSelect(ctx, qr, cfg.cli, cfg.stream,
+		err = api.Select(ctx, cfg.cli, qr, cfg.stream,
 			func(res *api.QueryResult) {
 				printResults(res, frmt, os.Stdout)
 				total += len(res.Events)
@@ -162,37 +162,6 @@ func selectFn(ctx context.Context, cfg *config) error {
 
 		fmt.Printf("\ntotal: %d, exec. time %s\n\n", total, time.Now().Sub(start))
 	}
-	return nil
-}
-
-func doSelect(ctx context.Context, qr *api.QueryRequest, cli api.Client, streamMode bool,
-	handler func(res *api.QueryResult)) error {
-
-	limit := qr.Limit
-	timeout := qr.WaitTimeout
-	for ctx.Err() == nil {
-		qr.Limit = limit
-		qr.WaitTimeout = timeout
-
-		res := &api.QueryResult{}
-		err := cli.Query(ctx, qr, res)
-		if err != nil {
-			return err
-		}
-
-		if len(res.Events) != 0 {
-			handler(res)
-		}
-		qr = &res.NextQueryRequest
-
-		if !streamMode {
-			if limit <= 0 || len(res.Events) == 0 {
-				break
-			}
-			limit -= len(res.Events)
-		}
-	}
-
 	return nil
 }
 
@@ -234,7 +203,7 @@ func buildReq(selStr string, stream bool) (*api.QueryRequest, *model.FormatParse
 		pos = s.Position.PosId
 	}
 
-	lim := utils.GetInt64Val(s.Limit, 0)
+	lim := utils.GetInt64Val(s.Limit, 50)
 	if lim > math.MaxInt32 {
 		lim = math.MaxInt32
 	}
@@ -263,7 +232,7 @@ func descFn(ctx context.Context, cfg *config) error {
 		return err
 	}
 	if l.Describe == nil {
-		return fmt.Errorf("Oops, expected describe, but received %s", cfg.query[0])
+		return fmt.Errorf("oops, expected describe, but received %s", cfg.query[0])
 	}
 
 	res := &api.SourcesResult{}
