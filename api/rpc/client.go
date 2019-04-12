@@ -142,37 +142,6 @@ func (c *Client) Query(ctx context.Context, qr *api.QueryRequest, res *api.Query
 	return res.Err
 }
 
-func (c *Client) Select(ctx context.Context, qr *api.QueryRequest, streamMode bool,
-	handler func(res *api.QueryResult)) error {
-
-	limit := qr.Limit
-	timeout := qr.WaitTimeout
-	for ctx.Err() == nil {
-		qr.Limit = limit
-		qr.WaitTimeout = timeout
-
-		res := &api.QueryResult{}
-		err := c.Query(ctx, qr, res)
-		if err != nil {
-			return err
-		}
-
-		if len(res.Events) != 0 {
-			handler(res)
-		}
-
-		qr = &res.NextQueryRequest
-		if !streamMode {
-			if limit <= 0 || len(res.Events) == 0 {
-				break
-			}
-			limit -= len(res.Events)
-		}
-	}
-
-	return nil
-}
-
 func (c *Client) Write(ctx context.Context, tags, fields string, evs []*api.LogEvent, res *api.WriteResult) error {
 	if c.rc == nil {
 		err := c.connect()

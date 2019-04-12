@@ -150,7 +150,7 @@ func selectFn(ctx context.Context, cfg *config) error {
 
 		total := 0
 		start := time.Now()
-		err = cfg.cli.Select(ctx, qr, cfg.stream,
+		err = api.Select(ctx, cfg.cli, qr, cfg.stream,
 			func(res *api.QueryResult) {
 				printResults(res, frmt, os.Stdout)
 				total += len(res.Events)
