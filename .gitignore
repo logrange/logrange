@@ -8,7 +8,7 @@
 
 target/
 bin/
-build/
+binaries/
 
 *.iml
 *.ipr
