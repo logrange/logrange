@@ -65,7 +65,7 @@ func (c *Config) Apply(other *Config) {
 	if other.SyncWorkersIntervalSec != 0 {
 		c.SyncWorkersIntervalSec = other.SyncWorkersIntervalSec
 	}
-	if len(other.Workers) != 0 {
+	if other.Workers != nil {
 		c.Workers = deepcopy.Copy(other.Workers).([]*WorkerConfig)
 	}
 	if other.ReloadFn != nil {
