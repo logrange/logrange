@@ -215,7 +215,7 @@ func (web *whereExpFuncBuilder) buildMsgCond(cn *Condition) (err error) {
 			}
 		}
 	default:
-		err = fmt.Errorf("Unsupported operation %s for tag %s", cn.Op, cn.Operand)
+		err = fmt.Errorf("Unsupported operation %s for msg field %s", cn.Op, cn.Operand)
 	}
 	return err
 }
@@ -241,7 +241,7 @@ func (web *whereExpFuncBuilder) buildFldCond(cn *Condition) (err error) {
 		// test it first
 		_, err := path.Match(cn.Value, "abc")
 		if err != nil {
-			err = fmt.Errorf("Wrong 'like' expression for %s, err=%s", cn.Value, err.Error())
+			err = fmt.Errorf("Uncompilable 'like' expression for \"%s\", expected a shell pattern (not regexp) err=%s", cn.Value, err.Error())
 		} else {
 			web.wef = func(le *model.LogEvent) bool {
 				res, _ := path.Match(cn.Value, le.Fields.Value(fldName))
@@ -273,7 +273,7 @@ func (web *whereExpFuncBuilder) buildFldCond(cn *Condition) (err error) {
 			return le.Fields.Value(fldName) <= cn.Value
 		}
 	default:
-		err = fmt.Errorf("Unsupported operation %s for tag %s", cn.Op, cn.Operand)
+		err = fmt.Errorf("Unsupported operation %s for field %s", cn.Op, cn.Operand)
 	}
 	return err
 }
