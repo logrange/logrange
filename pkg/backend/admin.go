@@ -19,7 +19,6 @@ import (
 	"fmt"
 	"github.com/dustin/go-humanize"
 	"github.com/jrivets/log4g"
-	"github.com/kplr-io/kplr"
 	"github.com/logrange/logrange/api"
 	"github.com/logrange/logrange/pkg/lql"
 	"github.com/logrange/logrange/pkg/partition"
@@ -132,11 +131,11 @@ func (ad *Admin) cmdShowPartitions(p *lql.Partitions) (api.ExecResult, error) {
 }
 
 func (ad *Admin) cmdShowPipes(p *lql.Pipes) (api.ExecResult, error) {
-	lim := int(kplr.GetInt64Val(p.Limit, 0))
+	lim := int(utils.GetInt64Val(p.Limit, 0))
 	if lim == 0 {
 		lim = math.MaxInt32
 	}
-	offs := int(kplr.GetInt64Val(p.Offset, 0))
+	offs := int(utils.GetInt64Val(p.Offset, 0))
 	stms := ad.Streams.GetPipes()
 	var sb strings.Builder
 	if lim+offs > len(stms) {
