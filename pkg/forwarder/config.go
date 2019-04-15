@@ -26,27 +26,44 @@ import (
 )
 
 type (
-	StreamConfig struct {
-		Source string
+	// PipeConfig struct constains settings for filtering records from different partitions
+	PipeConfig struct {
+		// From contains an expression for selecting partitions where records will be considered
+		// The value could be empty - app partitions
+		From string
+		// Filter contains an expression for filtering records (true means record is taken).
+		// The value could be empty - all records match
 		Filter string
 	}
 
+	// WorkerConfig struct sets up the name of forwarder, the source (Pipe) and the records
+	// destination (Sink)
 	WorkerConfig struct {
-		Name   string
-		Stream *StreamConfig
-		Sink   *sink.Config
+		// Name contains the name of the forwarding configuration
+		Name string
+		// Pipe describes the source, where records will be taken
+		Pipe *PipeConfig
+		// Sink describes the destination, where records will be written
+		Sink *sink.Config
 	}
 
+	// Config struct contains the comprehensive forwarder configuration. It describes
+	// workers, and some common parameters
 	Config struct {
-		Workers                []*WorkerConfig
-		StateStoreIntervalSec  int
+		// Workers slice contains configuration for all workers
+		Workers []*WorkerConfig
+		// StateStoreIntervalSec the number of seconds between saving state calls
+		StateStoreIntervalSec int
+		// SyncWorkersIntervalSec the number of second between re-checking configurations (files)
 		SyncWorkersIntervalSec int
-		ReloadFn               func() (*Config, error) `json:"-"`
+		// ReloadFn the function which is called for re-load the config (Read from a file, for instance)
+		ReloadFn func() (*Config, error) `json:"-"`
 	}
 )
 
 //===================== config =====================
 
+// NewDefaultConfig creates a new instance of Config with default values
 func NewDefaultConfig() *Config {
 	return &Config{
 		Workers:                []*WorkerConfig{},
@@ -55,6 +72,7 @@ func NewDefaultConfig() *Config {
 	}
 }
 
+// Apply allows to overwrite existing values by the other config provided
 func (c *Config) Apply(other *Config) {
 	if other == nil {
 		return
@@ -73,6 +91,7 @@ func (c *Config) Apply(other *Config) {
 	}
 }
 
+// Check performs a parameter checks and returns an error if they are not acceptable
 func (c *Config) Check() error {
 	if c.StateStoreIntervalSec <= 0 {
 		return fmt.Errorf("invalid StateStoreIntervalSec=%v, must be > 0sec", c.StateStoreIntervalSec)
@@ -96,6 +115,7 @@ func (c *Config) Check() error {
 	return nil
 }
 
+// Reload refresh and can update the Config c instance values
 func (c *Config) Reload() (bool, error) {
 	var (
 		err error
@@ -116,6 +136,7 @@ func (c *Config) Reload() (bool, error) {
 	return false, err
 }
 
+// Equals returns true if the Config c has same field values as other
 func (c *Config) Equals(other *Config) bool {
 	if other == nil {
 		return false
@@ -132,20 +153,21 @@ func (c *Config) String() string {
 
 //===================== workerConfig =====================
 
+// Check performs an internal check for WorkerConfig fields
 func (wc *WorkerConfig) Check() error {
 	if strings.TrimSpace(wc.Name) == "" {
 		return fmt.Errorf("invalid Name=%v, must be non-empty", wc.Name)
 	}
-	if wc.Stream == nil {
-		return fmt.Errorf("invalid Pipe=%v, must be non-nil", wc.Stream)
+	if wc.Pipe == nil {
+		return fmt.Errorf("invalid Pipe=%v, must be non-nil", wc.Pipe)
 	}
 	if wc.Sink == nil {
 		return fmt.Errorf("invalid Sink=%v, must be non-nil", wc.Sink)
 	}
 
-	err := wc.Stream.Check()
+	err := wc.Pipe.Check()
 	if err != nil {
-		return fmt.Errorf("invalid Pipe=%v: %v", wc.Stream, err)
+		return fmt.Errorf("invalid Pipe=%v: %v", wc.Pipe, err)
 	}
 	err = wc.Sink.Check()
 	if err != nil {
@@ -155,15 +177,17 @@ func (wc *WorkerConfig) Check() error {
 	return nil
 }
 
+// String is fmt.Stringer implementation
 func (wc *WorkerConfig) String() string {
 	return utils.ToJsonStr(wc)
 }
 
 //===================== streamConfig =====================
 
-func (sc *StreamConfig) Check() error {
-	if _, err := lql.ParseSource(sc.Source); err != nil {
-		return fmt.Errorf("invalid Source=%s: %v", sc.Source, err)
+// Check performs an internal check for PipeConfig fields
+func (sc *PipeConfig) Check() error {
+	if _, err := lql.ParseSource(sc.From); err != nil {
+		return fmt.Errorf("invalid From=%s: %v", sc.From, err)
 	}
 	if _, err := lql.ParseExpr(sc.Filter); err != nil {
 		return fmt.Errorf("invalid Filter=%s: %v", sc.Filter, err)
@@ -176,6 +200,7 @@ func (sc *StreamConfig) Check() error {
 	return nil
 }
 
-func (sc *StreamConfig) String() string {
+// String is fmt.Stringer implementation
+func (sc *PipeConfig) String() string {
 	return utils.ToJsonStr(sc)
 }

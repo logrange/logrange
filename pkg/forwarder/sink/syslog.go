@@ -72,6 +72,7 @@ func newSyslogSink(cfg *syslogSinkConfig) (*syslogSink, error) {
 	return nil, err
 }
 
+// OnEvent sends the events via syslog to the destination
 func (ss *syslogSink) OnEvent(events []*api.LogEvent) error {
 	var (
 		me model.LogEvent

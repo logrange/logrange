@@ -21,15 +21,23 @@ import (
 )
 
 type (
+	// Params a map of key-value pairs which allows to provide some settings to
+	// a Sink implementation
 	Params map[string]interface{}
 
+	// Config struct contains config for an abstract Sink.
 	Config struct {
-		Type   string
+		// Type defines type of Sink
+		Type string
+		// Params contains params for the specified type
 		Params Params
 	}
 
+	// Sink interface is an abstraction for a sink implementation
 	Sink interface {
-		OnEvent(e []*api.LogEvent) error
+		// OnEvent is called when new portion of events should be sent to the sink
+		OnEvent(events []*api.LogEvent) error
+		// Close is part of io.Closer
 		Close() error
 	}
 )
@@ -39,6 +47,7 @@ const (
 	SnkTypeSyslog = "syslog"
 )
 
+// NewSink creates a new Sink instance by cfg provided. "stdout" and "syslog" is only supported so far
 func NewSink(cfg *Config) (Sink, error) {
 	switch cfg.Type {
 	case SnkTypeStdout:
@@ -56,6 +65,7 @@ func NewSink(cfg *Config) (Sink, error) {
 
 //===================== config =====================
 
+// Check peforms an internal check of c fields
 func (c *Config) Check() error {
 	switch c.Type {
 	case SnkTypeStdout:
@@ -71,6 +81,7 @@ func (c *Config) Check() error {
 	return fmt.Errorf("unknown Type=%v", c.Type)
 }
 
+// String is fmt.Stringer implementation
 func (c *Config) String() string {
 	return utils.ToJsonStr(c)
 }

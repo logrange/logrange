@@ -30,7 +30,7 @@ import (
 //	return "", nil
 //}
 //
-//func (tis *testTidxService) Visit(srcCond *lql.Source, v tindex.VisitorF) error {
+//func (tis *testTidxService) Visit(srcCond *lql.From, v tindex.VisitorF) error {
 //	for tl, jrnl := range tis.journals {
 //		s, err := tag.ParseSelect(tl.String())
 //		if err != nil {

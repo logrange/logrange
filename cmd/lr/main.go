@@ -49,6 +49,12 @@ var (
 	logger = log4g.GetLogger("lr")
 )
 
+// main function is an entry point for 'lr' command. The lr is logrange client, which groups
+// different functionalities in one executable. The functionalities are:
+// 		shell 	- is an interactive CLI to run commands for logrange
+//		forward	- data forwarding functionality. Holds running console, but runs as background process.
+// 		collect - data collection functionality. It scans local files and sends the data to logrange.
+// 		query   -
 func main() {
 	defer log4g.Shutdown()
 

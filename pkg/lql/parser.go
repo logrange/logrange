@@ -417,7 +417,7 @@ func (oc *OrCondition) makeString(sb *strings.Builder) {
 	}
 }
 
-// === Source
+// === From
 
 func (s *Source) makeString(sb *strings.Builder) {
 	if s == nil {

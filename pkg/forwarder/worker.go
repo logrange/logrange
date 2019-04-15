@@ -56,7 +56,7 @@ func newWorker(wc *workerConfig) *worker {
 }
 
 func (w *worker) run(ctx context.Context) error {
-	st, err := w.getStream(ctx)
+	st, err := w.getPipe(ctx)
 	if err != nil {
 		return err
 	}
@@ -121,11 +121,11 @@ func (w *worker) isStopped() bool {
 	return w.stopped
 }
 
-func (w *worker) getStream(ctx context.Context) (api.Pipe, error) {
+func (w *worker) getPipe(ctx context.Context) (api.Pipe, error) {
 	st := api.Pipe{
 		Name:       w.desc.Worker.Name,
-		TagsCond:   w.desc.Worker.Stream.Source,
-		FilterCond: w.desc.Worker.Stream.Filter,
+		TagsCond:   w.desc.Worker.Pipe.From,
+		FilterCond: w.desc.Worker.Pipe.Filter,
 	}
 
 	res := &api.PipeCreateResult{}

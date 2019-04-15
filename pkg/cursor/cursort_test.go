@@ -23,7 +23,7 @@ import (
 
 func TestNewCursor(t *testing.T) {
 	if _, err := newCursor(nil, State{Query: "ddd"}, &testJrnlsProvider{}); err == nil {
-		t.Fatal("err must not be nil, Source expression compilation must fail")
+		t.Fatal("err must not be nil, From expression compilation must fail")
 	}
 
 	if _, err := newCursor(nil, State{}, &testJrnlsProvider{}); err == nil {
