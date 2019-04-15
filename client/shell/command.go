@@ -64,7 +64,7 @@ const (
 	optStreamMode = "pipe-mode"
 )
 
-var commands []command = []command{ //replace with language grammar...
+var commands = []command{ //replace with language grammar...
 	{
 		name:    cmdSelectName,
 		matcher: regexp.MustCompile("(?i)^select\\s.+$"),
@@ -89,7 +89,7 @@ var commands []command = []command{ //replace with language grammar...
 	},
 }
 
-var helps map[string]commandHelp = map[string]commandHelp{
+var helps = map[string]commandHelp{
 	cmdSelectName: {
 		short: "retrieving records from one or multiple partitions, e.g. 'select limit 1'",
 		long: `SELECT statement has the following syntax:
@@ -318,6 +318,7 @@ func execCmd(ctx context.Context, input string, cfg *config) error {
 		if !d.matcher.MatchString(input) {
 			continue
 		}
+		cfg.query = []string{input}
 		cfg.optKV = getInputVars(d.matcher, input)
 		return d.cmdFn(ctx, cfg)
 	}
@@ -390,6 +391,8 @@ func buildReq(selStr string, stream bool) (*api.QueryRequest, *model.FormatParse
 		return nil, nil, err
 	}
 	s := l.Select
+
+	fmt.Printf("selStr=%s s=%v\n", selStr, s)
 
 	fmtt := defaultEvFmtTemplate
 	if utils.GetStringVal(s.Format, "") != "" {
