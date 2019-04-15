@@ -99,6 +99,26 @@ func (ims *inmemService) Shutdown() {
 }
 
 func (ims *inmemService) GetOrCreateJournal(tags string) (res string, ts tag.Set, err error) {
+	return ims.getOrCreateJournal(tags, true)
+}
+
+func (ims *inmemService) GetJournal(tags string) (string, tag.Set, error) {
+	return ims.getOrCreateJournal(tags, false)
+}
+
+func (ims *inmemService) Visit(srcCond *lql.Source, vf VisitorF, visitFlags int) error {
+	tef, err := lql.BuildTagsExpFuncBySource(srcCond)
+	if err != nil {
+		return err
+	}
+
+	if visitFlags&VF_SKIP_IF_LOCKED != 0 {
+		return ims.visitSkippingIfLocked(tef, vf, visitFlags)
+	}
+	return ims.visitWaitingIfLocked(tef, vf, visitFlags)
+}
+
+func (ims *inmemService) getOrCreateJournal(tags string, create bool) (res string, ts tag.Set, err error) {
 	for {
 		ims.lock.Lock()
 		if ims.done {
@@ -120,6 +140,12 @@ func (ims *inmemService) GetOrCreateJournal(tags string) (res string, ts tag.Set
 			}
 
 			if td2, ok := ims.tmap[tgs.Line()]; !ok {
+				if !create {
+					ims.logger.Debug("getOrCreateJournal(): could not find the journal by tags=", tags, " and cration is not allowed")
+					ims.lock.Unlock()
+					return "", tag.EmptySet, errors2.NotFound
+				}
+
 				td = new(tagsDesc)
 				td.tags = tgs
 				td.Src = newSrc()
@@ -153,18 +179,6 @@ func (ims *inmemService) GetOrCreateJournal(tags string) (res string, ts tag.Set
 		time.Sleep(time.Millisecond)
 	}
 	return res, ts, err
-}
-
-func (ims *inmemService) Visit(srcCond *lql.Source, vf VisitorF, visitFlags int) error {
-	tef, err := lql.BuildTagsExpFuncBySource(srcCond)
-	if err != nil {
-		return err
-	}
-
-	if visitFlags&VF_SKIP_IF_LOCKED != 0 {
-		return ims.visitSkippingIfLocked(tef, vf, visitFlags)
-	}
-	return ims.visitWaitingIfLocked(tef, vf, visitFlags)
 }
 
 func (ims *inmemService) visitSkippingIfLocked(tef lql.TagsExpFunc, vf VisitorF, visitFlags int) error {

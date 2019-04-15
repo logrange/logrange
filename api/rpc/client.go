@@ -92,39 +92,6 @@ func (c *Client) connect() error {
 	return nil
 }
 
-func (c *Client) Sources(ctx context.Context, tc string, res *api.SourcesResult) error {
-	if c.rc == nil {
-		err := c.connect()
-		if err != nil {
-			return err
-		}
-	}
-
-	err := c.cqrier.Sources(ctx, tc, res)
-	if err != nil {
-		_ = c.Close()
-		return err
-	}
-	return res.Err
-}
-
-func (c *Client) Truncate(ctx context.Context, request api.TruncateRequest) (api.TruncateResult, error) {
-	if c.rc == nil {
-		err := c.connect()
-		if err != nil {
-			return api.TruncateResult{}, err
-		}
-	}
-
-	res, err := c.admin.Truncate(ctx, request)
-	if err != nil {
-		_ = c.Close()
-		return api.TruncateResult{}, err
-	}
-
-	return res, nil
-}
-
 func (c *Client) Execute(ctx context.Context, req api.ExecRequest) (api.ExecResult, error) {
 	if c.rc == nil {
 		err := c.connect()

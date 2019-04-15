@@ -16,7 +16,6 @@ package rpc
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"github.com/jrivets/log4g"
 	"github.com/logrange/logrange/api"
@@ -73,23 +72,6 @@ func (cq *clntQuerier) Query(ctx context.Context, req *api.QueryRequest, res *ap
 	cq.rc.Collect(resp)
 
 	return nil
-}
-
-func (cq *clntQuerier) Sources(ctx context.Context, TagsCond string, res *api.SourcesResult) error {
-	resp, opErr, err := cq.rc.Call(ctx, cRpcEpQuerierSources, xbinary.WritableString(TagsCond))
-	if err != nil {
-		return err
-	}
-
-	if res != nil {
-		if opErr == nil {
-			err = json.Unmarshal(resp, res)
-		}
-		res.Err = opErr
-	}
-	cq.rc.Collect(resp)
-
-	return err
 }
 
 func NewServerQuerier() *ServerQuerier {
@@ -192,27 +174,4 @@ func (sq *ServerQuerier) query(reqId int32, reqBody []byte, sc *rrpc.ServerConn)
 		sc.SendResponse(reqId, err, cEmptyResponse)
 	}
 	qr.Close()
-}
-
-func (sq *ServerQuerier) sources(reqId int32, reqBody []byte, sc *rrpc.ServerConn) {
-	_, tagsCond, err := xbinary.UnmarshalString(reqBody, false)
-	if err != nil {
-		sq.logger.Warn("sources(): receive a request with unmarshalable body err=", err)
-		sc.SendResponse(reqId, err, cEmptyResponse)
-		return
-	}
-
-	resp, err := sq.Querier.Sources(sq.MainCtx, tagsCond)
-	if err != nil {
-		sc.SendResponse(reqId, err, cEmptyResponse)
-		return
-	}
-
-	buf, err := json.Marshal(resp)
-	if err != nil {
-		sq.logger.Warn("sources(): could not marshal response err=", err)
-		sc.SendResponse(reqId, err, cEmptyResponse)
-		return
-	}
-	sc.SendResponse(reqId, nil, records.Record(buf))
 }

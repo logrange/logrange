@@ -125,10 +125,3 @@ func (q *Querier) Query(ctx context.Context, req *api.QueryRequest) (*api.QueryR
 
 	return res, err
 }
-
-// Sources provides implementation for api.Querier.Source function
-func (q *Querier) Sources(ctx context.Context, tagsCond string) (*api.SourcesResult, error) {
-	//return q.Journals.Sources(ctx, tagsCond)
-	//TODO: should it be here???
-	return nil, fmt.Errorf("Not supported")
-}

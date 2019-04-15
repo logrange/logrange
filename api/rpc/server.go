@@ -38,12 +38,10 @@ type (
 
 // RPC endpoints
 const (
-	cRpcEpIngestorWrite  = 100
-	cRpcEpQuerierQuery   = 200
-	cRpcEpQuerierSources = 201
-	cRpcEpAdminTruncate  = 300
-	cRpcEpAdminExecute   = 301
-	cRpcEpStreamsEnsure  = 400
+	cRpcEpIngestorWrite = 100
+	cRpcEpQuerierQuery  = 200
+	cRpcEpAdminExecute  = 300
+	cRpcEpStreamsEnsure = 400
 )
 
 func NewServer() *Server {
@@ -64,8 +62,6 @@ func (s *Server) Init(ctx context.Context) error {
 	// register endpoints
 	s.rs.Register(cRpcEpIngestorWrite, s.SrvIngestor.write)
 	s.rs.Register(cRpcEpQuerierQuery, s.SrvQuerier.query)
-	s.rs.Register(cRpcEpQuerierSources, s.SrvQuerier.sources)
-	s.rs.Register(cRpcEpAdminTruncate, s.SrvAdmin.truncate)
 	s.rs.Register(cRpcEpAdminExecute, s.SrvAdmin.execute)
 	s.rs.Register(cRpcEpStreamsEnsure, s.SrvStreams.ensureStream)
 

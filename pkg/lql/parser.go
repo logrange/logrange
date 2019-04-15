@@ -394,6 +394,12 @@ func (ex *Expression) makeString(sb *strings.Builder) {
 	}
 }
 
+func (ex *Expression) String() string {
+	var sb strings.Builder
+	ex.makeString(&sb)
+	return sb.String()
+}
+
 // === OrCondition
 
 func (oc *OrCondition) makeString(sb *strings.Builder) {
@@ -558,6 +564,12 @@ func (s *Show) makeString(sb *strings.Builder) {
 	}
 }
 
+func (s *Show) String() string {
+	var sb strings.Builder
+	s.makeString(&sb)
+	return sb.String()
+}
+
 // === Partitions
 func (p *Partitions) makeString(sb *strings.Builder) {
 	if p == nil {
@@ -589,6 +601,21 @@ func (p *Pipe) makeString(sb *strings.Builder) {
 
 	sb.WriteString(" PIPE ")
 	sb.WriteString(p.Name)
+	if p.From != nil {
+		sb.WriteString(" FROM")
+		p.From.makeString(sb)
+	}
+
+	if p.Where != nil {
+		sb.WriteString(" WHERE")
+		p.Where.makeString(sb)
+	}
+}
+
+func (p *Pipe) String() string {
+	var sb strings.Builder
+	p.makeString(&sb)
+	return sb.String()
 }
 
 // === Delete

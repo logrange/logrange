@@ -53,44 +53,11 @@ type (
 		Err error `json:"-"`
 	}
 
-	// Source struct describes a source structure
-	Source struct {
-		// Tags contains tag for the source
-		Tags string
-
-		// Size contains data size (in bytes)
-		Size uint64
-
-		// Records contains number of records
-		Records uint64
-	}
-
-	// SourcesResult struct contains the result of queries of sources
-	SourcesResult struct {
-		// Sources found by the request
-		Sources []Source
-
-		// Count number of sources which meet the TagsCond criteria
-		Count int
-
-		// Total size of all sources
-		TotalSize uint64
-
-		// Total record for all sources
-		TotalRec uint64
-
-		// Err the operaion error, if any
-		Err error `json:"-"`
-	}
-
 	// Querier - executes a query agains logrange database
 	Querier interface {
 		// Query runs lql to collect the server data and return it in the QueryResult. It returns an error which indicates
 		// that the query could not be delivered to the server, or it did not happen.
 		Query(ctx context.Context, req *QueryRequest, res *QueryResult) error
-
-		// Sources requests
-		Sources(ctx context.Context, TagsCond string, res *SourcesResult) error
 	}
 )
 

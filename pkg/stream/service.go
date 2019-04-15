@@ -25,6 +25,7 @@ import (
 	"github.com/logrange/range/pkg/utils/errors"
 	"github.com/logrange/range/pkg/utils/fileutil"
 	errors2 "github.com/pkg/errors"
+	"sort"
 	"sync"
 )
 
@@ -154,7 +155,7 @@ func (s *Service) CreateStream(st Stream) (StreamDesc, error) {
 
 	stm, err := newStrm(s, st)
 	if err != nil {
-		return StreamDesc{st, stm.tags}, err
+		return StreamDesc{}, err
 	}
 
 	// check for raise now
@@ -204,6 +205,22 @@ func (s *Service) DeleteStream(name string) error {
 	}
 	s.lock.Unlock()
 	return err
+}
+
+// GetStreams returns the list of known partitions, sorted by name
+func (s *Service) GetStreams() []Stream {
+	s.lock.Lock()
+	res := make([]Stream, len(s.strms))
+	cnt := 0
+	for sn, st := range s.strms {
+		idx := sort.Search(cnt, func(idx int) bool {
+			return res[idx].Name >= sn
+		})
+		copy(res[idx+1:], res[idx:])
+		res[idx] = st.cfg
+	}
+	s.lock.Unlock()
+	return res
 }
 
 func (s *Service) saveStreams() {

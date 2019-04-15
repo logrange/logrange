@@ -51,8 +51,8 @@ type (
 	// TruncateParams allows to provide parameters for Truncate() functions
 	TruncateParams struct {
 		DryRun bool
-		// TagsCond contains the tags condition to select journals to be truncated
-		TagsCond string
+		// TagsExpr contains the tags condition to select journals to be truncated
+		TagsExpr *lql.Source
 		// MaxSrcSize defines the upper level of a partition size, which will be truncated, if reached
 		MaxSrcSize uint64
 		// MinSrcSize defines the lower level of a partition size, which will not be cut if the partition will be less
@@ -90,6 +90,12 @@ type (
 		Size uint64
 		// Records contains number of records in the partition
 		Records uint64
+
+		//Journal id contains the journal identifier
+		JournalId string
+
+		// Chunks contains information about the journal chunks
+		Chunks []*ChunkInfo
 	}
 
 	// PartitionsInfo contains information about partitions for the query
@@ -102,6 +108,20 @@ type (
 		TotalSize uint64
 		// TotalRecords contains summarized number of records in all matched partitions
 		TotalRecords uint64
+	}
+
+	// ChunkInfo struct desribes a chunk
+	ChunkInfo struct {
+		// Id the chunk id
+		Id chunk.Id
+		// Size contains chunk size in bytes
+		Size int64
+		// Records contains number of records in the chunk
+		Records uint32
+		// MinTs contains minimal timestamp value for the chunk records
+		MinTs uint64
+		// MaxTs contains maximal timestamp value for the chunk records
+		MaxTs uint64
 	}
 )
 
@@ -298,19 +318,54 @@ func (s *Service) Partitions(ctx context.Context, expr *lql.Source, offset, limi
 	s.logger.Debug("Partitions(): ", expr, " offset=", offset, ", limit=", limit, " found ", len(parts), " returning ", len(res.Partitions))
 
 	return res, nil
+}
 
+// GetParitionInfo returns a partition info using its unique tags combination
+func (s *Service) GetParitionInfo(tags string) (PartitionInfo, error) {
+	src, ts, err := s.TIndex.GetJournal(tags)
+	if err != nil {
+		return PartitionInfo{}, err
+	}
+	defer s.TIndex.Release(src)
+
+	jrnl, err := s.Journals.GetOrCreate(s.MainCtx, src)
+	if err != nil {
+		return PartitionInfo{}, err
+	}
+
+	cks, err := jrnl.Chunks().Chunks(s.MainCtx)
+	if err != nil {
+		return PartitionInfo{}, err
+	}
+
+	sc := s.cIdx.syncChunks(s.MainCtx, jrnl.Name(), cks)
+	var res PartitionInfo
+	res.Chunks = make([]*ChunkInfo, len(sc))
+	sz := uint64(0)
+	tr := uint64(0)
+	for i, c := range sc {
+		ci := new(ChunkInfo)
+		ci.Id = c.Id
+		ci.MaxTs = c.MaxTs
+		ci.MinTs = c.MinTs
+		ci.Records = cks[i].Count()
+		ci.Size = cks[i].Size()
+		sz += uint64(ci.Size)
+		tr += uint64(ci.Records)
+		res.Chunks[i] = ci
+	}
+	res.Tags = ts
+	res.JournalId = src
+	res.Size = sz
+	res.Records = tr
+
+	return res, nil
 }
 
 type OnTruncateF func(ti TruncateInfo)
 
 // TruncateBySize walks over all journals and prune them if the size exceeds maximum value
 func (s *Service) Truncate(ctx context.Context, tp TruncateParams, otf OnTruncateF) error {
-	srcExp, err := lql.ParseSource(tp.TagsCond)
-	if err != nil {
-		s.logger.Warn("Truncate(): could not parse the source condition ", tp.TagsCond, " err=", err)
-		return err
-	}
-
 	start := time.Now()
 	cremoved := 0
 	ts := uint64(0)
@@ -318,11 +373,11 @@ func (s *Service) Truncate(ctx context.Context, tp TruncateParams, otf OnTruncat
 
 	s.logger.Debug("Trundate(): tp=", tp)
 
-	err = s.TIndex.Visit(srcExp, func(tags tag.Set, jn string) bool {
+	err := s.TIndex.Visit(tp.TagsExpr, func(tags tag.Set, jn string) bool {
 		s.logger.Debug("Truncate(): considering ", jn, " for tags=", tags.Line())
 		j, err := s.Journals.GetOrCreate(ctx, jn)
 		if err != nil {
-			s.logger.Error("Truncate(): could not obtain partition by its name=", jn, ", the condition is ", tp.TagsCond, ". err=", err)
+			s.logger.Error("Truncate(): could not obtain partition by its name=", jn, ", the condition is ", tp.TagsExpr.String(), ". err=", err)
 			return ctx.Err() == nil
 		}
 
@@ -488,5 +543,5 @@ func (s *Service) onWriteCIndex(src string, iw *iwrapper, n int, pos journal.Pos
 }
 
 func (tp TruncateParams) String() string {
-	return fmt.Sprintf("{DryRun=%t, TagsCond=%s, MaxSrcSize=%d, MinSrcSize=%d, OldestTs=%d}", tp.DryRun, tp.TagsCond, tp.MaxSrcSize, tp.MinSrcSize, tp.OldestTs)
+	return fmt.Sprintf("{DryRun=%t, TagsCond=%s, MaxSrcSize=%d, MinSrcSize=%d, OldestTs=%d}", tp.DryRun, tp.TagsExpr.String(), tp.MaxSrcSize, tp.MinSrcSize, tp.OldestTs)
 }

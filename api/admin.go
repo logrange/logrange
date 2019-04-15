@@ -17,49 +17,6 @@ package api
 import "context"
 
 type (
-	// SourceTruncateResult is returned as a result by applying truncate procedure to the source provided
-	SourceTruncateResult struct {
-		// Tags contains the source tags
-		Tags string
-		// SizeBefore contains the size of the source before truncation
-		SizeBefore uint64
-		// SizeAfter contains the size of the source after truncation
-		SizeAfter uint64
-		// RecordsBefore number of records before truncation
-		RecordsBefore uint64
-		// RecordsAfter number of records after truncation
-		RecordsAfter uint64
-		// ChunksDeleted contains number of chunks deleted
-		ChunksDeleted int
-		// Deleted contains whether the source was completely deleted
-		Deleted bool
-	}
-
-	// TruncateResult contains the result of the Truncate execution
-	TruncateResult struct {
-		// Sources contains all affected sources
-		Sources []*SourceTruncateResult
-
-		// Err contains the operation error, if any
-		Err error `json:"-"`
-	}
-
-	// TruncateRequest contains truncation params
-	TruncateRequest struct {
-		// DryRun will not affect data, but wil report sources affected
-		DryRun bool
-		// TagsCond contains the tags condition to select journals to be truncated
-		TagsCond string
-		// MaxSrcSize defines the upper level of a partition size, which will be truncated, if reached
-		MaxSrcSize uint64
-		// MinSrcSize defines the lower level of a partition size, which will not be cut if the partition will be less
-		// than this parameter after truncation
-		MinSrcSize uint64
-		// OldestTs defines the oldest record timestamp. Chunks with records less than the parameter are candidates
-		// for truncation
-		OldestTs uint64
-	}
-
 	// ExecResult struct returns in response of the request to execute a LQL query
 	ExecResult struct {
 		// Output contains formatted output result of the command execution
@@ -77,11 +34,6 @@ type (
 
 	// Admin interface allows to perform some administrative actions
 	Admin interface {
-
-		// Truncate walks over all known sources and tries to truncate them if they match with the request
-		// It returns list of sources affected.
-		Truncate(ctx context.Context, req TruncateRequest) (res TruncateResult, err error)
-
 		// Execute runs the lql query on server and provides the execution result or an error, if the query could not be
 		// run
 		Execute(ctx context.Context, req ExecRequest) (ExecResult, error)

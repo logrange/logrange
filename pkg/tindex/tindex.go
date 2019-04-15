@@ -23,9 +23,14 @@ type (
 	// Service interface provides an access to the Tags index. It is used for selecting
 	// a partition sources by the tag lines provided and by selecting journals by an expression.
 	Service interface {
-		// GetOrCreateJournal returns the partition name for the unique Tags combination. If the result
+		// GetOrCreateJournal returns the journal name for the unique Tags combination. It will try
+		// to create the new journal Id if it is not found in the index. If the result
 		// is returned with no error, the JournalName MUST be released using the Release method later
 		GetOrCreateJournal(tags string) (string, tag.Set, error)
+
+		// GetJournal returns the journal name for the unique Tags combination. If the result
+		// is returned with no error, the JournalName MUST be released using the Release method later
+		GetJournal(tags string) (string, tag.Set, error)
 
 		// Visit walks over the tags-sources that corresponds to the srcCond. VF_SKIP_IF_LOCKED allows to skip the source if it
 		// is locked. If VF_SKIP_IF_LOCKED is not set, the Visit will wait until the source become available or removed.
@@ -41,7 +46,7 @@ type (
 		// UnlockExclusively removes the exclusive lock from the partition. If the lock is not acquired, will panic
 		UnlockExclusively(jn string)
 
-		// Release allows to release the partition name which could be acquired by GetOrCreateJournal
+		// Release allows to release the journal name which could be acquired by GetOrCreateJournal
 		Release(jn string)
 
 		// Delete allows to delete a partition. It must be exclusively locked before the call. If the partition
