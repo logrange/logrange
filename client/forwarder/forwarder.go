@@ -24,8 +24,8 @@ import (
 )
 
 func Run(ctx context.Context, cfg *forwarder.Config, cl api.Client, storg storage.Storage) error {
-
 	logger := log4g.GetLogger("forwarder")
+
 	fwd, err := forwarder.NewForwarder(cfg, cl, storg)
 	if err != nil {
 		return fmt.Errorf("failed to create forwarder, err=%v", err)

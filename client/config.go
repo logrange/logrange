@@ -68,6 +68,7 @@ func NewDefaultConfig() *Config {
 		},
 	}
 }
+
 func (c *Config) Apply(other *Config) {
 	if other == nil {
 		return

@@ -28,6 +28,8 @@ import (
 type (
 	// PipeConfig struct constains settings for filtering records from different partitions
 	PipeConfig struct {
+		// Name contains name of pipe that
+		Name string
 		// From contains an expression for selecting partitions where records will be considered
 		// The value could be empty - app partitions
 		From string
@@ -83,7 +85,7 @@ func (c *Config) Apply(other *Config) {
 	if other.SyncWorkersIntervalSec != 0 {
 		c.SyncWorkersIntervalSec = other.SyncWorkersIntervalSec
 	}
-	if len(other.Workers) != 0 {
+	if other.Workers != nil {
 		c.Workers = deepcopy.Copy(other.Workers).([]*WorkerConfig)
 	}
 	if other.ReloadFn != nil {
@@ -184,17 +186,22 @@ func (wc *WorkerConfig) String() string {
 
 //===================== streamConfig =====================
 
-// Check performs an internal check for PipeConfig fields
 func (sc *PipeConfig) Check() error {
-	if _, err := lql.ParseSource(sc.From); err != nil {
-		return fmt.Errorf("invalid From=%s: %v", sc.From, err)
+	if sc.Name != "" && (sc.From != "" || sc.Filter != "") {
+		return fmt.Errorf("both From and Filter must be empty " +
+			"when Name is not empty")
 	}
-	if _, err := lql.ParseExpr(sc.Filter); err != nil {
-		return fmt.Errorf("invalid Filter=%s: %v", sc.Filter, err)
-	}
-	if sc.Filter != "" {
-		if _, err := syntax.Parse(sc.Filter, syntax.Perl); err != nil {
+	if sc.Name == "" {
+		if _, err := lql.ParseSource(sc.From); err != nil {
+			return fmt.Errorf("invalid From=%s: %v", sc.From, err)
+		}
+		if _, err := lql.ParseExpr(sc.Filter); err != nil {
 			return fmt.Errorf("invalid Filter=%s: %v", sc.Filter, err)
+		}
+		if sc.Filter != "" {
+			if _, err := syntax.Parse(sc.Filter, syntax.Perl); err != nil {
+				return fmt.Errorf("invalid Filter=%s: %v", sc.Filter, err)
+			}
 		}
 	}
 	return nil
