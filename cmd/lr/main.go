@@ -41,7 +41,7 @@ const (
 	argServerAddr = "server-addr"
 	argStorageDir = "storage-dir"
 
-	argQueryStreamMode = "stream-mode"
+	argQueryStreamMode = "pipe-mode"
 )
 
 var (
@@ -49,6 +49,12 @@ var (
 	logger = log4g.GetLogger("lr")
 )
 
+// main function is an entry point for 'lr' command. The lr is logrange client, which groups
+// different functionalities in one executable. The functionalities are:
+// 		shell 	- is an interactive CLI to run commands for logrange
+//		forward	- data forwarding functionality. Holds running console, but runs as background process.
+// 		collect - data collection functionality. It scans local files and sends the data to logrange.
+// 		query   -
 func main() {
 	defer log4g.Shutdown()
 
@@ -102,7 +108,7 @@ func main() {
 				Flags: []ucli.Flag{cmnFlags[0],
 					&ucli.BoolFlag{
 						Name:  argQueryStreamMode,
-						Usage: "enable query stream mode (blocking)",
+						Usage: "enable query pipe mode (blocking)",
 					},
 				},
 			},
@@ -266,7 +272,7 @@ func getQuery(c *ucli.Context) ([]string, error) {
 		}
 	}
 	scanner := bufio.NewScanner(os.Stdin)
-	for scanner.Scan() { //for now just read it all, later stream if needed
+	for scanner.Scan() { //for now just read it all, later pipe if needed
 		t := strings.TrimSpace(scanner.Text())
 		if t != "" {
 			query = append(query, t)

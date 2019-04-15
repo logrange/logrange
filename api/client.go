@@ -7,7 +7,7 @@ type (
 		Querier
 		Ingestor
 		Admin
-		Streams
+		Pipes
 
 		Close() error
 	}

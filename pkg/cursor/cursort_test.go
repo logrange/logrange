@@ -23,7 +23,7 @@ import (
 
 func TestNewCursor(t *testing.T) {
 	if _, err := newCursor(nil, State{Query: "ddd"}, &testJrnlsProvider{}); err == nil {
-		t.Fatal("err must not be nil, Source expression compilation must fail")
+		t.Fatal("err must not be nil, From expression compilation must fail")
 	}
 
 	if _, err := newCursor(nil, State{}, &testJrnlsProvider{}); err == nil {
@@ -39,7 +39,7 @@ func TestNewCursor(t *testing.T) {
 		t.Fatal("cur.it must be *model.LogEventIterator")
 	}
 	if len(cur.jDescs) != 1 || (cur.jDescs["j1"].it.(*testJIterator)).journal != "j1" {
-		t.Fatal("Expecting iterator composed from 1 journal")
+		t.Fatal("Expecting iterator composed from 1 partition")
 	}
 
 	cur, err = newCursor(nil, State{Query: "select limit 10"},
@@ -51,7 +51,7 @@ func TestNewCursor(t *testing.T) {
 		t.Fatal("cur.it must be *model.Mixer")
 	}
 	if len(cur.jDescs) != 2 || (cur.jDescs["j2"].it.(*testJIterator)).journal != "j2" {
-		t.Fatal("Expecting iterator composed from 1 journal")
+		t.Fatal("Expecting iterator composed from 1 partition")
 	}
 }
 
@@ -65,7 +65,7 @@ func TestCursorClose(t *testing.T) {
 		t.Fatal("cur.it must be *model.Mixer")
 	}
 	if len(cur.jDescs) != 2 || (cur.jDescs["j2"].it.(*testJIterator)).journal != "j2" {
-		t.Fatal("Expecting iterator composed from 1 journal")
+		t.Fatal("Expecting iterator composed from 1 partition")
 	}
 
 	if len(tp.released) != 0 {

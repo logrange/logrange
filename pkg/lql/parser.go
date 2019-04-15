@@ -27,7 +27,7 @@ import (
 
 var (
 	lqlLexer = lexer.Must(getRegexpDefinition(`(\s+)` +
-		`|(?P<Keyword>(?i)SELECT|DESCRIBE|TRUNCATE|DRYRUN|BEFORE|ALL|MAXSIZE|MINSIZE|FORMAT|SOURCE|WHERE|POSITION|LIMIT|OFFSET|AND|OR|LIKE|CONTAINS|PREFIX|SUFFIX|NOT)` +
+		`|(?P<Keyword>(?i)SELECT|DESCRIBE|TRUNCATE|DELETE|DRYRUN|BEFORE|MAXSIZE|MINSIZE|FROM|WHERE|PARTITIONS|PARTITION|PIPES|SHOW|CREATE|PIPE|POSITION|LIMIT|OFFSET|AND|OR|LIKE|CONTAINS|PREFIX|SUFFIX|NOT)` +
 		`|(?P<Ident>[a-zA-Z_][a-z\./\-A-Z0-9_:]*)` +
 		`|(?P<String>"([^\\"]|\\.)*"|'[^']*')` +
 		`|(?P<Operator><>|!=|<=|>=|[-+*/%,.=<>()])` +
@@ -89,15 +89,17 @@ type (
 	}
 
 	Lql struct {
-		Select   *Select   `("SELECT" @@)?`
-		Describe *Describe `("DESCRIBE" @@)?`
-		Truncate *Truncate `("TRUNCATE" @@)?`
+		Select   *Select   `("SELECT" (@@)?`
+		Describe *Describe `|"DESCRIBE" (@@)?`
+		Truncate *Truncate `|"TRUNCATE" (@@)?`
+		Show     *Show     `|"SHOW" (@@)?`
+		Create   *Create   `|"CREATE" (@@)?`
+		Delete   *Delete   `|"DELETE" (@@)?)`
 	}
 
 	Select struct {
-		All      bool        `(@"ALL")?`
-		Format   *string     `("FORMAT" @String)?`
-		Source   *Source     `("SOURCE" @@)?`
+		Format   *string     `(@String)?`
+		Source   *Source     `("FROM" @@)?`
 		Where    *Expression `("WHERE" @@)?`
 		Position *Position   `("POSITION" @@)?`
 		Offset   *int64      `("OFFSET" @Number)?`
@@ -105,7 +107,13 @@ type (
 	}
 
 	Describe struct {
-		Source *Source `(@@)?`
+		Partition *TagsVal `("PARTITION" @Tags`
+		Pipe      *string  `|"PIPE" @Ident)`
+	}
+
+	Show struct {
+		Partitions *Partitions `("PARTITIONS" (@@)?`
+		Pipes      *Pipes      `|"PIPES" (@@)?)`
 	}
 
 	Truncate struct {
@@ -114,6 +122,14 @@ type (
 		MinSize *Size     `("MINSIZE" @Number)?`
 		MaxSize *Size     `("MAXSIZE" @Number)?`
 		Before  *DateTime `("BEFORE" (@String|@Number))?`
+	}
+
+	Create struct {
+		Pipe *Pipe `(@@)?`
+	}
+
+	Delete struct {
+		PipeName *string `("PIPE" @Ident)?`
 	}
 
 	Source struct {
@@ -136,13 +152,33 @@ type (
 	}
 
 	Condition struct {
-		Operand string `  (@Ident)`
+		Operand string `  (@Ident|@Keyword)`
 		Op      string ` (@("<"|">"|">="|"<="|"!="|"="|"CONTAINS"|"PREFIX"|"SUFFIX"|"LIKE"))`
 		Value   string ` (@String|@Ident|@Number)`
 	}
 
 	Position struct {
 		PosId string `(@"TAIL"|@"HEAD"|@String|@Ident)`
+	}
+
+	Partitions struct {
+		Source *Source `(@@)?`
+		Offset *int    `("OFFSET" @Number)?`
+		Limit  *int    `("LIMIT" @Number)?`
+	}
+
+	Pipes struct {
+		// The Void is not going to be used, but it is here to full the parser to parse
+		// `show pipes` properly
+		Void   *Source `(@@)?`
+		Offset *int64  `("OFFSET" @Number)?`
+		Limit  *int64  `("LIMIT" @Number)?`
+	}
+
+	Pipe struct {
+		Name  string      `"PIPE" @Ident`
+		From  *Source     `("FROM" @@)?`
+		Where *Expression `("WHERE" @@)?`
 	}
 
 	Size     uint64
@@ -164,6 +200,15 @@ func (tv *TagsVal) Capture(values []string) error {
 		tv.Tags = tags
 	}
 	return err
+}
+
+func (tv *TagsVal) makeString(sb *strings.Builder) {
+	if tv == nil {
+		return
+	}
+	sb.WriteByte('{')
+	sb.WriteString(tv.Tags.Line().String())
+	sb.WriteByte('}')
 }
 
 func (dt *DateTime) Capture(values []string) error {
@@ -220,6 +265,9 @@ func (l *Lql) String() string {
 	l.Select.makeString(&sb)
 	l.Describe.makeString(&sb)
 	l.Truncate.makeString(&sb)
+	l.Show.makeString(&sb)
+	l.Create.makeString(&sb)
+	l.Delete.makeString(&sb)
 	return sb.String()
 }
 
@@ -231,13 +279,9 @@ func (s *Select) makeString(sb *strings.Builder) {
 	}
 
 	sb.WriteString("SELECT")
-	if s.All {
-		sb.WriteString(" ALL")
-	}
-
-	addStringIfNotEmpty("FORMAT", s.Format, sb)
+	addStringIfNotEmpty("", s.Format, sb)
 	if s.Source != nil {
-		sb.WriteString(" SOURCE")
+		sb.WriteString(" FROM")
 		s.Source.makeString(sb)
 	}
 	if s.Where != nil {
@@ -263,6 +307,16 @@ func addStringIfNotEmpty(pfx string, val *string, sb *strings.Builder) {
 }
 
 func addInt64IfNotEmpty(pfx string, val *int64, sb *strings.Builder) {
+	if val == nil {
+		return
+	}
+	sb.WriteByte(' ')
+	sb.WriteString(pfx)
+	sb.WriteByte(' ')
+	sb.WriteString(fmt.Sprintf("%d", *val))
+}
+
+func addIntIfNotEmpty(pfx string, val *int, sb *strings.Builder) {
 	if val == nil {
 		return
 	}
@@ -340,6 +394,12 @@ func (ex *Expression) makeString(sb *strings.Builder) {
 	}
 }
 
+func (ex *Expression) String() string {
+	var sb strings.Builder
+	ex.makeString(&sb)
+	return sb.String()
+}
+
 // === OrCondition
 
 func (oc *OrCondition) makeString(sb *strings.Builder) {
@@ -357,7 +417,7 @@ func (oc *OrCondition) makeString(sb *strings.Builder) {
 	}
 }
 
-// === Source
+// === From
 
 func (s *Source) makeString(sb *strings.Builder) {
 	if s == nil {
@@ -390,7 +450,15 @@ func (d *Describe) makeString(sb *strings.Builder) {
 	}
 
 	sb.WriteString("DESCRIBE")
-	d.Source.makeString(sb)
+	if d.Partition != nil {
+		sb.WriteString(" PARTITION ")
+		d.Partition.makeString(sb)
+	}
+
+	if d.Pipe != nil {
+		sb.WriteString(" PIPE ")
+		sb.WriteString(*d.Pipe)
+	}
 }
 
 func (d *Describe) String() string {
@@ -474,5 +542,91 @@ func (t *Truncate) makeString(sb *strings.Builder) {
 	if t.Before != nil {
 		val := t.Before.String()
 		addStringIfNotEmpty("BEFORE", &val, sb)
+	}
+}
+
+// === Show
+func (s *Show) makeString(sb *strings.Builder) {
+	if s == nil {
+		return
+	}
+
+	sb.WriteString("SHOW")
+	if s.Partitions != nil {
+		sb.WriteString(" PARTITIONS")
+		s.Partitions.makeString(sb)
+	}
+
+	if s.Pipes != nil {
+		sb.WriteString(" PIPES")
+		addInt64IfNotEmpty("OFFSET", s.Pipes.Offset, sb)
+		addInt64IfNotEmpty("LIMIT", s.Pipes.Limit, sb)
+	}
+}
+
+func (s *Show) String() string {
+	var sb strings.Builder
+	s.makeString(&sb)
+	return sb.String()
+}
+
+// === Partitions
+func (p *Partitions) makeString(sb *strings.Builder) {
+	if p == nil {
+		return
+	}
+
+	if p.Source != nil {
+		p.Source.makeString(sb)
+	}
+	addIntIfNotEmpty("OFFSET", p.Offset, sb)
+	addIntIfNotEmpty("LIMIT", p.Limit, sb)
+}
+
+// === Create
+func (c *Create) makeString(sb *strings.Builder) {
+	if c == nil {
+		return
+	}
+
+	sb.WriteString("CREATE")
+	c.Pipe.makeString(sb)
+}
+
+// === Pipe
+func (p *Pipe) makeString(sb *strings.Builder) {
+	if p == nil {
+		return
+	}
+
+	sb.WriteString(" PIPE ")
+	sb.WriteString(p.Name)
+	if p.From != nil {
+		sb.WriteString(" FROM")
+		p.From.makeString(sb)
+	}
+
+	if p.Where != nil {
+		sb.WriteString(" WHERE")
+		p.Where.makeString(sb)
+	}
+}
+
+func (p *Pipe) String() string {
+	var sb strings.Builder
+	p.makeString(&sb)
+	return sb.String()
+}
+
+// === Delete
+func (d *Delete) makeString(sb *strings.Builder) {
+	if d == nil {
+		return
+	}
+
+	sb.WriteString(" DELETE")
+	if d.PipeName != nil {
+		sb.WriteString(" PIPE ")
+		sb.WriteString(*d.PipeName)
 	}
 }

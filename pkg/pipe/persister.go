@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package stream
+package pipe
 
 import (
 	"encoding/json"
@@ -25,26 +25,26 @@ import (
 )
 
 type (
-	streamPersister struct {
+	persister struct {
 		dir    string
 		logger log4g.Logger
 	}
 )
 
 const (
-	cStreamsFileName = "streams.dat"
+	cPipesFileName = "pipes.dat"
 )
 
-func newStreamPersister(dir string) *streamPersister {
-	sp := new(streamPersister)
+func newPersister(dir string) *persister {
+	sp := new(persister)
 	sp.dir = dir
-	sp.logger = log4g.GetLogger("stream.persister")
+	sp.logger = log4g.GetLogger("pipe.persister")
 	return sp
 }
 
-func (sp *streamPersister) loadStreams() ([]Stream, error) {
-	fn := path.Join(sp.dir, cStreamsFileName)
-	sp.logger.Info("Loading list of streams from ", fn)
+func (sp *persister) loadPipes() ([]Pipe, error) {
+	fn := path.Join(sp.dir, cPipesFileName)
+	sp.logger.Info("Loading list of pipes from ", fn)
 	_, err := os.Stat(fn)
 	if os.IsNotExist(err) {
 		sp.logger.Warn(" file ", fn, " doesn't exist. Returning empty list ")
@@ -57,7 +57,7 @@ func (sp *streamPersister) loadStreams() ([]Stream, error) {
 		return nil, errors.Wrapf(err, "could not read file %s ", fn)
 	}
 
-	var res []Stream
+	var res []Pipe
 	err = json.Unmarshal(data, &res)
 	if err != nil {
 		return nil, errors.Wrapf(err, "could not parse data from the file %s, seems like corrupted data...", fn)
@@ -67,11 +67,11 @@ func (sp *streamPersister) loadStreams() ([]Stream, error) {
 	return res, nil
 }
 
-func (sp *streamPersister) saveStreams(strms []Stream) error {
-	fn := path.Join(sp.dir, cStreamsFileName)
-	data, err := json.Marshal(strms)
+func (sp *persister) savePipes(pps []Pipe) error {
+	fn := path.Join(sp.dir, cPipesFileName)
+	data, err := json.Marshal(pps)
 	if err != nil {
-		return errors.Wrapf(err, "could not marshal strms ")
+		return errors.Wrapf(err, "could not marshal ppipes ")
 	}
 
 	if err = ioutil.WriteFile(fn, data, 0640); err != nil {
@@ -81,13 +81,13 @@ func (sp *streamPersister) saveStreams(strms []Stream) error {
 	return nil
 }
 
-func (sp *streamPersister) streamFileName(name string) string {
+func (sp *persister) pipeFileName(name string) string {
 	efn := fileutil.EscapeToFileName(name)
-	return path.Join(sp.dir, "stream"+efn+".dat")
+	return path.Join(sp.dir, "pipe"+efn+".dat")
 }
 
-func (sp *streamPersister) loadStreamInfo(name string, res map[string]*ssDesc) error {
-	fn := sp.streamFileName(name)
+func (sp *persister) loadPipeInfo(name string, res map[string]*ppDesc) error {
+	fn := sp.pipeFileName(name)
 	_, err := os.Stat(fn)
 	if os.IsNotExist(err) {
 		return nil
@@ -95,34 +95,34 @@ func (sp *streamPersister) loadStreamInfo(name string, res map[string]*ssDesc) e
 
 	data, err := ioutil.ReadFile(fn)
 	if err != nil {
-		sp.logger.Warn("loadStreamInfo(): could not unmarshal context from file ", fn, " data size ", len(data), " err=", err)
+		sp.logger.Warn("loadPipeInfo(): could not unmarshal context from file ", fn, " data size ", len(data), " err=", err)
 		return errors.Wrapf(err, "could not read file %s ", fn)
 	}
 
 	err = json.Unmarshal(data, &res)
 	if err != nil {
-		return errors.Wrapf(err, "loadStreamInfo(): could not parse data from the file %s, seems like corrupted data...", fn)
+		return errors.Wrapf(err, "loadPipeInfo(): could not parse data from the file %s, seems like corrupted data...", fn)
 	}
 
 	return nil
 }
 
-func (sp *streamPersister) saveStreamInfo(name string, info map[string]*ssDesc) error {
-	fn := sp.streamFileName(name)
+func (sp *persister) savePipeInfo(name string, info map[string]*ppDesc) error {
+	fn := sp.pipeFileName(name)
 	data, err := json.Marshal(info)
 	if err != nil {
-		return errors.Wrapf(err, "could not marshal info for stream %s ", name)
+		return errors.Wrapf(err, "could not marshal info for pipe %s ", name)
 	}
 
 	if err = ioutil.WriteFile(fn, data, 0640); err != nil {
-		return errors.Wrapf(err, "saveStreamInfo(): could not write file %s ", fn)
+		return errors.Wrapf(err, "savePipeInfo(): could not write file %s ", fn)
 	}
 
 	return nil
 }
 
-func (sp *streamPersister) onDeleteStream(name string) {
-	fn := sp.streamFileName(name)
+func (sp *persister) onDeleteStream(name string) {
+	fn := sp.pipeFileName(name)
 	if err := os.Remove(fn); err != nil {
 		sp.logger.Error("onDeleteStream(): could not delete file ", fn, ", for the name=", name, ", err=", err)
 	}

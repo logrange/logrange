@@ -19,7 +19,7 @@ import (
 	"encoding/json"
 	"github.com/jrivets/log4g"
 	"github.com/logrange/logrange/api"
-	"github.com/logrange/logrange/pkg/stream"
+	"github.com/logrange/logrange/pkg/pipe"
 	"github.com/logrange/range/pkg/records"
 	rrpc "github.com/logrange/range/pkg/rpc"
 	"github.com/pkg/errors"
@@ -27,24 +27,24 @@ import (
 
 type (
 	// ServerAdmin implements server part of api.Admin interface
-	ServerStreams struct {
-		StrmService *stream.Service `inject:""`
+	ServerPipes struct {
+		PipeService *pipe.Service `inject:""`
 
 		logger log4g.Logger
 	}
 
-	clntStreams struct {
+	clntPipes struct {
 		rc rrpc.Client
 	}
 )
 
-func (cs *clntStreams) EnsureStream(ctx context.Context, stm api.Stream, res *api.StreamCreateResult) error {
-	buf, err := json.Marshal(stm)
+func (cp *clntPipes) EnsurePipe(ctx context.Context, p api.Pipe, res *api.PipeCreateResult) error {
+	buf, err := json.Marshal(p)
 	if err != nil {
 		return errors.Wrapf(err, "could not marshal request ")
 	}
 
-	resp, opErr, err := cs.rc.Call(ctx, cRpcEpStreamsEnsure, records.Record(buf))
+	resp, opErr, err := cp.rc.Call(ctx, cRpcEpPipesEnsure, records.Record(buf))
 	if err != nil {
 		return errors.Wrapf(err, "could not sent request via rpc")
 	}
@@ -54,30 +54,30 @@ func (cs *clntStreams) EnsureStream(ctx context.Context, stm api.Stream, res *ap
 	}
 
 	res.Err = opErr
-	cs.rc.Collect(resp)
+	cp.rc.Collect(resp)
 
 	return err
 }
 
-func NewServerStreams() *ServerStreams {
-	ss := new(ServerStreams)
-	ss.logger = log4g.GetLogger("rpc.streams")
-	return ss
+func NewServerPipes() *ServerPipes {
+	sp := new(ServerPipes)
+	sp.logger = log4g.GetLogger("rpc.streams")
+	return sp
 }
 
-func (ss *ServerStreams) ensureStream(reqId int32, reqBody []byte, sc *rrpc.ServerConn) {
-	var req api.Stream
+func (sp *ServerPipes) ensurePipe(reqId int32, reqBody []byte, sc *rrpc.ServerConn) {
+	var req api.Pipe
 	err := json.Unmarshal(reqBody, &req)
 	if err != nil {
-		ss.logger.Error("ensureStream(): could not unmarshal the body request ")
+		sp.logger.Error("ensurePipe(): could not unmarshal the body request ")
 		sc.SendResponse(reqId, err, cEmptyResponse)
 		return
 	}
 
-	sst := stream.Stream{req.Name, req.TagsCond, req.FilterCond}
-	dst, err := ss.StrmService.EnsureStream(sst)
+	sst := pipe.Pipe{req.Name, req.TagsCond, req.FilterCond}
+	dst, err := sp.PipeService.EnsurePipe(sst)
 	if err != nil {
-		ss.logger.Warn("ensureStream(): got the err=", err)
+		sp.logger.Warn("ensurePipe(): got the err=", err)
 		sc.SendResponse(reqId, err, cEmptyResponse)
 		return
 	}
@@ -86,10 +86,10 @@ func (ss *ServerStreams) ensureStream(reqId int32, reqBody []byte, sc *rrpc.Serv
 	req.FilterCond = dst.FltCond
 	req.Destination = dst.DestTags.Line().String()
 
-	res := api.StreamCreateResult{Stream: req, Err: nil}
+	res := api.PipeCreateResult{Pipe: req, Err: nil}
 	buf, err := json.Marshal(res)
 	if err != nil {
-		ss.logger.Warn("ensureStream(): could not marshal result err=", err)
+		sp.logger.Warn("ensurePipe(): could not marshal result err=", err)
 		sc.SendResponse(reqId, err, cEmptyResponse)
 		return
 	}

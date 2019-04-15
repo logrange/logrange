@@ -38,14 +38,13 @@ type (
 	}
 )
 
-// Truncate client implementation for api.Admin
-func (ca *clntAdmin) Truncate(ctx context.Context, req api.TruncateRequest) (res api.TruncateResult, err error) {
+func (ca *clntAdmin) Execute(ctx context.Context, req api.ExecRequest) (res api.ExecResult, err error) {
 	buf, err := json.Marshal(req)
 	if err != nil {
 		return res, errors.Wrapf(err, "could not marshal request ")
 	}
 
-	resp, opErr, err := ca.rc.Call(ctx, cRpcEpAdminTruncate, records.Record(buf))
+	resp, opErr, err := ca.rc.Call(ctx, cRpcEpAdminExecute, records.Record(buf))
 	if err != nil {
 		return res, errors.Wrapf(err, "could not sent request via rpc")
 	}
@@ -66,25 +65,25 @@ func NewServerAdmin() *ServerAdmin {
 	return sa
 }
 
-func (sa *ServerAdmin) truncate(reqId int32, reqBody []byte, sc *rrpc.ServerConn) {
-	var req api.TruncateRequest
+func (sa *ServerAdmin) execute(reqId int32, reqBody []byte, sc *rrpc.ServerConn) {
+	var req api.ExecRequest
 	err := json.Unmarshal(reqBody, &req)
 	if err != nil {
-		sa.logger.Error("truncate(): could not unmarshal the body request ")
+		sa.logger.Error("execute(): could not unmarshal the body request ")
 		sc.SendResponse(reqId, err, cEmptyResponse)
 		return
 	}
 
-	res, err := sa.Admin.Truncate(req)
+	res, err := sa.Admin.Execute(req)
 	if err != nil {
-		sa.logger.Warn("truncate(): got the err=", err)
+		sa.logger.Warn("execute(): got the err=", err)
 		sc.SendResponse(reqId, err, cEmptyResponse)
 		return
 	}
 
 	buf, err := json.Marshal(res)
 	if err != nil {
-		sa.logger.Warn("truncate(): could not marshal result err=", err)
+		sa.logger.Warn("execute(): could not marshal result err=", err)
 		sc.SendResponse(reqId, err, cEmptyResponse)
 		return
 	}

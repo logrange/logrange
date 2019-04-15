@@ -29,7 +29,7 @@ type (
 		SrvIngestor *ServerIngestor  `inject:""`
 		SrvQuerier  *ServerQuerier   `inject:""`
 		SrvAdmin    *ServerAdmin     `inject:""`
-		SrvStreams  *ServerStreams   `inject:""`
+		SrvPipes    *ServerPipes     `inject:""`
 		rs          rrpc.Server
 		ln          net.Listener
 		logger      log4g.Logger
@@ -38,11 +38,10 @@ type (
 
 // RPC endpoints
 const (
-	cRpcEpIngestorWrite  = 100
-	cRpcEpQuerierQuery   = 200
-	cRpcEpQuerierSources = 201
-	cRpcEpAdminTruncate  = 300
-	cRpcEpStreamsEnsure  = 400
+	cRpcEpIngestorWrite = 100
+	cRpcEpQuerierQuery  = 200
+	cRpcEpAdminExecute  = 300
+	cRpcEpPipesEnsure   = 400
 )
 
 func NewServer() *Server {
@@ -63,9 +62,8 @@ func (s *Server) Init(ctx context.Context) error {
 	// register endpoints
 	s.rs.Register(cRpcEpIngestorWrite, s.SrvIngestor.write)
 	s.rs.Register(cRpcEpQuerierQuery, s.SrvQuerier.query)
-	s.rs.Register(cRpcEpQuerierSources, s.SrvQuerier.sources)
-	s.rs.Register(cRpcEpAdminTruncate, s.SrvAdmin.truncate)
-	s.rs.Register(cRpcEpStreamsEnsure, s.SrvStreams.ensureStream)
+	s.rs.Register(cRpcEpAdminExecute, s.SrvAdmin.execute)
+	s.rs.Register(cRpcEpPipesEnsure, s.SrvPipes.ensurePipe)
 
 	go s.listen()
 	return nil

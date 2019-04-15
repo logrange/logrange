@@ -47,7 +47,7 @@ func Parse(kvs string) Fields {
 	return flds
 }
 
-// NewFieldsFromKVString receives a kv-stream in form `field1=value1, field2=value2...` and turn
+// NewFieldsFromKVString receives a kv-pipe in form `field1=value1, field2=value2...` and turn
 // it to Fields.
 func NewFieldsFromKVString(kvs string) (Fields, error) {
 	if len(kvs) == 0 {

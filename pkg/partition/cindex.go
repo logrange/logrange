@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package journal
+package partition
 
 import (
 	"context"
@@ -66,7 +66,7 @@ func (ci *cindex) init(ddir string) {
 	ci.loadDataFromFile()
 }
 
-// onWrite updates the journal cindex. It receives the journal name src, number of records in the
+// onWrite updates the partition cindex. It receives the partition name src, number of records in the
 // chunk and the cinfo
 func (ci *cindex) onWrite(src string, firstRec, lastRec uint32, cinfo chkInfo) {
 	ci.lock.Lock()
@@ -84,7 +84,7 @@ func (ci *cindex) onWrite(src string, firstRec, lastRec uint32, cinfo chkInfo) {
 	ci.lock.Unlock()
 }
 
-// syncChunks receives a list of chunks for a journal src and updates the cindex information by the data from the chunks
+// syncChunks receives a list of chunks for a partition src and updates the cindex information by the data from the chunks
 func (ci *cindex) syncChunks(ctx context.Context, src string, cks chunk.Chunks) sortedChunks {
 	newSC := chunksToSortedChunks(cks)
 	ci.lock.Lock()

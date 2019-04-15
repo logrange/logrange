@@ -30,7 +30,7 @@ import (
 //	return "", nil
 //}
 //
-//func (tis *testTidxService) Visit(srcCond *lql.Source, v tindex.VisitorF) error {
+//func (tis *testTidxService) Visit(srcCond *lql.From, v tindex.VisitorF) error {
 //	for tl, jrnl := range tis.journals {
 //		s, err := tag.ParseSelect(tl.String())
 //		if err != nil {
@@ -47,7 +47,7 @@ import (
 //	mp map[string]*testJrnl
 //}
 //
-//func (tjc *testJrnlCtrlr) GetOrCreate(ctx context.Context, jname string) (journal.Journal, error) {
+//func (tjc *testJrnlCtrlr) GetOrCreate(ctx context.Context, jname string) (partition.Journal, error) {
 //	if j, ok := tjc.mp[jname]; ok {
 //		j.name = jname
 //		return j, nil
@@ -63,7 +63,7 @@ import (
 //	return res
 //}
 //
-//func (tjc *testJrnlCtrlr) Visit(ctx context.Context, cv journal.ControllerVisitorF) {
+//func (tjc *testJrnlCtrlr) Visit(ctx context.Context, cv partition.ControllerVisitorF) {
 //	for src := range tjc.mp {
 //		if !cv(&testJrnl{src}) {
 //			return
@@ -99,7 +99,7 @@ func (tj *testJrnl) Name() string {
 	return tj.name
 }
 
-// Write - writes records received from the iterator to the journal.
+// Write - writes records received from the iterator to the partition.
 // It returns number of records written, next record write position and an error if any
 func (tj *testJrnl) Write(ctx context.Context, rit records.Iterator) (int, journal.Pos, error) {
 	return 0, journal.Pos{}, nil
@@ -114,7 +114,7 @@ func (tj *testJrnl) Count() uint64 {
 	return 0
 }
 
-// Iterator returns an iterator to walk through the journal records
+// Iterator returns an iterator to walk through the partition records
 func (tj *testJrnl) Iterator() journal.Iterator {
 	return &testJIterator{journal: tj.name}
 }

@@ -17,31 +17,31 @@ package api
 import "context"
 
 type (
-	// Stream struct describes an event stream
-	Stream struct {
-		// Name contains the stream name, which must be unique
+	// Pipe struct describes a pipe
+	Pipe struct {
+		// Name contains the pipe name, which must be unique
 		Name string
-		// TagsCond contains the condition, which filters sources for the stream
+		// TagsCond contains the condition, which filters sources for the pipe
 		TagsCond string
-		// FilterCond desribes the filtering condition (the events that must be in the stream)
+		// FilterCond desribes the filtering condition (the events that must be in the pipe)
 		FilterCond string
-		// Destination contains tags conditions used for the stream destination. This field is
+		// Destination contains tags conditions used for the pipe destination. This field is
 		// defined by server, so it is ignored by Create
 		Destination string
 	}
 
-	// StreamCreateResult struct describes the result of Streams.Create() function
-	StreamCreateResult struct {
-		// Stream contains created stream object
-		Stream Stream
+	// PipeCreateResult struct describes the result of Pipes.Create() function
+	PipeCreateResult struct {
+		// Pipe contains created pipe object
+		Pipe Pipe
 
 		// Err the operaion error, if any
 		Err error `json:"-"`
 	}
 
-	// Streams allows to manage streams
-	Streams interface {
-		// Create creates a new stream
-		EnsureStream(ctx context.Context, stm Stream, res *StreamCreateResult) error
+	// Pipes allows to manage streams
+	Pipes interface {
+		// Create creates a new pipe
+		EnsurePipe(ctx context.Context, p Pipe, res *PipeCreateResult) error
 	}
 )

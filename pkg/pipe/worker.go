@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package stream
+package pipe
 
 import (
 	"context"
@@ -27,7 +27,7 @@ import (
 
 type (
 	worker struct {
-		strm    *strm
+		pp      *ppipe
 		src     string
 		srcTags tag.Line
 		dstTags tag.Line
@@ -35,32 +35,32 @@ type (
 	}
 )
 
-func newWorker(strm *strm, src string, srcTags, dstTags tag.Line) *worker {
+func newWorker(pp *ppipe, src string, srcTags, dstTags tag.Line) *worker {
 	w := new(worker)
-	w.strm = strm
+	w.pp = pp
 	w.src = src
 	w.srcTags = srcTags
 	w.dstTags = dstTags
-	w.logger = log4g.GetLogger("stream.wrkr").WithId(fmt.Sprintf("{%s -> %s}", src, strm.cfg.Name)).(log4g.Logger)
+	w.logger = log4g.GetLogger("pipe.wrkr").WithId(fmt.Sprintf("{%s -> %s}", src, pp.cfg.Name)).(log4g.Logger)
 	return w
 }
 
 func (w *worker) run(ctx context.Context) {
-	defer w.strm.workerDone(w)
+	defer w.pp.workerDone(w)
 	w.logger.Debug("entering run()")
 
-	state, err := w.strm.getState(w.src)
+	state, err := w.pp.getState(w.src)
 	if err != nil {
 		w.logger.Error("Could not read state for src=", w.src, " tags=", w.srcTags, ". game is over.")
 		return
 	}
 
-	cur, err := w.strm.svc.CurProvider.GetOrCreate(ctx, state, true)
+	cur, err := w.pp.svc.CurProvider.GetOrCreate(ctx, state, true)
 	if err != nil {
 		w.logger.Warn("Could not obtain cursor by state=", state, ", err=", err)
 		return
 	}
-	defer w.strm.svc.CurProvider.Release(ctx, cur)
+	defer w.pp.svc.CurProvider.Release(ctx, cur)
 
 	w.logger.Debug("Sync for srcTags=", w.srcTags, " to dstTags=", w.dstTags, ", state=", state)
 
@@ -70,19 +70,19 @@ func (w *worker) run(ctx context.Context) {
 	werrs := 1
 
 	for ctx.Err() == nil {
-		err = w.strm.svc.Journals.Write(ctx, w.dstTags.String(), &si, true)
+		err = w.pp.svc.Journals.Write(ctx, w.dstTags.String(), &si, true)
 		if err != nil {
 			werrs *= 2
 			if werrs > 60 {
 				werrs = 60
 			}
-			w.logger.Warn("could not write data into the journal ", w.dstTags.String(), " will sleep for ", werrs, " second(s) and try again, err=", err)
+			w.logger.Warn("could not write data into the partition ", w.dstTags.String(), " will sleep for ", werrs, " second(s) and try again, err=", err)
 			context2.Sleep(ctx, time.Duration(werrs)*time.Second)
 			continue
 		}
 		werrs = 1
 
-		if err = w.strm.saveState(w.src, cur.State(ctx)); err != nil {
+		if err = w.pp.saveState(w.src, cur.State(ctx)); err != nil {
 			w.logger.Error("Could not save the existing state, may be deleted?")
 			break
 		}

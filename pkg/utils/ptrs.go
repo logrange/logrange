@@ -21,6 +21,22 @@ func GetInt64Val(ptr *int64, defVal int64) int64 {
 	return defVal
 }
 
+// GetUint64Val receives a pointer to uint64 value and returns its value or defVal, if the pointer is nil
+func GetUint64Val(ptr *uint64, defVal uint64) uint64 {
+	if ptr != nil {
+		return *ptr
+	}
+	return defVal
+}
+
+// GetIntVal receives a pointer to int value and returns its value or defVal, if the pointer is nil
+func GetIntVal(ptr *int, defVal int) int {
+	if ptr != nil {
+		return *ptr
+	}
+	return defVal
+}
+
 func GetStringVal(ptr *string, defVal string) string {
 	if ptr != nil {
 		return *ptr
