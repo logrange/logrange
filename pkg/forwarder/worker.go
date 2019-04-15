@@ -121,20 +121,20 @@ func (w *worker) isStopped() bool {
 	return w.stopped
 }
 
-func (w *worker) getStream(ctx context.Context) (api.Stream, error) {
-	st := api.Stream{
+func (w *worker) getStream(ctx context.Context) (api.Pipe, error) {
+	st := api.Pipe{
 		Name:       w.desc.Worker.Name,
 		TagsCond:   w.desc.Worker.Stream.Source,
 		FilterCond: w.desc.Worker.Stream.Filter,
 	}
 
-	res := &api.StreamCreateResult{}
-	err := w.rpcc.EnsureStream(ctx, st, res)
+	res := &api.PipeCreateResult{}
+	err := w.rpcc.EnsurePipe(ctx, st, res)
 	if err != nil {
-		return api.Stream{}, err
+		return api.Pipe{}, err
 	}
 
-	return res.Stream, res.Err
+	return res.Pipe, res.Err
 }
 
 func (w *worker) prepareQuery(dest string) (*api.QueryRequest, error) {

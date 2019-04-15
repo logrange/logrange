@@ -29,7 +29,7 @@ type (
 	// from a text file, treating every line as a k8s json log message (fixed fields).
 	// The parser doesn't pay much attention to parsing dates, as they are presented as time.Time
 	// object in case of k8s log and in such a case JSON deserialization should take care of it.
-	// Additionally to message and date the parser also saves some additional metadata like 'stream' (stdout/strerr),
+	// Additionally to message and date the parser also saves some additional metadata like 'pipe' (stdout/strerr),
 	// which is provided in k8s logs, the result of parsing is model.Record.
 	K8sJsonLogParser struct {
 		fn  string

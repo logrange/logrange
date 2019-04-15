@@ -76,7 +76,8 @@ type (
 
 	// WriteEvent structure contains inforamation about write event into a partition
 	WriteEvent struct {
-		Tags     tag.Set
+		Tags tag.Set
+		//Src the partition Id
 		Src      string
 		StartPos journal.Pos
 		EndPos   journal.Pos

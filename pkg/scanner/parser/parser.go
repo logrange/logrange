@@ -23,24 +23,24 @@ import (
 )
 
 type (
-	// Parser provides an interface for retrieving records from a data-stream.
+	// Parser provides an interface for retrieving records from a data-pipe.
 	// Implementations of the interface are supposed to be initialized by the
-	// stream (io.Reader)
+	// pipe (io.Reader)
 	Parser interface {
 		io.Closer
 
 		// NextRecord parses next record. It returns error if it could not parse
-		// a record from the stream. io.EOF is returned if no new records found, but
+		// a record from the pipe. io.EOF is returned if no new records found, but
 		// end is reached.
 		NextRecord(ctx context.Context) (*model.Record, error)
 
-		// SetStreamPos specifies the stream position for the next record read
+		// SetStreamPos specifies the pipe position for the next record read
 		SetStreamPos(pos int64) error
 
 		// GetStreamPos returns position of the last successfully (error was nil)
 		// returned record by nextRecord(). If nextRecord() returned non-nil
 		// error the getStreamPos() returned value is not relevant and should
-		// not be used as a valid stream position.
+		// not be used as a valid pipe position.
 		GetStreamPos() int64
 
 		// GetStat returns the parser statistic

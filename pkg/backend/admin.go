@@ -23,7 +23,7 @@ import (
 	"github.com/logrange/logrange/api"
 	"github.com/logrange/logrange/pkg/lql"
 	"github.com/logrange/logrange/pkg/partition"
-	"github.com/logrange/logrange/pkg/stream"
+	"github.com/logrange/logrange/pkg/pipe"
 	"github.com/logrange/logrange/pkg/utils"
 	"math"
 	"strings"
@@ -35,7 +35,7 @@ type (
 	Admin struct {
 		Partitions *partition.Service `inject:""`
 		MainCtx    context.Context    `inject:"mainCtx"`
-		Streams    *stream.Service    `inject:""`
+		Streams    *pipe.Service      `inject:""`
 
 		logger log4g.Logger
 	}
@@ -137,7 +137,7 @@ func (ad *Admin) cmdShowPipes(p *lql.Pipes) (api.ExecResult, error) {
 		lim = math.MaxInt32
 	}
 	offs := int(kplr.GetInt64Val(p.Offset, 0))
-	stms := ad.Streams.GetStreams()
+	stms := ad.Streams.GetPipes()
 	var sb strings.Builder
 	if lim+offs > len(stms) {
 		lim = len(stms) - offs
@@ -202,8 +202,8 @@ func (ad *Admin) cmdTruncate(t *lql.Truncate) (api.ExecResult, error) {
 }
 
 func (ad *Admin) cmdCreatePipe(p *lql.Pipe) (api.ExecResult, error) {
-	st := stream.Stream{Name: p.Name, TagsCond: p.From.String(), FltCond: p.Where.String()}
-	_, err := ad.Streams.CreateStream(st)
+	st := pipe.Pipe{Name: p.Name, TagsCond: p.From.String(), FltCond: p.Where.String()}
+	_, err := ad.Streams.CreatePipe(st)
 	if err != nil {
 		ad.logger.Warn("cmdCreatePipe(", p.String(), "): err=", err)
 		return api.ExecResult{}, err
@@ -214,7 +214,7 @@ func (ad *Admin) cmdCreatePipe(p *lql.Pipe) (api.ExecResult, error) {
 }
 
 func (ad *Admin) cmdDeletePipe(name string) (api.ExecResult, error) {
-	err := ad.Streams.DeleteStream(name)
+	err := ad.Streams.DeletePipe(name)
 	if err != nil {
 		ad.logger.Warn("cmdDeletePipe(", name, "): err=", err)
 		return api.ExecResult{}, err
@@ -236,7 +236,7 @@ func (ad *Admin) cmdDescribe(d *lql.Describe) (api.ExecResult, error) {
 }
 
 func (ad *Admin) cmdDescribePipe(pname string) (api.ExecResult, error) {
-	sd, err := ad.Streams.GetStream(pname)
+	sd, err := ad.Streams.GetPipe(pname)
 	if err != nil {
 		ad.logger.Warn("cmdDescribePipe(", pname, "): err=", err)
 		return api.ExecResult{}, err

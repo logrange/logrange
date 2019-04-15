@@ -41,7 +41,7 @@ const (
 	argServerAddr = "server-addr"
 	argStorageDir = "storage-dir"
 
-	argQueryStreamMode = "stream-mode"
+	argQueryStreamMode = "pipe-mode"
 )
 
 var (
@@ -102,7 +102,7 @@ func main() {
 				Flags: []ucli.Flag{cmnFlags[0],
 					&ucli.BoolFlag{
 						Name:  argQueryStreamMode,
-						Usage: "enable query stream mode (blocking)",
+						Usage: "enable query pipe mode (blocking)",
 					},
 				},
 			},
@@ -266,7 +266,7 @@ func getQuery(c *ucli.Context) ([]string, error) {
 		}
 	}
 	scanner := bufio.NewScanner(os.Stdin)
-	for scanner.Scan() { //for now just read it all, later stream if needed
+	for scanner.Scan() { //for now just read it all, later pipe if needed
 		t := strings.TrimSpace(scanner.Text())
 		if t != "" {
 			query = append(query, t)

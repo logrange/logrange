@@ -31,7 +31,7 @@ type (
 		cing    *clntIngestor
 		cqrier  *clntQuerier
 		admin   *clntAdmin
-		streams *clntStreams
+		streams *clntPipes
 	}
 )
 
@@ -87,7 +87,7 @@ func (c *Client) connect() error {
 	c.cqrier.rc = c.rc
 	c.admin = new(clntAdmin)
 	c.admin.rc = c.rc
-	c.streams = new(clntStreams)
+	c.streams = new(clntPipes)
 	c.streams.rc = c.rc
 	return nil
 }
@@ -143,7 +143,7 @@ func (c *Client) Write(ctx context.Context, tags, fields string, evs []*api.LogE
 	return res.Err
 }
 
-func (c *Client) EnsureStream(ctx context.Context, stm api.Stream, res *api.StreamCreateResult) error {
+func (c *Client) EnsurePipe(ctx context.Context, p api.Pipe, res *api.PipeCreateResult) error {
 	if c.rc == nil {
 		err := c.connect()
 		if err != nil {
@@ -151,7 +151,7 @@ func (c *Client) EnsureStream(ctx context.Context, stm api.Stream, res *api.Stre
 		}
 	}
 
-	err := c.streams.EnsureStream(ctx, stm, res)
+	err := c.streams.EnsurePipe(ctx, p, res)
 	if err != nil {
 		_ = c.Close()
 	}

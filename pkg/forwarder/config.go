@@ -137,7 +137,7 @@ func (wc *WorkerConfig) Check() error {
 		return fmt.Errorf("invalid Name=%v, must be non-empty", wc.Name)
 	}
 	if wc.Stream == nil {
-		return fmt.Errorf("invalid Stream=%v, must be non-nil", wc.Stream)
+		return fmt.Errorf("invalid Pipe=%v, must be non-nil", wc.Stream)
 	}
 	if wc.Sink == nil {
 		return fmt.Errorf("invalid Sink=%v, must be non-nil", wc.Sink)
@@ -145,7 +145,7 @@ func (wc *WorkerConfig) Check() error {
 
 	err := wc.Stream.Check()
 	if err != nil {
-		return fmt.Errorf("invalid Stream=%v: %v", wc.Stream, err)
+		return fmt.Errorf("invalid Pipe=%v: %v", wc.Stream, err)
 	}
 	err = wc.Sink.Check()
 	if err != nil {

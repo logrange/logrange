@@ -61,7 +61,7 @@ const (
 	cmdQuitName   = "quit"
 	cmdHelpName   = "help"
 
-	optStreamMode = "stream-mode"
+	optStreamMode = "pipe-mode"
 )
 
 var commands []command = []command{ //replace with language grammar...
@@ -138,7 +138,7 @@ The OFFSET <number> allows to skip the <number> of records starting from the pos
 Default value is 0.
 
 The LIMIT <number> allows to set the number of records in the result returned. 
-It doesn't make sense in stream-mode=on. Default value is 0
+It doesn't make sense in pipe-mode=on. Default value is 0
 `,
 	},
 	"show partitions": {
@@ -168,15 +168,15 @@ known commands if the command is empty.
 `,
 	},
 	cmdSetOptName: {
-		short: "allows to change an option setting. e.g. 'setoption stream-mode on'",
+		short: "allows to change an option setting. e.g. 'setoption pipe-mode on'",
 		long: `SETOPTION has the following syntax:
 
-	SETOPTION stream-mode (on|off)
+	SETOPTION pipe-mode (on|off)
 
-stream-mode allows to enable (stream-mode on) or disable (stream-mode off) the
-streaming mode. In streaming mode records are retrieved until end of the stream
+pipe-mode allows to enable (pipe-mode on) or disable (pipe-mode off) the
+streaming mode. In streaming mode records are retrieved until end of the pipe
 is reached. When the end is reached the read of records will be blocked until
-new records appear in the stream.
+new records appear in the pipe.
 `,
 	},
 	cmdQuitName: {
