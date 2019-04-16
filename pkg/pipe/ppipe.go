@@ -118,7 +118,7 @@ func (pp *ppipe) getState(src string) (cursor.State, error) {
 		pp.lock.Unlock()
 		return cursor.State{}, errors2.NotFound
 	}
-	res := cursor.State{Id: sd.curId, Query: "select source {" + sd.Tags + "}", Pos: src + "=" + sd.Pos.String()}
+	res := cursor.State{Id: sd.curId, Query: "select from {" + sd.Tags + "}", Pos: src + "=" + sd.Pos.String()}
 	pp.lock.Unlock()
 	return res, nil
 }
