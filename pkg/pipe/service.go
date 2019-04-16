@@ -30,6 +30,15 @@ import (
 )
 
 type (
+	// PipesConfig is a configuration struct used for starting the service
+	PipesConfig struct {
+		// Dir contains the directory where pipes information is persisted
+		Dir string
+
+		// Ensure contains slice of pipes to be created on initialization stage
+		EnsureAtStart []Pipe
+	}
+
 	// Pipe struct describes a pipe.
 	Pipe struct {
 		// Name contains the pipe name
@@ -52,7 +61,7 @@ type (
 	Service struct {
 		CurProvider cursor.Provider   `inject:""`
 		Journals    *journal2.Service `inject:""`
-		PipesDir    string            `inject:"pipesDir"`
+		Config      *PipesConfig      `inject:""`
 
 		logger    log4g.Logger
 		lock      sync.Mutex
@@ -84,12 +93,12 @@ func NewService() *Service {
 
 // Init provides an implementaion of linker.Initializer interface
 func (s *Service) Init(ctx context.Context) error {
-	err := fileutil.EnsureDirExists(s.PipesDir)
+	err := fileutil.EnsureDirExists(s.Config.Dir)
 	if err != nil {
-		return errors2.Wrapf(err, "it seems like %s dir doesn't exist, and it is not possible to create it", s.PipesDir)
+		return errors2.Wrapf(err, "it seems like %s dir doesn't exist, and it is not possible to create it", s.Config.Dir)
 
 	}
-	s.psr = newPersister(s.PipesDir)
+	s.psr = newPersister(s.Config.Dir)
 	ppipes, err := s.psr.loadPipes()
 	if err != nil {
 		s.logger.Error("could not read information about pipes. Corrupted? ", err)
@@ -108,7 +117,13 @@ func (s *Service) Init(ctx context.Context) error {
 	s.logger.Info(len(ppipes), " pipe(s) were created.")
 
 	go s.notificatior()
-	return nil
+
+	err = s.ensurePipesAtStart()
+	if err != nil {
+		// Shutdown if could not create the pipes
+		s.Shutdown()
+	}
+	return err
 }
 
 // Shutdown provides implementation for linker.Shutdowner interface
@@ -284,6 +299,33 @@ func (s *Service) getPipesForSource(we *journal2.WriteEvent) []*ppipe {
 	return res
 }
 
+func (s *Service) ensurePipesAtStart() error {
+	s.logger.Info("ensurePipesAtStart(): ", s.Config.EnsureAtStart)
+	for _, p := range s.Config.EnsureAtStart {
+		_, err := s.EnsurePipe(p)
+		if err != nil {
+			s.logger.Error("ensurePipesAtStart(): error with pipe=", p, ", err=", err)
+			return err
+		}
+	}
+	return nil
+}
+
 func (p Pipe) String() string {
 	return fmt.Sprintf("{Name:%s, TagsCond:%s, FltCond:%s}", p.Name, p.TagsCond, p.FltCond)
+}
+
+func (pc *PipesConfig) Apply(other *PipesConfig) {
+	if len(other.Dir) > 0 {
+		pc.Dir = other.Dir
+	}
+	if len(other.EnsureAtStart) > 0 {
+		pc.EnsureAtStart = other.EnsureAtStart
+	}
+}
+
+func (pc PipesConfig) String() string {
+	return fmt.Sprint("\n\t{\n\t\tDir=", pc.Dir,
+		"\n\t\tEnsureAtStart=", pc.EnsureAtStart,
+		"\n\t}")
 }

@@ -17,9 +17,11 @@ package server
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/logrange/logrange/pkg/pipe"
 	"github.com/logrange/range/pkg/records/chunk/chunkfs"
 	"github.com/logrange/range/pkg/transport"
 	"io/ioutil"
+	"path"
 	"reflect"
 	"time"
 
@@ -52,6 +54,9 @@ type Config struct {
 
 	// JrnlCtrlConfig an implementation of
 	JrnlCtrlConfig JCtrlrConfig
+
+	// PipesConfig contains default configuration for pipes
+	PipesConfig pipe.PipesConfig
 
 	// NewTIndexOk shows whether the new tindex file could be created if it doesn't exist
 	NewTIndexOk bool
@@ -104,6 +109,7 @@ func (c *Config) String() string {
 		"\n\tPrivateApiRpc=", c.PrivateApiRpc,
 		"\n\tJrnlCtrlConfig=", c.JrnlCtrlConfig,
 		"\n\tNewTIndexOk=", c.NewTIndexOk,
+		"\n\tPipesConfig=", c.PipesConfig,
 	)
 }
 
@@ -113,6 +119,7 @@ func GetDefaultConfig() *Config {
 	c.PrivateApiRpc.ListenAddr = "127.0.0.1:9967"
 	c.HostLeaseTTLSec = 5
 	c.JrnlCtrlConfig = GetDefaultJCtrlrConfig()
+	c.PipesConfig.Dir = path.Join(c.JrnlCtrlConfig.JournalsDir, "pipes")
 	return c
 }
 
@@ -153,6 +160,7 @@ func (c *Config) Apply(cfg *Config) {
 		return
 	}
 	c.JrnlCtrlConfig.Apply(&cfg.JrnlCtrlConfig)
+	c.PipesConfig.Apply(&cfg.PipesConfig)
 	if cfg.HostHostId > 0 {
 		c.HostHostId = cfg.HostHostId
 	}
