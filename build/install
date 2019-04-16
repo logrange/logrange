@@ -40,6 +40,6 @@ if [[ $? -ne 0 ]]; then
 fi
 
 chmod +x ${CMD}
-mv ./lr /usr/local/bin
+mv ./${CMD} /usr/local/bin
 echo "Done! Try running '${CMD}'..."
 
