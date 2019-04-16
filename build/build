@@ -1,0 +1,62 @@
+#!/usr/bin/env bash
+
+function cleanup {
+    echo "Cleaning up..."
+    rm -rf ${TMP_PATH}
+}
+
+function check {
+    code=$1;
+    if [[ ${code} -ne 0 ]]; then
+        echo "ERROR!"
+        exit ${code}
+    fi
+}
+
+################# Main #################
+
+TMP_PATH=$(mktemp -d)
+trap cleanup EXIT
+
+CUR_PATH=$(pwd)
+LGR_PATH=${TMP_PATH}/src/github.com/logrange
+
+BRANCH=$1
+if [[ -z ${BRANCH} ]]; then
+    BRANCH=$(git rev-parse --abbrev-ref HEAD)
+    check $?
+fi
+
+echo "Creating tmp sources folder '${LGR_PATH}'..."
+mkdir -p ${LGR_PATH}
+check $?
+
+cd ${LGR_PATH}
+echo "Cloning git branch '${BRANCH}' to '${LGR_PATH}/logrange'..."
+git clone -b ${BRANCH} git@github.com:logrange/logrange.git >> /dev/null 2>&1
+check $?
+
+cd ${LGR_PATH}/logrange
+env GOPATH=${TMP_PATH} go get -d -u ./... >> /dev/null 2>&1
+check $?
+
+echo "Building logrange binaries to ${CUR_PATH}/binaries/${BRANCH}..."
+mkdir -p ${CUR_PATH}/binaries/${BRANCH}
+check $?
+
+ARCH="amd64"
+for OS in "linux" "darwin"
+do
+    cd ${CUR_PATH}/binaries/${BRANCH}
+    mkdir -p ${OS}/x86_64
+    check $?
+
+    cd ${OS}/x86_64
+    for cmd in "logrange" "lr"
+    do
+        echo "Building cmd=${cmd}, os=${OS}, arch=${ARCH}..."
+        env GOPATH=${TMP_PATH} GOOS=${OS} GOARCH=${ARCH} \
+            go build -o ./${cmd} ${LGR_PATH}/logrange/cmd/${cmd}
+        check $?
+    done
+done
