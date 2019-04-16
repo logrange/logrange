@@ -28,7 +28,6 @@ import (
 	"github.com/logrange/range/pkg/kv/inmem"
 	"github.com/logrange/range/pkg/records/journal/ctrlr"
 	"github.com/logrange/range/pkg/utils/bytes"
-	"path"
 )
 
 // Start starts the logrange server using the configuration provided. It will
@@ -45,7 +44,7 @@ func Start(ctx context.Context, cfg *Config) error {
 		linker.Component{Name: "HostRegistryConfig", Value: cfg},
 		linker.Component{Name: "JournalControllerConfig", Value: &cfg.JrnlCtrlConfig},
 		linker.Component{Name: "cindexDir", Value: cfg.JrnlCtrlConfig.JournalsDir},
-		linker.Component{Name: "pipesDir", Value: path.Join(cfg.JrnlCtrlConfig.JournalsDir, "pipes")},
+		linker.Component{Name: "", Value: &cfg.PipesConfig},
 		linker.Component{Name: "publicRpcTransport", Value: cfg.PublicApiRpc},
 		linker.Component{Name: "inmemServiceConfig", Value: imsCfg},
 		linker.Component{Name: "mainCtx", Value: ctx},
