@@ -122,6 +122,10 @@ func (w *worker) isStopped() bool {
 }
 
 func (w *worker) getPipe(ctx context.Context) (api.Pipe, error) {
+	if w.desc.Worker.Pipe.Name != "" {
+		return api.Pipe{Destination: w.desc.Worker.Pipe.Name}, nil
+	}
+
 	st := api.Pipe{
 		Name:       w.desc.Worker.Name,
 		TagsCond:   w.desc.Worker.Pipe.From,
@@ -139,7 +143,7 @@ func (w *worker) getPipe(ctx context.Context) (api.Pipe, error) {
 
 func (w *worker) prepareQuery(dest string) (*api.QueryRequest, error) {
 	qr := &api.QueryRequest{
-		Query:       fmt.Sprintf("select source %v", dest),
+		Query:       fmt.Sprintf("SELECT FROM %v", dest),
 		Pos:         w.desc.getPosition(),
 		Limit:       1000,
 		WaitTimeout: 10,
