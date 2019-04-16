@@ -25,15 +25,27 @@ import (
 )
 
 type (
+	// SchemaConfig describes the configuration for parsing of the data
 	SchemaConfig struct {
+		// PathMatcher contains a regexp for matching file names. It can contain
+		// named groups, which values can be assigned for tags and fields (see Meta field)
 		PathMatcher string
 		DataFormat  parser.DataFormat
 		DateFormats []string
-		Meta        Meta
+		// Meta describes Tags and fields assignment. It is formded based on PathMather
+		// where keys are taken by group names from the regular expression
+		Meta Meta
 	}
 
+	// Meta descirbes Tags and Fields assignment. Tags and Fields are maps, where
+	// key is the value of Tag or Field and the value is a template for the value. The
+	// template can contains variables placed in curly braces e.g. "var1={var1} or var2={var2}"...
 	Meta struct {
+		// Tags contains map of key-value pairs
 		Tags map[string]string
+
+		// Fields contains map of key-value pairs
+		Fields map[string]string
 	}
 
 	schema struct {
@@ -57,8 +69,15 @@ func (s *schema) getMeta(d *desc) Meta {
 	for k, v := range s.cfg.Meta.Tags {
 		tags[k] = s.subsVars(v, vars)
 	}
+
+	fields := make(map[string]string, len(s.cfg.Meta.Tags))
+	for k, v := range s.cfg.Meta.Fields {
+		fields[k] = s.subsVars(v, vars)
+	}
+
 	return Meta{
-		Tags: tags,
+		Tags:   tags,
+		Fields: fields,
 	}
 }
 

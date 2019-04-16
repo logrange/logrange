@@ -450,7 +450,7 @@ func (s *Service) Truncate(ctx context.Context, tp TruncateParams, otf OnTruncat
 	cremoved += cremoved2
 	rs += rs2
 
-	s.logger.Info("Truncate(): ", cremoved, " chunk(s) were removed. Initial size of ALL journals was ", humanize.Bytes(ts),
+	s.logger.Info("Truncate(dryrun=", tp.DryRun, "): ", cremoved, " chunk(s) were removed. Initial size of ALL journals was ", humanize.Bytes(ts),
 		"(", ts, "), and ", humanize.Bytes(rs), "(", rs, ") were removed. It took ", time.Now().Sub(start))
 	return nil
 }

@@ -48,9 +48,8 @@ func Run(ctx context.Context, cfg *scanner.Config, cl api.Client, storg storage.
 			break
 		case ev := <-events:
 			for ctx.Err() == nil {
-				tl := toTagLine(ev)
-				// TODO: writing the tags and fields are all together. Must be changed when ready
-				err = cl.Write(ctx, tl, tl, toApiEvents(ev), &wr)
+				tgs, flds := toTagsAndFields(ev)
+				err = cl.Write(ctx, tgs, flds, toApiEvents(ev), &wr)
 				if err != nil {
 					logger.Info("Communication error, retry in ", 5, "sec; cause: ", err)
 					utils.Sleep(ctx, 5*time.Second)
@@ -73,9 +72,10 @@ func Run(ctx context.Context, cfg *scanner.Config, cl api.Client, storg storage.
 	return err
 }
 
-func toTagLine(ev *model.Event) string {
-	set := tag.MapToSet(ev.Meta.Tags)
-	return string(set.Line())
+func toTagsAndFields(ev *model.Event) (string, string) {
+	ts := tag.MapToSet(ev.Meta.Tags)
+	fs := tag.MapToSet(ev.Meta.Fields)
+	return ts.Line().String(), fs.Line().String()
 }
 
 func toApiEvents(ev *model.Event) []*api.LogEvent {

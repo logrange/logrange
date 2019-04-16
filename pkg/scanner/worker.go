@@ -37,7 +37,7 @@ type (
 
 	worker struct {
 		desc         *desc
-		schema       *schema
+		meta         model.Meta
 		recsPerEvent int
 
 		state  int32
@@ -63,10 +63,11 @@ const (
 //===================== worker =====================
 
 func newWorker(wc *workerConfig) *worker {
+	sm := wc.schema.getMeta(wc.desc)
 	w := new(worker)
 	w.desc = wc.desc
 	w.parser = wc.parser
-	w.schema = wc.schema
+	w.meta = model.Meta{Tags: sm.Tags, Fields: sm.Fields}
 	w.recsPerEvent = wc.recsPerEvent
 	w.logger = wc.logger
 	w.state = wsRunning
@@ -130,11 +131,7 @@ func (w *worker) sendOrSleep(ctx context.Context, recs []*model.Record, events c
 		return nil
 	}
 
-	sm := w.schema.getMeta(w.desc)
-	ev := model.NewEvent(w.desc.File,
-		recs, model.Meta{
-			Tags: sm.Tags,
-		}, w.confCh)
+	ev := model.NewEvent(w.desc.File, recs, w.meta, w.confCh)
 
 	select {
 	case <-ctx.Done():

@@ -19,10 +19,10 @@ import (
 	"github.com/logrange/logrange/pkg/utils"
 )
 
-// Event is a structure which contains a list of records,
-// parsed from a file. Event has a consumption confirmation mechanism,
-// consumer must call Confirm() as soon as he finished handling the even.
 type (
+	// Event is a structure which contains a list of records,
+	// parsed from a file. Event has a consumption confirmation mechanism,
+	// consumer must call Confirm() as soon as he finished handling the even.
 	Event struct {
 		// File contains filename of the file from where the records come
 		File string
@@ -38,7 +38,8 @@ type (
 	}
 
 	Meta struct {
-		Tags map[string]string
+		Tags   map[string]string
+		Fields map[string]string
 	}
 )
 
