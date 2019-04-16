@@ -60,3 +60,7 @@ do
         check $?
     done
 done
+
+echo "Uploading logrange binaries to s3://get.logrange.io/binaries..."
+aws s3 cp ${CUR_PATH}/binaries s3://get.logrange.io/binaries --recursive
+check $?
