@@ -22,6 +22,7 @@ import (
 	"github.com/logrange/logrange/pkg/scanner/parser"
 	"github.com/logrange/logrange/pkg/utils"
 	"io"
+	"sync/atomic"
 	"time"
 )
 
@@ -39,9 +40,7 @@ type (
 		schema       *schema
 		recsPerEvent int
 
-		stopped   bool
-		stopOnEof bool
-
+		state  int32
 		confCh chan struct{}
 
 		parser parser.Parser
@@ -55,6 +54,12 @@ type (
 	}
 )
 
+const (
+	wsRunning = int32(iota)
+	wsRunUntilEof
+	wsStopped
+)
+
 //===================== worker =====================
 
 func newWorker(wc *workerConfig) *worker {
@@ -64,6 +69,7 @@ func newWorker(wc *workerConfig) *worker {
 	w.schema = wc.schema
 	w.recsPerEvent = wc.recsPerEvent
 	w.logger = wc.logger
+	w.state = wsRunning
 	w.logger.Info("New for desc=", w.desc)
 	return w
 }
@@ -88,7 +94,7 @@ func (w *worker) run(ctx context.Context, events chan<- *model.Event) error {
 				recs = w.recycle(recs)
 			}
 
-			if eof && w.stopOnEof && err == nil {
+			if eof && atomic.LoadInt32(&w.state) == wsRunUntilEof && err == nil {
 				w.logger.Info("EOF reached!")
 				err = io.EOF
 			}
@@ -96,20 +102,19 @@ func (w *worker) run(ctx context.Context, events chan<- *model.Event) error {
 	}
 
 	_ = w.parser.Close()
-	w.stopped = true
+	atomic.StoreInt32(&w.state, wsStopped)
 	w.logger.Warn("Stopped, err=", err)
 	return err
 }
 
 func (w *worker) stopOnEOF() {
-	if !w.stopped && !w.stopOnEof {
+	if atomic.CompareAndSwapInt32(&w.state, wsRunning, wsRunUntilEof) {
 		w.logger.Info("Stopping on EOF...")
-		w.stopOnEof = true
 	}
 }
 
 func (w *worker) isStopped() bool {
-	return w.stopped
+	return atomic.LoadInt32(&w.state) == wsStopped
 }
 
 func (w *worker) recycle(recs []*model.Record) []*model.Record {

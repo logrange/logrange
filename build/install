@@ -1,0 +1,45 @@
+#!/usr/bin/env bash
+
+function error {
+    msg=$1
+    echo "ERROR! ${msg}"
+    exit 1
+}
+
+################# Main #################
+
+CMD=$1
+if [[ -z ${CMD} ]]; then
+    CMD="lr"
+fi
+
+if [[ "${CMD}" != "logrange" && "${CMD}" != "lr" ]]; then
+    error "Command '${CMD}' does not exist!"
+fi
+
+OS=$(uname)
+if [[ "${OS}" == "Linux" ]]; then
+    OS="linux"
+elif [[ "${OS}" == "Darwin" ]]; then
+    OS="darwin"
+else
+    error "Platform '${OS}' is not supported!"
+fi
+
+ARCH=$(uname -m)
+if [[ "$ARCH" != "x86_64" ]]; then
+    error "Architecture '${ARCH}' is not supported!"
+fi
+
+URL=http://get.logrange.io/binaries/master/${OS}/${ARCH}/${CMD}
+echo "Downloading from ${URL}..."
+
+curl -sOfL ${URL}
+if [[ $? -ne 0 ]]; then
+    error "Failed downloading '${CMD}', please check URL and retry..."
+fi
+
+chmod +x ${CMD}
+mv ./${CMD} /usr/local/bin
+echo "Done! Try running '${CMD}'..."
+

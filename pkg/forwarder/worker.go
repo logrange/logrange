@@ -21,6 +21,7 @@ import (
 	"github.com/logrange/logrange/api"
 	"github.com/logrange/logrange/pkg/forwarder/sink"
 	"github.com/logrange/logrange/pkg/utils"
+	"sync/atomic"
 	"time"
 )
 
@@ -37,10 +38,15 @@ type (
 		rpcc api.Client
 		sink sink.Sink
 
-		stop    bool
-		stopped bool
-		logger  log4g.Logger
+		state  int32
+		logger log4g.Logger
 	}
+)
+
+const (
+	wsRunning = int32(iota)
+	wsStopping
+	wsStopped
 )
 
 //===================== worker =====================
@@ -51,6 +57,7 @@ func newWorker(wc *workerConfig) *worker {
 	w.rpcc = wc.rpcc
 	w.sink = wc.sink
 	w.logger = wc.logger
+	w.state = wsRunning
 	w.logger.Info("New for desc=", w.desc)
 	return w
 }
@@ -71,7 +78,8 @@ func (w *worker) run(ctx context.Context) error {
 
 	limit := qr.Limit
 	timeout := qr.WaitTimeout
-	for ctx.Err() == nil && !w.stop {
+	for ctx.Err() == nil &&
+		atomic.LoadInt32(&w.state) != wsStopping {
 		qr.Limit = limit
 		qr.WaitTimeout = timeout
 
@@ -107,18 +115,17 @@ func (w *worker) run(ctx context.Context) error {
 	}
 
 	_ = w.sink.Close()
-	w.stopped = true
+	atomic.StoreInt32(&w.state, wsStopped)
 	w.logger.Warn("Stopped; pos=", qr.Pos, ", err=", err)
 	return nil
 }
 func (w *worker) stopGracefully() {
-	if !w.stopped && !w.stop {
+	if atomic.CompareAndSwapInt32(&w.state, wsRunning, wsStopping) {
 		w.logger.Info("Stopping...")
-		w.stop = true
 	}
 }
 func (w *worker) isStopped() bool {
-	return w.stopped
+	return atomic.LoadInt32(&w.state) == wsStopped
 }
 
 func (w *worker) getPipe(ctx context.Context) (api.Pipe, error) {
