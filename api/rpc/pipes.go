@@ -61,7 +61,7 @@ func (cp *clntPipes) EnsurePipe(ctx context.Context, p api.Pipe, res *api.PipeCr
 
 func NewServerPipes() *ServerPipes {
 	sp := new(ServerPipes)
-	sp.logger = log4g.GetLogger("rpc.streams")
+	sp.logger = log4g.GetLogger("rpc.pipes")
 	return sp
 }
 

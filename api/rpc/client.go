@@ -21,17 +21,19 @@ import (
 	rrpc "github.com/logrange/range/pkg/rpc"
 	"github.com/logrange/range/pkg/transport"
 	"net"
+	"sync"
 )
 
 type (
 	// Client is rpc client which provides the API interface for clients
 	Client struct {
-		rc      rrpc.Client
-		cfg     transport.Config
-		cing    *clntIngestor
-		cqrier  *clntQuerier
-		admin   *clntAdmin
-		streams *clntPipes
+		lock   sync.Mutex
+		rc     rrpc.Client
+		cfg    transport.Config
+		cing   *clntIngestor
+		cqrier *clntQuerier
+		admin  *clntAdmin
+		pipes  *clntPipes
 	}
 )
 
@@ -49,17 +51,23 @@ func NewClient(tcfg transport.Config) (*Client, error) {
 }
 
 func (c *Client) Close() error {
+	c.lock.Lock()
 	var err error
 	if c.rc != nil {
 		err = c.rc.Close()
 		c.rc = nil
 	}
+	c.cing = nil
+	c.cqrier = nil
+	c.admin = nil
+	c.pipes = nil
+	c.lock.Unlock()
 	return err
 }
 
 func (c *Client) connect() error {
 	if c.rc != nil {
-		_ = c.Close()
+		return nil
 	}
 
 	var (
@@ -87,20 +95,21 @@ func (c *Client) connect() error {
 	c.cqrier.rc = c.rc
 	c.admin = new(clntAdmin)
 	c.admin.rc = c.rc
-	c.streams = new(clntPipes)
-	c.streams.rc = c.rc
+	c.pipes = new(clntPipes)
+	c.pipes.rc = c.rc
 	return nil
 }
 
 func (c *Client) Execute(ctx context.Context, req api.ExecRequest) (api.ExecResult, error) {
-	if c.rc == nil {
-		err := c.connect()
-		if err != nil {
-			return api.ExecResult{}, err
-		}
+	c.lock.Lock()
+	if err := c.connect(); err != nil {
+		c.lock.Unlock()
+		return api.ExecResult{}, err
 	}
+	a := c.admin
+	c.lock.Unlock()
 
-	res, err := c.admin.Execute(ctx, req)
+	res, err := a.Execute(ctx, req)
 	if err != nil {
 		_ = c.Close()
 		return api.ExecResult{}, err
@@ -110,14 +119,15 @@ func (c *Client) Execute(ctx context.Context, req api.ExecRequest) (api.ExecResu
 }
 
 func (c *Client) Query(ctx context.Context, qr *api.QueryRequest, res *api.QueryResult) error {
-	if c.rc == nil {
-		err := c.connect()
-		if err != nil {
-			return err
-		}
+	c.lock.Lock()
+	if err := c.connect(); err != nil {
+		c.lock.Unlock()
+		return err
 	}
+	q := c.cqrier
+	c.lock.Unlock()
 
-	err := c.cqrier.Query(ctx, qr, res)
+	err := q.Query(ctx, qr, res)
 	if err != nil {
 		_ = c.Close()
 		return err
@@ -127,14 +137,15 @@ func (c *Client) Query(ctx context.Context, qr *api.QueryRequest, res *api.Query
 }
 
 func (c *Client) Write(ctx context.Context, tags, fields string, evs []*api.LogEvent, res *api.WriteResult) error {
-	if c.rc == nil {
-		err := c.connect()
-		if err != nil {
-			return err
-		}
+	c.lock.Lock()
+	if err := c.connect(); err != nil {
+		c.lock.Unlock()
+		return err
 	}
+	ci := c.cing
+	c.lock.Unlock()
 
-	err := c.cing.Write(ctx, tags, fields, evs, res)
+	err := ci.Write(ctx, tags, fields, evs, res)
 	if err != nil {
 		_ = c.Close()
 		return err
@@ -144,14 +155,15 @@ func (c *Client) Write(ctx context.Context, tags, fields string, evs []*api.LogE
 }
 
 func (c *Client) EnsurePipe(ctx context.Context, p api.Pipe, res *api.PipeCreateResult) error {
-	if c.rc == nil {
-		err := c.connect()
-		if err != nil {
-			return err
-		}
+	c.lock.Lock()
+	if err := c.connect(); err != nil {
+		c.lock.Unlock()
+		return err
 	}
+	pps := c.pipes
+	c.lock.Unlock()
 
-	err := c.streams.EnsurePipe(ctx, p, res)
+	err := pps.EnsurePipe(ctx, p, res)
 	if err != nil {
 		_ = c.Close()
 	}
