@@ -61,9 +61,14 @@ type (
 		// OldestTs defines the oldest record timestamp. Chunks with records less than the parameter are candidates
 		// for truncation
 		OldestTs uint64
+		// Max Global size
+		MaxDBSize uint64
 	}
 
+	// TruncateInfo describes a truncated partition information
 	TruncateInfo struct {
+		// LatestTs contains timestamp for latest record in the partition
+		LatestTs      uint64
 		Tags          tag.Set
 		Src           string
 		BeforeSize    uint64
@@ -365,12 +370,19 @@ func (s *Service) GetParitionInfo(tags string) (PartitionInfo, error) {
 
 type OnTruncateF func(ti TruncateInfo)
 
-// TruncateBySize walks over all journals and prune them if the size exceeds maximum value
+// Truncate walks over matched journals and truncate the chunks, if needed
 func (s *Service) Truncate(ctx context.Context, tp TruncateParams, otf OnTruncateF) error {
 	start := time.Now()
 	cremoved := 0
 	ts := uint64(0)
 	rs := ts
+
+	// sortedInfos contains the list of all paritions that match the tagsExpr criteria.
+	// Truncate is split onto 2 phases:
+	// phase I - collect all partitions and truncate them individually. Sort all this partitions and store into sortedInfos
+	// phase II - truncate the sorted list sortedInfos once again to control the global size and notify about changes
+	// 			which were made either on phase I or phase II
+	sortedInfos := make([]*TruncateInfo, 0, 100)
 
 	s.logger.Debug("Trundate(): tp=", tp)
 
@@ -387,7 +399,7 @@ func (s *Service) Truncate(ctx context.Context, tp TruncateParams, otf OnTruncat
 		if size == 0 {
 			s.logger.Debug("Truncate(): size is 0, will try to delete the partition ", jn)
 			if (tp.DryRun || s.deleteJournal(ctx, j)) && otf != nil {
-				otf(TruncateInfo{tags, jn, 0, 0, 0, 0, 0, true})
+				otf(TruncateInfo{0, tags, jn, 0, 0, 0, 0, 0, true})
 			}
 			return ctx.Err() == nil
 		}
@@ -397,7 +409,7 @@ func (s *Service) Truncate(ctx context.Context, tp TruncateParams, otf OnTruncat
 		if err != nil {
 			s.logger.Error("Truncate(): could not truncate data from the partition ", jn, ", err=", err)
 		} else {
-			ts += tr
+			rs += tr
 			cremoved += n
 		}
 		arecs := j.Count()
@@ -408,17 +420,35 @@ func (s *Service) Truncate(ctx context.Context, tp TruncateParams, otf OnTruncat
 			deleted = tp.DryRun || s.deleteJournal(ctx, j)
 		}
 
-		if err == nil && otf != nil && tr > 0 {
-			otf(TruncateInfo{tags, jn, size, size - tr, recs, arecs, n, deleted})
+		if err == nil {
+			lci := s.cIdx.getLastChunkInfo(jn)
+			lts := uint64(0)
+			if lci != nil {
+				lts = lci.MaxTs
+			}
+			ti := &TruncateInfo{lts, tags, jn, size, size - tr, recs, arecs, n, deleted}
+			idx := sort.Search(len(sortedInfos), func(idx int) bool {
+				return sortedInfos[idx].LatestTs <= ti.LatestTs
+			})
+			sortedInfos = append(sortedInfos, ti)
+			if idx < len(sortedInfos)-1 {
+				copy(sortedInfos[idx+1:], sortedInfos[idx:len(sortedInfos)-1])
+				sortedInfos[idx] = ti
+			}
 		}
 
 		return ctx.Err() == nil
 	}, tindex.VF_SKIP_IF_LOCKED)
 
+	cremoved2, rs2 := s.truncateGlobally(ctx, sortedInfos, &tp, otf)
+
 	if err != nil {
 		s.logger.Warn("Truncate(): an error happened while visiting the journals, err=", err)
 		return err
 	}
+
+	cremoved += cremoved2
+	rs += rs2
 
 	s.logger.Info("Truncate(): ", cremoved, " chunk(s) were removed. Initial size of ALL journals was ", humanize.Bytes(ts),
 		"(", ts, "), and ", humanize.Bytes(rs), "(", rs, ") were removed. It took ", time.Now().Sub(start))
@@ -446,6 +476,71 @@ func (s *Service) onWriteEvent(we WriteEvent) {
 	case <-s.MainCtx.Done():
 		s.logger.Warn("onWriteEvent(): Unblock a notirifcation")
 	}
+}
+
+// truncateGlobally deletes journals using sortedInfos till total size exceeds the specified value.
+func (s *Service) truncateGlobally(ctx context.Context, sortedInfos []*TruncateInfo, tp *TruncateParams, otf OnTruncateF) (int, uint64) {
+	// First count the global size
+	ts := uint64(0)
+	for _, ti := range sortedInfos {
+		ts += ti.AfterSize
+	}
+
+	s.logger.Info("truncateGlobally(): the total size for ", len(sortedInfos), " partitions is ", ts, ", but max size is set to ", tp.MaxDBSize)
+
+	cr := 0
+	tr := uint64(0)
+	jrnls := 0
+
+	// Now, remove all journals if the DB size is exceeded
+	for i := 0; i < len(sortedInfos) && ts > tp.MaxDBSize; i++ {
+		ti := sortedInfos[i]
+		if ti.AfterSize > 0 {
+			_, err := s.TIndex.GetJournalTags(ti.Src)
+			if err != nil {
+				s.logger.Warn("Could not acquire journal ", ti.Src, " for deletion err=", err)
+				continue
+			}
+
+			j, err := s.Journals.GetOrCreate(ctx, ti.Src)
+			if err != nil {
+				s.TIndex.Release(ti.Src)
+				s.logger.Warn("Could not get journal ", ti.Src, " for deletion err=", err)
+				continue
+			}
+
+			cks, _ := j.Chunks().Chunks(ctx)
+			deleted := tp.DryRun || s.deleteJournal(ctx, j)
+			s.TIndex.Release(ti.Src)
+			if deleted {
+				jrnls++
+				ts -= ti.AfterSize
+				tr += ti.AfterSize
+				cr += len(cks)
+				ti.AfterSize = 0
+				ti.AfterRecs = 0
+				ti.ChunksDeleted += len(cks)
+				ti.Deleted = true
+			}
+		}
+	}
+
+	if tp.DryRun {
+		s.logger.Info("truncateGlobally(): (dryrun) ", jrnls, " journals would be deleted. ", cr, " chunks and ", tr, " bytes of data could be affected")
+	} else {
+		s.logger.Info("truncateGlobally(): ", jrnls, " journals were deleted. ", cr, " chunks and ", tr, " bytes of data")
+	}
+
+	// Notify the listener, if needed
+	if otf != nil {
+		for _, ti := range sortedInfos {
+			if ti.AfterSize != ti.BeforeSize {
+				otf(*ti)
+			}
+		}
+	}
+
+	return cr, tr
 }
 
 // truncate receives a partition and the truncate params, truncate the partition and returns number of chunks truncated,

@@ -165,6 +165,7 @@ func (ad *Admin) cmdTruncate(t *lql.Truncate) (api.ExecResult, error) {
 		MinSrcSize: utils.GetUint64Val((*uint64)(t.MinSize), 0),
 		MaxSrcSize: utils.GetUint64Val((*uint64)(t.MaxSize), 0),
 		OldestTs:   utils.GetUint64Val((*uint64)(t.Before), 0),
+		MaxDBSize:  utils.GetUint64Val((*uint64)(t.MaxDbSize), math.MaxUint64),
 	}, func(ti partition.TruncateInfo) {
 		if first {
 			sb.WriteString(fmt.Sprintf("\n%20s  %20s  %9s %s", "SIZE(diff)", "RECORDS(diff)", "CHKS(ALL)", "TAGS"))

@@ -335,6 +335,63 @@ func TestReAcquireExclusively(t *testing.T) {
 	}
 }
 
+func TestGetJournalByName(t *testing.T) {
+	dir, err := ioutil.TempDir("", "GetJournals")
+	if err != nil {
+		t.Fatal("Could not create new dir err=", err)
+	}
+	defer os.RemoveAll(dir) // clean up
+
+	tags := tag.Line("dda=a")
+
+	ims := NewInmemService().(*inmemService)
+	ims.Journals = &testJournals{}
+	ims.Config = &InMemConfig{WorkingDir: dir, DoNotSave: true}
+	ims.Init(nil)
+
+	if ims.LockExclusively("blah") {
+		t.Fatal("Must not be acquired")
+	}
+
+	src, _, _ := ims.GetOrCreateJournal(tags.String())
+	t2, err := ims.GetJournalTags(src)
+	if err != nil || t2.String() != tags.String() {
+		t.Fatal("should be  acquired ok, but err=", err, ", t2=", t2)
+	}
+
+	if ims.LockExclusively(src) {
+		t.Fatal("Lock must not be acquired cause 2 acquisition right now")
+	}
+
+	ims.Release(src)
+	if !ims.LockExclusively(src) {
+		t.Fatal("Lock must be acquired cause 1 acquisition right now")
+	}
+
+	var end int64
+	go func() {
+		_, err := ims.GetJournalTags(src)
+		if err != nil {
+			t.Fatal("must be acquired no problem!")
+		}
+		atomic.StoreInt64(&end, time.Now().UnixNano())
+	}()
+
+	time.Sleep(5 * time.Millisecond)
+	start := time.Now().UnixNano()
+	ims.UnlockExclusively(src)
+	time.Sleep(5 * time.Millisecond)
+	if start > atomic.LoadInt64(&end) {
+		t.Fatal("must be acquired after exlusive unlocking end=", end, ", start=", start, " ", start-end)
+	}
+	if ims.LockExclusively(src) {
+		t.Fatal("Lock must not be acquired cause 2 acquisition right now")
+	}
+
+	ims.Release(src)
+	ims.Release(src)
+}
+
 func TestDelete(t *testing.T) {
 	dir, err := ioutil.TempDir("", "GetJournals")
 	if err != nil {

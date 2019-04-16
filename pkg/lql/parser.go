@@ -27,7 +27,7 @@ import (
 
 var (
 	lqlLexer = lexer.Must(getRegexpDefinition(`(\s+)` +
-		`|(?P<Keyword>(?i)SELECT|DESCRIBE|TRUNCATE|DELETE|DRYRUN|BEFORE|MAXSIZE|MINSIZE|FROM|WHERE|PARTITIONS|PARTITION|PIPES|SHOW|CREATE|PIPE|POSITION|LIMIT|OFFSET|AND|OR|LIKE|CONTAINS|PREFIX|SUFFIX|NOT)` +
+		`|(?P<Keyword>(?i)SELECT|DESCRIBE|TRUNCATE|DELETE|DRYRUN|BEFORE|MAXSIZE|MINSIZE|MAXDBSIZE|FROM|WHERE|PARTITIONS|PARTITION|PIPES|SHOW|CREATE|PIPE|POSITION|LIMIT|OFFSET|AND|OR|LIKE|CONTAINS|PREFIX|SUFFIX|NOT)` +
 		`|(?P<Ident>[a-zA-Z_][a-z\./\-A-Z0-9_:]*)` +
 		`|(?P<String>"([^\\"]|\\.)*"|'[^']*')` +
 		`|(?P<Operator><>|!=|<=|>=|[-+*/%,.=<>()])` +
@@ -117,11 +117,12 @@ type (
 	}
 
 	Truncate struct {
-		DryRun  bool      `(@"DRYRUN")?`
-		Source  *Source   `(@@)?`
-		MinSize *Size     `("MINSIZE" @Number)?`
-		MaxSize *Size     `("MAXSIZE" @Number)?`
-		Before  *DateTime `("BEFORE" (@String|@Number))?`
+		DryRun    bool      `(@"DRYRUN")?`
+		Source    *Source   `(@@)?`
+		MinSize   *Size     `("MINSIZE" @Number)?`
+		MaxSize   *Size     `("MAXSIZE" @Number)?`
+		Before    *DateTime `("BEFORE" (@String|@Number))?`
+		MaxDbSize *Size     `("MAXDBSIZE" @Number)?`
 	}
 
 	Create struct {

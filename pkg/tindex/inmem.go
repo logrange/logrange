@@ -106,6 +106,37 @@ func (ims *inmemService) GetJournal(tags string) (string, tag.Set, error) {
 	return ims.getOrCreateJournal(tags, false)
 }
 
+func (ims *inmemService) GetJournalTags(src string) (ts tag.Set, err error) {
+	for {
+		ims.lock.Lock()
+		if ims.done {
+			ims.lock.Unlock()
+			return tag.EmptySet, fmt.Errorf("already shut-down.")
+		}
+
+		td, ok := ims.smap[src]
+		if !ok {
+			ims.lock.Unlock()
+			return tag.EmptySet, errors2.NotFound
+		}
+
+		ts = td.tags
+		locked := !td.exclusive
+		if locked {
+			td.readers++
+		}
+		ims.lock.Unlock()
+
+		if locked {
+			break
+		}
+
+		ims.logger.Debug("GetJournalTags(): Oops, raise with an exclusive lock")
+		time.Sleep(time.Millisecond)
+	}
+	return ts, err
+}
+
 func (ims *inmemService) Visit(srcCond *lql.Source, vf VisitorF, visitFlags int) error {
 	tef, err := lql.BuildTagsExpFuncBySource(srcCond)
 	if err != nil {
@@ -175,7 +206,7 @@ func (ims *inmemService) getOrCreateJournal(tags string, create bool) (res strin
 		if locked {
 			break
 		}
-		ims.logger.Debug("Oops, raise with an exclusive lock")
+		ims.logger.Debug("getOrCreateJournal(): Oops, raise with an exclusive lock")
 		time.Sleep(time.Millisecond)
 	}
 	return res, ts, err

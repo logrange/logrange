@@ -20,7 +20,7 @@ The LQL supports the following constructions so far:
 	SHOW PIPES [OFFSET <number>][LIMIT <number>]
 	DESCRIBE PARTITION {<tags>}
 	DESCRIBE PIPE <pipe name>
-	TRUNCATE  [({<tags>}|<tags expression)][MINSIZE <size>][MAXSIZE <size>][BEFORE <timestamp>]
+	TRUNCATE  [({<tags>}|<tags expression)][MINSIZE <size>][MAXSIZE <size>][BEFORE <timestamp>][MAXDBSIZE <size>]
 	CREATE PIPE <pipe name> [FROM ({<tags>}|<tags expression)] [WHERE <fields expression>]
 	DELETE PIPE <pipe name>
 */

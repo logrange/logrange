@@ -74,6 +74,8 @@ func TestParse(t *testing.T) {
 	testOk(t, "truncate {fff=aaa}")
 	testOk(t, "truncate file=anme AND c=d minsize 3G maxsize 20 ")
 	testOk(t, "truncate dryrun {fff=aaa} before '2019-03-11 12:34:43'")
+	testOk(t, "truncate dryrun {fff=aaa} before '2019-03-11 12:34:43' maxdbsize 13G")
+	testOk(t, "truncate dryrun maxdbsize 13G")
 }
 
 func TestParams(t *testing.T) {

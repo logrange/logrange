@@ -222,7 +222,7 @@ DESCRIBE PIPE prints detailed information about a pipe by its name
 		short: "deletes data from partition(s). e.g. 'truncate minsize 10G maxsize 1Tb'",
 		long: `TRUNCATE has the following syntax:
 
-	TRUNCATE [DRYRUN] [({<tags>}|<tags expression)][MINSIZE <size>][MAXSIZE <size>][BEFORE <timestamp>]
+	TRUNCATE [DRYRUN] [({<tags>}|<tags expression)][MINSIZE <size>][MAXSIZE <size>][BEFORE <timestamp>][MAXDBSIZE <size>]
 
 The TRUNCATE allows to remove part or ALL data from one or many partitions. Partitions 
 consist of chunks, so when a partition is truncated one or many chunks are removed
@@ -254,6 +254,11 @@ be at least the MAXSIZE provided to be truncated. Default value is 0.
 BEFORE allows to specify the timestamp of chunk records to be truncated. Only chunks
 where ALL records timestamped before the provided value, could be removed. 
 Default value is 0
+
+MAXDBSIZE allows to limit the total partitions size. If the existing partitions' 
+size exceeds the value, some or all partitions will be deleted completely. The 
+partitions will be sorted by latest write time and deleted until the limit is
+reached.
 
 Note. TRUNCATE with using both MAXSIZE and BEFORE flags provided, are composed by
 logical OR condition. It means that a partition's chunks will be removed either they

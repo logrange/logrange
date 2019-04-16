@@ -84,6 +84,17 @@ func (ci *cindex) onWrite(src string, firstRec, lastRec uint32, cinfo chkInfo) {
 	ci.lock.Unlock()
 }
 
+// getLastChunkInfo returns the last chunk or nil, if no data or the src is not found
+func (ci *cindex) getLastChunkInfo(src string) *chkInfo {
+	var res *chkInfo
+	ci.lock.Lock()
+	if sc, ok := ci.journals[src]; ok && len(sc) > 0 {
+		res = sc[len(sc)-1]
+	}
+	ci.lock.Unlock()
+	return res
+}
+
 // syncChunks receives a list of chunks for a partition src and updates the cindex information by the data from the chunks
 func (ci *cindex) syncChunks(ctx context.Context, src string, cks chunk.Chunks) sortedChunks {
 	newSC := chunksToSortedChunks(cks)
