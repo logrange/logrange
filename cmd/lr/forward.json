@@ -3,7 +3,7 @@
     "Workers": [{
       "Name": "forwarder1",
       "Pipe": {
-        "Source": "",
+        "From": "",
         "Filter": ""
       },
       "Sink": {

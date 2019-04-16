@@ -15,17 +15,33 @@ function check {
 
 ################# Main #################
 
-TMP_PATH=$(mktemp -d)
-trap cleanup EXIT
+while [[ "$1" != "" ]]; do
+    case $1 in
+        -b|--branch)
+            shift
+            BRANCH=$1
+            ;;
+        -u|--upload)
+            UPLOAD=1
+            ;;
+        *)
+            echo "Unknown argument passed!"
+            exit 1
+            ;;
+    esac
+    shift
+done
 
-CUR_PATH=$(pwd)
-LGR_PATH=${TMP_PATH}/src/github.com/logrange
-
-BRANCH=$1
 if [[ -z ${BRANCH} ]]; then
     BRANCH=$(git rev-parse --abbrev-ref HEAD)
     check $?
 fi
+
+TMP_PATH=$(mktemp -d)
+trap cleanup EXIT
+
+SRC_PATH=$(cd "$(dirname "${BASH_SOURCE[0]}")" >/dev/null 2>&1 && pwd)
+LGR_PATH=${TMP_PATH}/src/github.com/logrange
 
 echo "Creating tmp sources folder '${LGR_PATH}'..."
 mkdir -p ${LGR_PATH}
@@ -33,25 +49,27 @@ check $?
 
 cd ${LGR_PATH}
 echo "Cloning git branch '${BRANCH}' to '${LGR_PATH}/logrange'..."
-git clone -b ${BRANCH} git@github.com:logrange/logrange.git >> /dev/null 2>&1
+git clone -b ${BRANCH} git@github.com:logrange/logrange.git >/dev/null 2>&1
 check $?
 
 cd ${LGR_PATH}/logrange
-env GOPATH=${TMP_PATH} go get -d -u ./... >> /dev/null 2>&1
+env GOPATH=${TMP_PATH} go get -d -u ./... >/dev/null 2>&1
 check $?
 
-echo "Building logrange binaries to ${CUR_PATH}/binaries/${BRANCH}..."
-mkdir -p ${CUR_PATH}/binaries/${BRANCH}
+echo "Building logrange binaries to ${SRC_PATH}/binaries/${BRANCH}..."
+mkdir -p ${SRC_PATH}/binaries/${BRANCH}
 check $?
 
 ARCH="amd64"
 for OS in "linux" "darwin"
 do
-    cd ${CUR_PATH}/binaries/${BRANCH}
+    cd ${SRC_PATH}/binaries/${BRANCH}
     mkdir -p ${OS}/x86_64
     check $?
 
     cd ${OS}/x86_64
+    check $?
+
     for cmd in "logrange" "lr"
     do
         echo "Building cmd=${cmd}, os=${OS}, arch=${ARCH}..."
@@ -61,6 +79,12 @@ do
     done
 done
 
-echo "Uploading logrange binaries to s3://get.logrange.io/binaries..."
-aws s3 cp ${CUR_PATH}/binaries s3://get.logrange.io/binaries --recursive
-check $?
+if [[ ! -z ${UPLOAD} ]]; then
+    echo "Uploading logrange binaries to s3://get.logrange.io/binaries..."
+
+    cd ${SRC_PATH}
+    check $?
+
+    aws s3 cp ${SRC_PATH}/binaries s3://get.logrange.io/binaries --recursive
+    check $?
+fi
