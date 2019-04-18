@@ -1,6 +1,8 @@
 package api
 
-import "context"
+import (
+	"context"
+)
 
 type (
 	Client interface {
@@ -16,13 +18,13 @@ type (
 func Select(ctx context.Context, cli Client, qr *QueryRequest, streamMode bool,
 	handler func(res *QueryResult)) error {
 
+	res := &QueryResult{}
 	limit := qr.Limit
 	timeout := qr.WaitTimeout
-	for ctx.Err() == nil {
+	for ctx.Err() == nil && limit > 0 {
 		qr.Limit = limit
 		qr.WaitTimeout = timeout
 
-		res := &QueryResult{}
 		err := cli.Query(ctx, qr, res)
 		if err != nil {
 			return err
@@ -34,10 +36,10 @@ func Select(ctx context.Context, cli Client, qr *QueryRequest, streamMode bool,
 
 		qr = &res.NextQueryRequest
 		if !streamMode {
-			if limit <= 0 || len(res.Events) == 0 {
+			limit -= len(res.Events)
+			if len(res.Events) == 0 {
 				break
 			}
-			limit -= len(res.Events)
 		}
 	}
 

@@ -104,6 +104,12 @@ func writeQueryRequest(qr *api.QueryRequest, ow *xbinary.ObjectsWriter) (int, er
 		return nn, err
 	}
 
+	n, err = ow.WriteUint32(uint32(int32(qr.Offset)))
+	nn += n
+	if err != nil {
+		return nn, err
+	}
+
 	n, err = ow.WriteUint32(uint32(qr.Limit))
 	nn += n
 	return nn, err
@@ -111,7 +117,7 @@ func writeQueryRequest(qr *api.QueryRequest, ow *xbinary.ObjectsWriter) (int, er
 
 func getQueryRequestSize(qr *api.QueryRequest) int {
 	return xbinary.WritableStringSize(qr.Query) +
-		xbinary.WritableStringSize(qr.Pos) + 14 /* reqId, WaitTimeout, Limit */
+		xbinary.WritableStringSize(qr.Pos) + 18 /* reqId(8), WaitTimeout(2), Offset(4), Limit(4) */
 }
 
 func unmarshalQueryRequest(buf []byte, qr *api.QueryRequest, newBuf bool) (int, error) {
@@ -145,6 +151,13 @@ func unmarshalQueryRequest(buf []byte, qr *api.QueryRequest, newBuf bool) (int, 
 	qr.WaitTimeout = int(wt)
 
 	n, i, err := xbinary.UnmarshalUint32(buf[nn:])
+	nn += n
+	if err != nil {
+		return nn, err
+	}
+	qr.Offset = int(int32(i))
+
+	n, i, err = xbinary.UnmarshalUint32(buf[nn:])
 	nn += n
 	qr.Limit = int(i)
 	return nn, err

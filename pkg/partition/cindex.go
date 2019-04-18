@@ -153,7 +153,7 @@ func (ci *cindex) lightFill(ctx context.Context, cks chunk.Chunks, sc sortedChun
 			continue
 		}
 
-		it.SetPos(chk.Count() - 1)
+		it.SetPos(int64(chk.Count()) - 1)
 		ts2, err := ci.getRecordTimestamp(ctx, it)
 		if err != nil {
 			it.Close()

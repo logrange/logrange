@@ -22,6 +22,7 @@ import (
 	"github.com/logrange/logrange/pkg/model/field"
 	"github.com/logrange/logrange/pkg/model/tag"
 	"github.com/logrange/logrange/pkg/partition"
+	"github.com/logrange/range/pkg/records"
 	rrpc "github.com/logrange/range/pkg/rpc"
 	"github.com/logrange/range/pkg/utils/bytes"
 	"github.com/logrange/range/pkg/utils/encoding/xbinary"
@@ -227,6 +228,15 @@ func (wpi *wpIterator) Get(ctx context.Context) (model.LogEvent, tag.Line, error
 // Release is a part of records.Iterator
 func (wpi *wpIterator) Release() {
 	// Do nothing due to the object short life, but be careful with it.
+}
+
+func (wpi *wpIterator) SetBackward(bool) {
+	// no need to have it here
+	panic("not supported")
+}
+
+func (wpi *wpIterator) CurrentPos() records.IteratorPos {
+	return wpi.pos
 }
 
 func (wpi *wpIterator) String() string {

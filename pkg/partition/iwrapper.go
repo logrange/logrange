@@ -78,6 +78,15 @@ func (iw *iwrapper) Release() {
 	iw.read = false
 }
 
+func (iw *iwrapper) SetBackward(bool) {
+	// not sure we need it here, so panic
+	panic("not supported")
+}
+
+func (iw *iwrapper) CurrentPos() records.IteratorPos {
+	return iw.it.CurrentPos()
+}
+
 func (iw *iwrapper) resetMinMaxTs() {
 	iw.maxTs = 0
 	iw.minTs = 0

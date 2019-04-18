@@ -17,6 +17,7 @@ package model
 import (
 	"context"
 	"github.com/logrange/logrange/pkg/model/tag"
+	"github.com/logrange/range/pkg/records"
 	"io"
 )
 
@@ -31,6 +32,7 @@ type (
 		sf         SelectF
 		src1, src2 srcDesc
 		st         byte
+		bkwd       bool
 	}
 
 	srcDesc struct {
@@ -101,6 +103,29 @@ func (mr *Mixer) Release() {
 	}
 }
 
+func (mr *Mixer) SetBackward(bkwd bool) {
+	if mr.bkwd == bkwd {
+		return
+	}
+	mr.bkwd = bkwd
+	mr.src1.it.SetBackward(bkwd)
+	mr.src2.it.SetBackward(bkwd)
+	mr.Release()
+	mr.st = 0
+}
+
+func (mr *Mixer) CurrentPos() records.IteratorPos {
+	if mr.st == 1 {
+		return mr.src1.it.CurrentPos()
+	}
+
+	if mr.st == 2 {
+		return mr.src2.it.CurrentPos()
+	}
+
+	return records.IteratorPosUnknown
+}
+
 func (mr *Mixer) selectState(ctx context.Context) error {
 	if mr.st != 0 {
 		return nil
@@ -136,10 +161,18 @@ func (mr *Mixer) selectState(ctx context.Context) error {
 		return nil
 	}
 
-	if mr.src2.eof || mr.sf(mr.src1.le, mr.src2.le) {
+	if mr.src2.eof || mr.testFunc() {
 		mr.st = 1
 		return nil
 	}
 	mr.st = 2
 	return nil
+}
+
+func (mr *Mixer) testFunc() bool {
+	res := mr.sf(mr.src1.le, mr.src2.le)
+	if mr.bkwd {
+		return !res
+	}
+	return res
 }

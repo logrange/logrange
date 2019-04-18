@@ -53,6 +53,14 @@ func (tle *testLogEventsWrapper) Release() {
 
 }
 
+func (tle *testLogEventsWrapper) SetBackward(bool) {
+	panic("not supported")
+}
+
+func (tle *testLogEventsWrapper) CurrentPos() records.IteratorPos {
+	return tle.idx
+}
+
 func TestFilter(t *testing.T) {
 	les := []model.LogEvent{{1, []byte("asdfasdf"), ""}, {2, []byte("as2df"), ""}, {3, []byte("asd3f"), ""}, {4, []byte("jjjj"), ""},
 		{5, []byte("jjjjee"), ""}}

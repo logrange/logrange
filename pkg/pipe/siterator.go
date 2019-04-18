@@ -19,6 +19,7 @@ import (
 	"github.com/logrange/logrange/pkg/model"
 	"github.com/logrange/logrange/pkg/model/field"
 	"github.com/logrange/logrange/pkg/model/tag"
+	"github.com/logrange/range/pkg/records"
 	"github.com/logrange/range/pkg/utils/bytes"
 )
 
@@ -64,4 +65,12 @@ func (si *siterator) Get(ctx context.Context) (model.LogEvent, tag.Line, error) 
 func (si *siterator) Release() {
 	si.it.Release()
 	si.ready = false
+}
+
+func (si *siterator) SetBackward(bool) {
+	panic("not supported")
+}
+
+func (si *siterator) CurrentPos() records.IteratorPos {
+	return si.it.CurrentPos()
 }

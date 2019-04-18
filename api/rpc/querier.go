@@ -117,12 +117,16 @@ func (sq *ServerQuerier) query(reqId int32, reqBody []byte, sc *rrpc.ServerConn)
 	}
 
 	state := cursor.State{Id: rq.ReqId, Query: rq.Query, Pos: rq.Pos}
+
 	cur, err := sq.CurProvider.GetOrCreate(sq.MainCtx, state, cache)
 	if err != nil {
 		sq.logger.Warn("query(): Could not get/create a cursor, err=", err, " state=", state)
 		sc.SendResponse(reqId, err, cEmptyResponse)
 		return
 	}
+
+	cur.Offset(sq.MainCtx, rq.Offset)
+	rq.Offset = 0
 
 	var qr queryResultBuilder
 	var le api.LogEvent

@@ -19,6 +19,7 @@ import (
 	"github.com/logrange/logrange/pkg/lql"
 	"github.com/logrange/logrange/pkg/model"
 	"github.com/logrange/logrange/pkg/model/tag"
+	"github.com/logrange/range/pkg/records"
 )
 
 type (
@@ -73,4 +74,12 @@ func (fit *fiterator) Release() {
 	if fit.valid {
 		fit.le.MakeItSafe()
 	}
+}
+
+func (fit *fiterator) SetBackward(bkwd bool) {
+	fit.it.SetBackward(bkwd)
+}
+
+func (fit *fiterator) CurrentPos() records.IteratorPos {
+	return fit.it.CurrentPos()
 }

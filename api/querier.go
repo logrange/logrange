@@ -38,6 +38,9 @@ type (
 		// response with no data will be returned.
 		WaitTimeout int
 
+		// Offset contains the offset from the current position (either positive or negative)
+		Offset int
+
 		// Limit defines the maximum number of records which could be read from the sources
 		Limit int
 	}
@@ -62,7 +65,7 @@ type (
 )
 
 func (qr *QueryRequest) String() string {
-	return fmt.Sprintf("{ReqId: %d, Query: %s, Pos: %s, WaitTimeout: %d, Limit: %d}", qr.ReqId, qr.Query, qr.Pos, qr.WaitTimeout, qr.Limit)
+	return fmt.Sprintf("{ReqId: %d, Query: %s, Pos: %s, WaitTimeout: %d, Offset: %d, Limit: %d}", qr.ReqId, qr.Query, qr.Pos, qr.WaitTimeout, qr.Offset, qr.Limit)
 }
 
 func (qres *QueryResult) String() string {

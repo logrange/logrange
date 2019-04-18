@@ -81,4 +81,21 @@ func testIt(t *testing.T, it Iterator, res []LogEvent) {
 	if idx != len(res) {
 		t.Fatal("Must be ", len(res), ", but idx=", idx, it)
 	}
+
+	it.SetBackward(true)
+	for {
+		idx--
+		le, _, err := it.Get(nil)
+		if err == io.EOF {
+			break
+		}
+		if !reflect.DeepEqual(le, res[idx]) {
+			t.Fatal("expected ", res[idx], ", but got ", le)
+		}
+		it.Next(nil)
+	}
+
+	if idx != -1 {
+		t.Fatal("expecting idx==-1, but it is ", idx)
+	}
 }

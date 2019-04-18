@@ -17,11 +17,14 @@ package cursor
 import (
 	"context"
 	"fmt"
+	"github.com/jrivets/log4g"
 	"github.com/logrange/logrange/pkg/lql"
 	"github.com/logrange/logrange/pkg/model"
 	"github.com/logrange/logrange/pkg/model/tag"
+	"github.com/logrange/range/pkg/records"
 	"github.com/logrange/range/pkg/records/journal"
 	"github.com/pkg/errors"
+	"io"
 	"strings"
 )
 
@@ -43,6 +46,10 @@ type (
 	Cursor interface {
 		model.Iterator
 		Id() uint64
+
+		// Offset moves the cursor position to backward (negative offset) of forward(positive offset)
+		// from the current cursor position
+		Offset(ctx context.Context, offs int)
 		ApplyState(state State) error
 		State(context.Context) State
 		WaitNewData(ctx context.Context) error
@@ -52,6 +59,7 @@ type (
 	// a new cursor could be created from the struct. crsr supports model.Iterator interface which allows to access
 	// to records the cursor selects
 	crsr struct {
+		logger       log4g.Logger
 		state        State
 		it           model.Iterator
 		jrnlProvider JournalsProvider
@@ -140,6 +148,7 @@ func newCursor(ctx context.Context, state State, jrnlProvider JournalsProvider) 
 	}
 
 	cur := new(crsr)
+	cur.logger = log4g.GetLogger("cursor")
 	cur.state = state
 	cur.it = it
 	cur.jDescs = jd
@@ -174,6 +183,64 @@ func (cur *crsr) Get(ctx context.Context) (model.LogEvent, tag.Line, error) {
 // Release part of the model.Iterator
 func (cur *crsr) Release() {
 	cur.it.Release()
+}
+
+func (cur *crsr) SetBackward(bkwd bool) {
+	cur.it.SetBackward(bkwd)
+}
+
+func (cur *crsr) CurrentPos() records.IteratorPos {
+	return cur.it.CurrentPos()
+}
+
+// Offset moves the cursor position either backward (negative offset) or
+// forward (positive offset) value
+func (cur *crsr) Offset(ctx context.Context, offs int) {
+	if offs == 0 {
+		return
+	}
+
+	var pos records.IteratorPos
+	pos = records.IteratorPosUnknown
+
+	cur.logger.Error("EBLO1 pos=", pos, " offs=", offs)
+
+	bkwd := false
+	if offs < 0 {
+		bkwd = true
+		offs = -offs
+		_, _, err := cur.Get(ctx)
+		pos = cur.CurrentPos()
+		cur.logger.Error("EBLO2 pos=", pos, " offs=", offs)
+		cur.SetBackward(true)
+		if err == io.EOF {
+			cur.Get(ctx)
+			pos = cur.CurrentPos()
+			cur.logger.Error("EBLO3 pos=", pos, " offs=", offs)
+			offs--
+		} else {
+			cur.iterateToPos(ctx, pos)
+		}
+	}
+
+	for offs > 0 {
+		cur.Next(ctx)
+		offs--
+		_, _, err := cur.Get(ctx)
+		if err != nil {
+			cur.logger.Error("EBLO4 err=", err)
+			pos = records.IteratorPosUnknown
+			break
+		}
+		pos = cur.CurrentPos()
+		cur.logger.Error("EBLO5 pos=", pos)
+	}
+
+	if bkwd {
+		cur.SetBackward(false)
+		cur.logger.Error("EBLO6 iterate to pos=", pos)
+		cur.iterateToPos(ctx, pos)
+	}
 }
 
 // State returns current the cursor state
@@ -253,6 +320,34 @@ func (cur *crsr) close() {
 		jd.j = nil
 	}
 	cur.jDescs = nil
+}
+
+// iterateToPos is helpful in case of multiple journals are mixed together we will be
+// able to get the selected (active) journal position. It is needed for finding
+// the position for switching mixer direction forward-backward-forward cause in
+// case of multiple journals (mixing them) the position can jump due to the mixer
+// specific. The function tries to iterated to the position until it is met.
+// handle with extra care.
+func (cur *crsr) iterateToPos(ctx context.Context, pos records.IteratorPos) {
+	if len(cur.jDescs) <= 1 || pos == records.IteratorPosUnknown {
+		cur.logger.Error("iterateToPos EBLO pos=", pos)
+		return
+	}
+
+	for {
+		_, _, err := cur.it.Get(ctx)
+		if err != nil {
+			cur.logger.Error("iterateToPos EBLO1 pos=", pos)
+			cur.logger.Warn("Got an error while iterating to the pos=", pos, " for ", cur)
+			return
+		}
+
+		if cur.it.CurrentPos() == pos {
+			cur.logger.Error("iterateToPos EBLO2 ############### meet the pos=", pos)
+			return
+		}
+		cur.Next(ctx)
+	}
 }
 
 func (cur *crsr) applyPos() error {

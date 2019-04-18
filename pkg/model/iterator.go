@@ -34,6 +34,12 @@ type (
 		// This method doesn't affect the iterator position, so subsequent calls to Next() or Get() will
 		// get the same result if the Release was not invoked
 		Release()
+
+		// SetBackward allows to change direction to backward (true) or forward (false)
+		SetBackward(bool)
+
+		// CurrentPos returns the current iterator position
+		CurrentPos() records.IteratorPos
 	}
 
 	// LogEventIterator struct wraps a records.Iterator and provides LogEvent Iterator interface over it.
@@ -81,30 +87,62 @@ func (lei *LogEventIterator) Release() {
 	lei.it.Release()
 }
 
+func (lei *LogEventIterator) SetBackward(bkwd bool) {
+	lei.it.SetBackward(bkwd)
+}
+
+func (lei *LogEventIterator) CurrentPos() records.IteratorPos {
+	return lei.it.CurrentPos()
+}
+
 type testLogEventsWrapper struct {
-	les []LogEvent
-	idx int
+	les  []LogEvent
+	idx  int
+	bkwd bool
 }
 
 func newTestLogEventsWrapper(les []LogEvent) *testLogEventsWrapper {
-	return &testLogEventsWrapper{les, 0}
+	return &testLogEventsWrapper{les, 0, false}
 }
 
 func (tle *testLogEventsWrapper) Next(ctx context.Context) {
+	if tle.bkwd {
+		if tle.idx >= 0 {
+			tle.idx--
+		}
+		return
+	}
+
 	if tle.idx < len(tle.les) {
 		tle.idx++
 	}
 }
 
 func (tle *testLogEventsWrapper) Get(ctx context.Context) (records.Record, error) {
-	if tle.idx < len(tle.les) {
+	if tle.bkwd && tle.idx >= len(tle.les) {
+		tle.idx = len(tle.les) - 1
+	}
+
+	if !tle.bkwd && tle.idx < 0 {
+		tle.idx = 0
+	}
+
+	if tle.idx < len(tle.les) && tle.idx >= 0 {
 		buf := make([]byte, tle.les[tle.idx].WritableSize())
 		tle.les[tle.idx].Marshal(buf)
 		return buf, nil
 	}
+
 	return nil, io.EOF
 }
 
 func (tle *testLogEventsWrapper) Release() {
+}
 
+func (tle *testLogEventsWrapper) SetBackward(bkwd bool) {
+	tle.bkwd = bkwd
+}
+
+func (tle *testLogEventsWrapper) CurrentPos() records.IteratorPos {
+	return tle.idx
 }

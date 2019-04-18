@@ -21,56 +21,6 @@ import (
 	"github.com/logrange/range/pkg/records/journal"
 )
 
-// test helpers
-//type testTidxService struct {
-//	journals map[tag.Line]string
-//}
-//
-//func (tis *testTidxService) GetOrCreateJournal(tags string) (string, error) {
-//	return "", nil
-//}
-//
-//func (tis *testTidxService) Visit(srcCond *lql.From, v tindex.VisitorF) error {
-//	for tl, jrnl := range tis.journals {
-//		s, err := tag.ParseSelect(tl.String())
-//		if err != nil {
-//			return err
-//		}
-//		if !v(s, jrnl) {
-//			return nil
-//		}
-//	}
-//	return nil
-//}
-//
-//type testJrnlCtrlr struct {
-//	mp map[string]*testJrnl
-//}
-//
-//func (tjc *testJrnlCtrlr) GetOrCreate(ctx context.Context, jname string) (partition.Journal, error) {
-//	if j, ok := tjc.mp[jname]; ok {
-//		j.name = jname
-//		return j, nil
-//	}
-//	return nil, fmt.Errorf("Journal %s is not found", jname)
-//}
-//
-//func (tjc *testJrnlCtrlr) GetJournals(ctx context.Context) []string {
-//	res := make([]string, 0, len(tjc.mp))
-//	for src := range tjc.mp {
-//		res = append(res, src)
-//	}
-//	return res
-//}
-//
-//func (tjc *testJrnlCtrlr) Visit(ctx context.Context, cv partition.ControllerVisitorF) {
-//	for src := range tjc.mp {
-//		if !cv(&testJrnl{src}) {
-//			return
-//		}
-//	}
-//}
-
 type testJrnlsProvider struct {
 	j        map[tag.Line]*testJrnl
 	released map[string]string
@@ -158,4 +108,12 @@ func (tji *testJIterator) SetPos(pos journal.Pos) {
 
 func (tji *testJIterator) Release() {
 
+}
+
+func (tji *testJIterator) SetBackward(bool) {
+
+}
+
+func (tji *testJIterator) CurrentPos() records.IteratorPos {
+	return records.IteratorPosUnknown
 }

@@ -76,6 +76,9 @@ func (q *Querier) Query(ctx context.Context, req *api.QueryRequest) (*api.QueryR
 		return nil, err
 	}
 
+	cur.Offset(ctx, req.Offset)
+	req.Offset = 0
+
 	var sb strings.Builder
 	var lge model.LogEvent
 	var tags tag.Line

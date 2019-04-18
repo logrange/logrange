@@ -397,8 +397,6 @@ func buildReq(selStr string, stream bool) (*api.QueryRequest, *model.FormatParse
 	}
 	s := l.Select
 
-	fmt.Printf("selStr=%s s=%v\n", selStr, s)
-
 	fmtt := defaultEvFmtTemplate
 	if utils.GetStringVal(s.Format, "") != "" {
 		fmtt, err = model.NewFormatParser(*s.Format)
@@ -417,6 +415,8 @@ func buildReq(selStr string, stream bool) (*api.QueryRequest, *model.FormatParse
 		lim = math.MaxInt32
 	}
 
+	offs := utils.GetInt64Val(s.Offset, 0)
+
 	waitSec := 0
 	if stream {
 		waitSec = 10
@@ -428,6 +428,7 @@ func buildReq(selStr string, stream bool) (*api.QueryRequest, *model.FormatParse
 		Pos:         pos,
 		Limit:       int(lim),
 		WaitTimeout: waitSec,
+		Offset:      int(offs),
 	}
 
 	return qr, fmtt, nil

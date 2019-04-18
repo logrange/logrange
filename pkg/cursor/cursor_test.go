@@ -77,7 +77,7 @@ func TestCursorClose(t *testing.T) {
 	}
 }
 
-func TestNewCursoreWithPos(t *testing.T) {
+func TestNewCursorWithPos(t *testing.T) {
 	cur, err := newCursor(nil, State{Query: "select limit 10", Pos: "tail"},
 		&testJrnlsProvider{j: map[tag.Line]*testJrnl{"j1=j1": &testJrnl{"j1"}}})
 	if err != nil {
