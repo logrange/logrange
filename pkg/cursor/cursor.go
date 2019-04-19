@@ -203,20 +203,16 @@ func (cur *crsr) Offset(ctx context.Context, offs int) {
 	var pos records.IteratorPos
 	pos = records.IteratorPosUnknown
 
-	cur.logger.Error("EBLO1 pos=", pos, " offs=", offs)
-
 	bkwd := false
 	if offs < 0 {
 		bkwd = true
 		offs = -offs
 		_, _, err := cur.Get(ctx)
 		pos = cur.CurrentPos()
-		cur.logger.Error("EBLO2 pos=", pos, " offs=", offs)
 		cur.SetBackward(true)
 		if err == io.EOF {
 			cur.Get(ctx)
 			pos = cur.CurrentPos()
-			cur.logger.Error("EBLO3 pos=", pos, " offs=", offs)
 			offs--
 		} else {
 			cur.iterateToPos(ctx, pos)
@@ -228,17 +224,14 @@ func (cur *crsr) Offset(ctx context.Context, offs int) {
 		offs--
 		_, _, err := cur.Get(ctx)
 		if err != nil {
-			cur.logger.Error("EBLO4 err=", err)
 			pos = records.IteratorPosUnknown
 			break
 		}
 		pos = cur.CurrentPos()
-		cur.logger.Error("EBLO5 pos=", pos)
 	}
 
 	if bkwd {
 		cur.SetBackward(false)
-		cur.logger.Error("EBLO6 iterate to pos=", pos)
 		cur.iterateToPos(ctx, pos)
 	}
 }
@@ -330,20 +323,17 @@ func (cur *crsr) close() {
 // handle with extra care.
 func (cur *crsr) iterateToPos(ctx context.Context, pos records.IteratorPos) {
 	if len(cur.jDescs) <= 1 || pos == records.IteratorPosUnknown {
-		cur.logger.Error("iterateToPos EBLO pos=", pos)
 		return
 	}
 
 	for {
 		_, _, err := cur.it.Get(ctx)
 		if err != nil {
-			cur.logger.Error("iterateToPos EBLO1 pos=", pos)
 			cur.logger.Warn("Got an error while iterating to the pos=", pos, " for ", cur)
 			return
 		}
 
 		if cur.it.CurrentPos() == pos {
-			cur.logger.Error("iterateToPos EBLO2 ############### meet the pos=", pos)
 			return
 		}
 		cur.Next(ctx)
