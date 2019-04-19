@@ -1,82 +1,89 @@
 [![Go Report Card](https://goreportcard.com/badge/logrange/logrange)](https://goreportcard.com/report/logrange/logrange) [![Build Status](https://travis-ci.org/logrange/logrange.svg?branch=master)](https://travis-ci.org/logrange/logrange) [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://github.com/logrange/logrange/blob/master/LICENSE)
 
 # Logrange - streaming database 
-Logrange is highly performant streaming database, which allows aggregating, structuring and persisting streams of records like application logs, system metrics, audit logs etc. Logrange persists input streams on the disk and provides an API for accessing the stored data to build different analytic tools on top of it.
+Logrange is highly performant streaming database for aggregation streams of records like application logs, system metrics, audit logs etc. from thousands of sources. Logrange  provides an API to do operations from simple search to the data analysis and machine learning.
 
-__Highlights__
-* _Size tollerant_. Logrange performance doesn't depend on the database size either it is 100Kb or 100Tb of data
-* _Higly performant_. Accepting millions of records or hundred megabytes per second
+__The product__
+* _Size tollerant_. Logrange is able to store as much data as written there. The only limitation is the storage space available for the database.
+* _Higly performant_. Writing and reading millions of records per second (hundered megabytes or gigabytes of data).
+* _Write optimized_. Logrange persists the raw data in realtime. All other data processing like indexing can be done later.
 * _Low latency_. Data becomes available for read within milliseconds after it is written
-* _Scalable_. Supporting tens of thousands different streams
-* _Fast data processing_. No data indexing overhead, but effective streaming and batch data processing
+* _Scalable_. Supporting tens of thousands different streams of records (terrabytes of the data)
+* _Highly available_. In clustering solution, data could be replicated between logrange nodes. Logrange will support data and load distribution policies. 
 * _Native for stream processing_. Merging, filtering and search using LQL (Logrange Query Language)
+* _Open Source_. Logrange is 100% open source. It can be used for building trustworthy data storages.
 * _Ready to use_. Basic installation includes pre-configured log processing tools: collector, forwarder, CLI tool and Logrange database service. 
-* _Easy installation_ for both containerized or a custom environments.
-* _Save first for further processing_ concept. 
+* _Easy installation_ either in a containerized or a custom environment.
 
-## Save first for further processing? What exactly does that mean?
-Modern systems produce huge amount of information which can help to build statistics, analytics, to understand the system anomalies or even discovering security breches. Usually the information is written in form of system or application logs. 
+## Get started
+Logrange shipment includes 2 executables - `logrange` server and `lr` - the logrange client. To try Logrange out you need to have the server runs. You can try Logrange by one of the following way:
+- [Run it from the binaries](#run-it-from-binaries)
+- [Run it locally in Docker](#run-it-locally-in-docker)
+- [Deploy it on Kubernetes](#deploy-it-on-kubernetes)
+- [Build it from sources](#build-it-from-sources)
 
-The modern tools by log processing offers the concept where the data should be analyzed and filtered before it is saved. This concept is caused by huge amount of information, which can impact the log processing tools performance significantly. The problem with the concept is it allows to drop essential data due to weak analyzis or imperfection of the data filtering.
-
-Logrange offers another concept. It is - _to save first and you can drop it later, if you don't need it_. Logrange is intended to be a tool, which allows to store whatever streaming data a system produces without worriying about the database size, or analyzing the data before saving it. 
-
-## What does Logrange allow to do?
-Logrange does the following things: 
-* Collecting streams of records in different formats from multiple sources - files, databases, other systems. 
-* Accessing to the aggregated data via API, which allows searching, merging, and filtering data from different streams of records.
-* Retrieving and processing the stored information like analyzing the data or forwarding filtered or all aggregated data to 3rd party systems etc.
-
-## What about other log aggregation solutions? How Logrange is different?
-Logrange is intended for storing thousands of streams of records, like application logs, allowing millions writes per second with low latency. The written data becomes available within mileseconds after wrtiting it into database. The disk structures Logrange uses scale well, so its performance doesn't depend on how big the stored data is - either it is megabytes or terabytes of the data.
-
-Logrange is focused on streams processing, but not on the data indexing. It is not indended for full text search, even though we do support features like `search` in Logrange as well. Logrange is optimized to work with streams of records and big arrays of the log data.
-
-Moreover, Logrange allows to store not only application logs, but any streaming data, which could be collected from 3rd party system. This makes Logrange an integration tool of different types of streams collected from different sources and stored in one databas sutable for furhter processing.
-
-The features like analytics, statistics and data learning could be easily built on top of Logrange database.
-
-# Introduction
-Logrange database can be run as stand-alone application or as a cluster (distributed system which consists of multiple instances). It provides an API which is used for writing by _Collectors_ - software clients which `writes` input streams of records into the Logrange database. Another type of clients are _Consumers_ that use Logrange API for retrieving data and sending it to another system for further processing or just show it to a user in interactive manner:
-
-![Logrange Structure](https://raw.githubusercontent.com/logrange/logrange/master/doc/pics/Logrange%20Structure.png)
-
-Logrange works following entities:
-* _stream_ - a sequence of _records_. Stream can be imagined like an endless sequence of records. 
-* _partition_ - is a slice of _stream_ of _records_ stored into Logrange database. So _partition_ can contain 0 or more records. Every _partition_ has an unique identifier which is just a combination of _tags_. Comparing to relational databases _partition_ has the same meaninig as a table of records.
-* _tags_ - is a combination of key-value pairs, applied to a _partition_
-* _record_ - is an atomic piece of information from a _stream_. Every _record_ contains 2+fields.
-* _field_ - is a key-value pair, which is part of a record.
-
-### Partitions and tags
-In Logrange a persisted stream of records is called _partition_. Every _partition_ has an unique combination of _tags_. _tags_ are a comma separated key-value pairs written in the form like:
+### Run it from the binaries
+Install the __server__ by executing the command:
+```bash
+$ curl -s http://get.logrange.io/install | bash -s logrange
 ```
-name=application1,ip="127.0.0.1"
+Install the __client__ by executing the command: 
+```bash
+$ curl -s http://get.logrange.io/install | bash 
 ```
-To address a partition for __write__ operation an unique combintaion of _tags_ must be provided. For example, Collector must provide _tags_ combination which identifies the partition where records should be written. 
+by default the server tries to use `/opt/logrange` folder for data, in the test run you can use `/tmp` instead, so run the server:
+```bash
+$ logrange start --journals-dir /tmp
+```
+Now, when the server runs, run the client to collect logs (default folder is `/var/log`) in another console window:
+```bash
+$ lr collect
+```
+Logs from the `/var/log` will be scanned and sent to the server. 
+Now run the CLI and try it out: 
+```bash
+$ lr shell
+...
+```
+### Run it locally in Docker
+<TBD>
+### Deploy it on Kubernetes
+To install logrange on Kubernetes just run the following command: 
+```bash
+$ curl -s http://get.logrange.io/k8s/install | bash
+```
+Logs will be collected and stored in the logrange server which runs in the k8s cluster. For more details are [here](https://github.com/logrange/k8s)
 
-Tags are used for selecting partitions where records should be read. To select one or more partitions the condition of tags should be provided. For example:
-* `name=application1,ip="127.0.0.1"` - select ALL partitions which tags contain both of the pairs `name=application1` and `ip="127.0.0.1"`
-* `name=application1 OR ip="127.0.0.1"` - selects all partitions which tags contain either `name=application1` pair, or `ip="127.0.0.1"`pair, or both of them
-* `name LIKE 'app*'` - selects all partitions which tags contain key-value pair with the key="name" and the value which starts from "app"
-etc.
+### Build it from sources
+To build Logrange you need `go` [v1.11+](https://golang.org/dl/) installed locally.
+```bash
 
-### Records and fields
-A _stream_ consists of ordered _records_. Every record contains 2 mandatory fields and 0 or more optional, custom fields. The mandatory fields are:
-* `ts` - the records timestamp. It is set by Collector and it can be 0
-* `msg` - the record content. This is just a slice of bytes which can be treated as a text.
-Optional fields are key-value pairs, which value can be addressed by the field name with `fields:` pfrefix. Fields can be combined to expressions. For example:
-* `msg contains "abc"` - matches records, for which `msg` field contains text "abc"
-* `msg contains "ERROR" AND fields:name = "app1"` - matches records, for which `msg` field contains text "ERROR" AND the field with the key="name" has value="app1"
-etc.
+$ go get github.com/logrange/logrange
+$ cd $GOPATH/src/github.com/logrange/logrange # GOPATH is $HOME/go by default.
 
-## Main components
-### Aggregator
-### Clients
-#### Log Collector
-#### CLI tool
-#### Log Forwarder
-## Logrange Query Language (LQL)
-# Available Configurations
-# Roadmap
+$ go build ./cmd/logrange
+```
+
+by default the server tries to use `/opt/logrange` folder for data, in the test run you can use `/tmp` instead, so run the server:
+```bash
+$ ./logrange start --journals-dir /tmp
+```
+
+To run collect for collecting log files from `/var/log` and sending the data to the server, use the following commands from `$GOPATH/src/github.com/logrange/logran` in :
+```bash
+$ go build ./cmd/lr
+$ ./lr collect
+...
+```
+To run the CLI tool type the command from `$GOPATH/src/github.com/logrange/logran`:
+```bash
+$ ./lr shell
+...
+```
+
+## Contact us
+Whether you have problems with log aggregation, processing or analysis, or wanting to build a secure data aggregation solution.
+Reach out to mail@logrange.io
+## License
+Apache License 2.0, see [LICENSE](LICENSE).
 
