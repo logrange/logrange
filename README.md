@@ -70,13 +70,13 @@ by default the server tries to use `/opt/logrange` folder for data, in the test 
 $ ./logrange start --journals-dir /tmp
 ```
 
-To run collect for collecting log files from `/var/log` and sending the data to the server, use the following commands from `$GOPATH/src/github.com/logrange/logran` in :
+To run collect for collecting log files from `/var/log` and sending the data to the server, use the following commands from `$GOPATH/src/github.com/logrange/logrange` in :
 ```bash
 $ go build ./cmd/lr
 $ ./lr collect
 ...
 ```
-To run the CLI tool type the command from `$GOPATH/src/github.com/logrange/logran`:
+To run the CLI tool type the command from `$GOPATH/src/github.com/logrange/logrange`:
 ```bash
 $ ./lr shell
 ...
