@@ -47,6 +47,7 @@ $ lr shell
 ```
 ### Run it locally in Docker
 <TBD>
+
 ### Deploy it on Kubernetes
 To install logrange on Kubernetes just run the following command: 
 ```bash
