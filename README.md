@@ -13,78 +13,58 @@ __The product__
 * _Native for stream processing_. Merging, filtering and search using LQL (Logrange Query Language)
 * _Open Source_. Logrange is 100% open source. It can be used for building trustworthy data storages.
 * _Ready to use_. Basic installation includes pre-configured log processing tools: collector, forwarder, CLI tool and Logrange database service. 
-* _Easy installation_ either in a containerized or a custom environment.
+* _Easy installation_ either in a containerized (k8s or docker) or a custom environment.
 
-## Get started
-Logrange shipment includes 2 executables - `logrange` server and `lr` - the logrange client. To try Logrange out you need to have the server runs. You can try Logrange by one of the following way:
-- [Run it from the binaries](#run-it-from-binaries)
-- [Run it locally in Docker](#run-it-locally-in-docker)
-- [Deploy it on Kubernetes](#deploy-it-on-kubernetes)
-- [Build it from sources](#build-it-from-sources)
+## Quick start
+Logrange shipment includes 2 executables - `logrange` server and `lr` - the logrange client. In the quick start you can use precompiled binaries to try Logrange out. 
 
-### Run it from the binaries
-Install the __server__ by executing the command:
+### Step 1. Install logrange server and run it.
+The following 2 commands allow to download, install and run the logrange server:
 ```bash
+
 $ curl -s http://get.logrange.io/install | bash -s logrange
-```
-Install the __client__ by executing the command: 
-```bash
-$ curl -s http://get.logrange.io/install | bash 
-```
-by default the server tries to use `/opt/logrange` folder for data, in the test run you can use `/tmp` instead, so run the server:
-```bash
 $ logrange start --journals-dir /tmp
+...
 ```
-Now, when the server runs, run the client to collect logs (default folder is `/var/log`) in another console window:
+Normally, you have to see logrange server logs, cause the server attached to the console where the it runs. Don't stop it, just switch to another console.
+
+### Step 2. Collecting logs and sending them to the server.
+To collect logs, we need to download and run the `lr` client, which will collect logs from the machine where it runs (`/var/log` folder, by default). Having server runs, type in another console:
 ```bash
+
+$ curl -s http://get.logrange.io/install | bash
 $ lr collect
+...
 ```
-Logs from the `/var/log` will be scanned and sent to the server. 
-Now run the CLI and try it out: 
+You have to see the collector logs, cause the collector is attached to the console where the it runs.
+
+### Step 3. Connect to the server, using CLI tool.
+You can connect to the logrange server and type commands in CLI tool:
 ```bash
 $ lr shell
 ...
 ```
-### Run it locally in Docker
-<TBD>
 
-### Deploy it on Kubernetes
-To install logrange on Kubernetes just run the following command: 
-```bash
-$ curl -s http://get.logrange.io/k8s/install | bash
+In the logrange shell, you can try `select` to retrieve collected data: 
 ```
-Logs will be collected and stored in the logrange server which runs in the k8s cluster. For more details are [here](https://github.com/logrange/k8s)
-
-### Build it from sources
-To build Logrange you need `go` [v1.11+](https://golang.org/dl/) installed locally.
-```bash
-
-$ go get github.com/logrange/logrange
-$ cd $GOPATH/src/github.com/logrange/logrange # GOPATH is $HOME/go by default.
-
-$ go build ./cmd/logrange
-```
-
-by default the server tries to use `/opt/logrange` folder for data, in the test run you can use `/tmp` instead, so run the server:
-```bash
-$ ./logrange start --journals-dir /tmp
-```
-
-To run collect for collecting log files from `/var/log` and sending the data to the server, use the following commands from `$GOPATH/src/github.com/logrange/logran` in :
-```bash
-$ go build ./cmd/lr
-$ ./lr collect
+> select limit 10
 ...
 ```
-To run the CLI tool type the command from `$GOPATH/src/github.com/logrange/logran`:
-```bash
-$ ./lr shell
-...
-```
+
+Or try `help` to find out what commands are available.
+
+## Documentation 
+[k8s Installation](https://github.com/logrange/k8s)
+
+## Geeting Help
+- Found a bug or thinking about a new feature? [File an issue](https://github.com/logrange/logrange/issues/new)
+- If you have any questions or feedback regarding Logrange, send us e-mail to: mail@logrange.io
 
 ## Contact us
 Whether you have problems with log aggregation, processing or analysis, or wanting to build a secure data aggregation solution.
+ 
 Reach out to mail@logrange.io
+
 ## License
 Apache License 2.0, see [LICENSE](LICENSE).
 
