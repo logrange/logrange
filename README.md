@@ -56,7 +56,7 @@ Or try `help` to find out what commands are available.
 ## Documentation 
 [k8s Installation](https://github.com/logrange/k8s)
 
-## Geeting Help
+## Getting Help
 - Found a bug or thinking about a new feature? [File an issue](https://github.com/logrange/logrange/issues/new)
 - If you have any questions or feedback regarding Logrange, send us e-mail to: mail@logrange.io
 
