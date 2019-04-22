@@ -58,7 +58,7 @@ Or try `help` to find out what commands are available.
 
 ## Getting Help
 - Found a bug or thinking about a new feature? [File an issue](https://github.com/logrange/logrange/issues/new)
-- If you have any questions or feedback regarding Logrange, send us e-mail to: mail@logrange.io
+- If you have any question or feedback regarding Logrange, send us e-mail to: mail@logrange.io
 
 ## Contact us
 Whether you have problems with log aggregation, processing or analysis, or wanting to build a secure data aggregation solution.
