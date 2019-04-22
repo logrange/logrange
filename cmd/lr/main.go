@@ -19,6 +19,7 @@ import (
 	"context"
 	"fmt"
 	"github.com/jrivets/log4g"
+	"github.com/logrange/logrange"
 	"github.com/logrange/logrange/client"
 	"github.com/logrange/logrange/client/collector"
 	"github.com/logrange/logrange/client/forwarder"
@@ -29,10 +30,6 @@ import (
 	"os"
 	"sort"
 	"strings"
-)
-
-const (
-	Version = "0.1.0"
 )
 
 const (
@@ -79,7 +76,7 @@ func main() {
 
 	app := &ucli.App{
 		Name:    "lr",
-		Version: Version,
+		Version: logrange.Version,
 		Usage:   "Logrange client",
 		Commands: []*ucli.Command{
 			{

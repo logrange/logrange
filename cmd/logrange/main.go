@@ -17,16 +17,13 @@ package main
 import (
 	"context"
 	"github.com/jrivets/log4g"
+	"github.com/logrange/logrange"
 	"github.com/logrange/logrange/pkg/utils"
 	"github.com/logrange/logrange/server"
 	"github.com/logrange/range/pkg/cluster"
 	"gopkg.in/urfave/cli.v2"
 	"os"
 	"sort"
-)
-
-const (
-	Version = "0.1.0"
 )
 
 const (
@@ -44,7 +41,7 @@ func main() {
 
 	app := &cli.App{
 		Name:    "logrange",
-		Version: Version,
+		Version: logrange.Version,
 		Usage:   "Log Aggregation Service",
 		Commands: []*cli.Command{
 			{
