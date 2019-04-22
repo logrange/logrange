@@ -73,26 +73,6 @@ if [[ ! ${VERSION} =~ ^v[0-9]+\.[0-9]+\.[0-9]+.* ]]; then
     exit 1
 fi
 
-if git show-ref --tags | egrep -q "refs/tags/$VERSION"
-then
-    echo "Found the tag $VERSION, will make artifacts for it."
-    unset BRANCH
-else
-    if [[ -z ${BRANCH} ]]; then
-        BRANCH=$(git rev-parse --abbrev-ref HEAD)
-        check $?
-    fi
-
-    echo "There is no tag $VERSION. Will build the product for latest known commit from ${BRANCH}, and tag it by the version, if the build is successful."
-
-#    echo "There is no tag $VERSION, adding new one to $LATEST_COMMIT:"
-#    git tag $VERSION $LATEST_COMMIT
-
-#    echo "Pushing the new tag to remote:"
-#    git push origin $VERSION
-#    check $?
-fi
-
 echo "Creating temporary dir for building artficats."
 TMP_PATH=$(mktemp -d)
 check $?
@@ -106,20 +86,33 @@ mkdir -p ${LGR_PATH}
 check $?
 
 cd ${LGR_PATH}
-echo "Cloning git branch ${BRANCH} by tag '${VERSION}' to '${LGR_PATH}/logrange'..."
-if [[ -z ${BRANCH} ]]; then
-    git clone -b ${VERSION} git@github.com:logrange/logrange.git
-    check $?
-else
-    git clone -b ${BRANCH} git@github.com:logrange/logrange.git
-    check $?
-fi
 
-cd ${LGR_PATH}/logrange
+echo "Checking out sources"
+git clone git@github.com:logrange/logrange.git
+check $?
+
+cd ./logrange
+
 echo "Setting GOPATH to ${TMP_PATH} ..."
 env GOPATH=${TMP_PATH}  >/dev/null 2>&1
 check $?
 
+if git show-ref --tags | egrep -q "refs/tags/$VERSION"
+then
+    echo "Found the tag $VERSION, will make artifacts for it."
+    git checkout ${VERSION}
+    check $?
+    unset BRANCH
+else
+    if [[ -z ${BRANCH} ]]; then
+        BRANCH=$(git rev-parse --abbrev-ref HEAD)
+        check $?
+    fi
+
+    echo "There is no tag $VERSION. Will build the product for latest known commit from ${BRANCH}, and tag it by the version, if the build is successful."
+    git checkout ${BRANCH}
+    check $?
+fi
 
 if [[ ! -z ${BRANCH} ]]; then
     echo "Changing the version to ${VERSION} in version.go file to ${LGR_PATH}/logrange/version.go"
