@@ -142,8 +142,7 @@ func NewService() *Service {
 
 func (s *Service) Init(ctx context.Context) error {
 	s.logger.Info("Initializing")
-	s.cIdx.init(s.CIdxDir)
-	return nil
+	return s.cIdx.init(s.CIdxDir)
 }
 
 func (s *Service) Shutdown() {

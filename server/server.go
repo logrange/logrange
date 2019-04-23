@@ -28,25 +28,34 @@ import (
 	"github.com/logrange/range/pkg/kv/inmem"
 	"github.com/logrange/range/pkg/records/journal/ctrlr"
 	"github.com/logrange/range/pkg/utils/bytes"
+	"path"
 )
 
 // Start starts the logrange server using the configuration provided. It will
 // stop it as soon as ctx is closed
 func Start(ctx context.Context, cfg *Config) error {
+	// Adjusting known dirs
+	tindexDir := path.Join(cfg.BaseDir, "tindex")
+	cindexDir := path.Join(cfg.BaseDir, "cindex")
+	pipeDir := path.Join(cfg.BaseDir, "pipes")
+	dbDir := path.Join(cfg.BaseDir, "db")
+
+	imsCfg := &tindex.InMemConfig{WorkingDir: tindexDir}
+	cfg.PipesConfig.Dir = pipeDir
+	cfg.JrnlCtrlConfig.JournalsDir = dbDir
+
 	log := log4g.GetLogger("server")
 	log.Info("Start with config:", cfg)
-
-	imsCfg := &tindex.InMemConfig{WorkingDir: cfg.JrnlCtrlConfig.JournalsDir}
 
 	injector := linker.New()
 	injector.SetLogger(log4g.GetLogger("injector"))
 	injector.Register(
 		linker.Component{Name: "HostRegistryConfig", Value: cfg},
 		linker.Component{Name: "JournalControllerConfig", Value: &cfg.JrnlCtrlConfig},
-		linker.Component{Name: "cindexDir", Value: cfg.JrnlCtrlConfig.JournalsDir},
+		linker.Component{Name: "cindexDir", Value: cindexDir},
 		linker.Component{Name: "", Value: &cfg.PipesConfig},
 		linker.Component{Name: "publicRpcTransport", Value: cfg.PublicApiRpc},
-		linker.Component{Name: "inmemServiceConfig", Value: imsCfg},
+		linker.Component{Name: "tindexInMemCfg", Value: imsCfg},
 		linker.Component{Name: "mainCtx", Value: ctx},
 		linker.Component{Name: "", Value: new(bytes.Pool)},
 		linker.Component{Name: "", Value: inmem.New()},

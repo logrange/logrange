@@ -21,6 +21,7 @@ import (
 	"github.com/jrivets/log4g"
 	"github.com/logrange/logrange/pkg/model"
 	"github.com/logrange/range/pkg/records/chunk"
+	"github.com/logrange/range/pkg/utils/fileutil"
 	"github.com/pkg/errors"
 	"io/ioutil"
 	"math"
@@ -56,14 +57,22 @@ func newCIndex() *cindex {
 }
 
 // init allows to initialize the cindex. ddir is a folder where the cindex data is stored
-func (ci *cindex) init(ddir string) {
+func (ci *cindex) init(ddir string) error {
 	if len(ddir) == 0 {
 		ci.logger.Warn("Empty dir provided, will not persist.")
-		return
+		return nil
 	}
+
+	err := fileutil.EnsureDirExists(ddir)
+	if err != nil {
+		ci.logger.Error("cindex.init(): could not create dir ", ddir, ", err=", err)
+		return err
+	}
+
 	ci.dtFileName = path.Join(ddir, cIndexFileName)
 	ci.logger.Info("Set data file to ", ci.dtFileName)
 	ci.loadDataFromFile()
+	return nil
 }
 
 // onWrite updates the partition cindex. It receives the partition name src, number of records in the

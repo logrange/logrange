@@ -24,6 +24,7 @@ import (
 	"github.com/logrange/range/pkg/records/journal"
 	"github.com/logrange/range/pkg/utils/bytes"
 	errors2 "github.com/logrange/range/pkg/utils/errors"
+	"github.com/logrange/range/pkg/utils/fileutil"
 	"github.com/pkg/errors"
 	"io/ioutil"
 	"os"
@@ -51,7 +52,7 @@ type (
 	}
 
 	inmemService struct {
-		Config   *InMemConfig       `inject:"inmemServiceConfig"`
+		Config   *InMemConfig       `inject:"tindexInMemCfg"`
 		Journals journal.Controller `inject:""`
 
 		logger log4g.Logger
@@ -411,6 +412,13 @@ func (ims *inmemService) saveStateUnsafe() error {
 }
 
 func (ims *inmemService) checkConsistency(ctx context.Context) error {
+	if !ims.Config.DoNotSave {
+		err := fileutil.EnsureDirExists(ims.Config.WorkingDir)
+		if err != nil {
+			return errors.Wrapf(err, "checkConsistency(): could not be ensure the dir %s exists", ims.Config.WorkingDir)
+		}
+	}
+
 	err := ims.loadState()
 	if err != nil {
 		return err

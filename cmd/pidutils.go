@@ -20,8 +20,11 @@ import (
 	"io/ioutil"
 	"os"
 	"os/exec"
+	"os/signal"
 	"strconv"
 	"strings"
+	"syscall"
+	"time"
 )
 
 type PidFile struct {
@@ -138,9 +141,23 @@ func RemoveArgsWithName(args []string, name string) []string {
 
 // RunCommand runs the command cmd with params, returns an error if any
 func RunCommand(c string, params ...string) error {
+	fmt.Printf("Starting command %s with params %v ... \n", c, params)
 	cmd := exec.Command(c, params...)
-	if err := cmd.Start(); err != nil {
+	err := cmd.Start()
+	if err != nil {
 		return fmt.Errorf("Could not run command %s with params=%v error=%s", c, params, err)
 	}
-	return nil
+
+	sigChan := make(chan os.Signal, 1)
+	defer signal.Stop(sigChan)
+
+	signal.Notify(sigChan, syscall.SIGCHLD)
+	select {
+	case <-sigChan:
+		err = fmt.Errorf("The process could not be started for a reason.")
+	case <-time.After(time.Second):
+		fmt.Printf("Started. pid=%d\n", cmd.Process.Pid)
+	}
+
+	return err
 }

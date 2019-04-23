@@ -1,4 +1,5 @@
 {
+  "BaseDir" : "/opt/logrange/data",
   "HostHostId": 0,
   "HostLeaseTTLSec": 5,
   "HostRegisterTimeoutSec": 0,
@@ -13,7 +14,6 @@
   },
 
   "JrnlCtrlConfig": {
-    "JournalsDir": "/opt/logrange/db/",
     "MaxOpenFileDescs": 5000,
     "CheckFullScan": false,
     "RecoverDisabled": false,

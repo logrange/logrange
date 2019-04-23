@@ -21,7 +21,6 @@ import (
 	"github.com/logrange/range/pkg/records/chunk/chunkfs"
 	"github.com/logrange/range/pkg/transport"
 	"io/ioutil"
-	"path"
 	"reflect"
 	"time"
 
@@ -32,6 +31,9 @@ import (
 
 // Config struct defines logragnge server settings
 type Config struct {
+
+	// BaseDir is the directory where ALL logrange data will be stored. Default is /opt/logrange/data
+	BaseDir string
 
 	// HostHostId defines the host unique identifier, if not set, then it will
 	// be assigned automatically
@@ -102,6 +104,7 @@ var configLog = log4g.GetLogger("Config")
 
 func (c *Config) String() string {
 	return fmt.Sprint(
+		"\n\tBaseDir=", c.BaseDir,
 		"\n\tHostHostId=", c.HostHostId,
 		"\n\tHostLeaseTTLSec=", c.HostLeaseTTLSec,
 		"\n\tHostRegisterTimeoutSec=", c.HostRegisterTimeoutSec,
@@ -118,14 +121,13 @@ func GetDefaultConfig() *Config {
 	c.PublicApiRpc.ListenAddr = "127.0.0.1:9966"
 	c.PrivateApiRpc.ListenAddr = "127.0.0.1:9967"
 	c.HostLeaseTTLSec = 5
+	c.BaseDir = "/opt/logrange/data"
 	c.JrnlCtrlConfig = GetDefaultJCtrlrConfig()
-	c.PipesConfig.Dir = path.Join(c.JrnlCtrlConfig.JournalsDir, "pipes")
 	return c
 }
 
 func GetDefaultJCtrlrConfig() JCtrlrConfig {
 	jcc := JCtrlrConfig{}
-	jcc.JournalsDir = "/opt/logrange/db/"
 	jcc.MaxOpenFileDescs = 250
 	jcc.WriteIdleSec = 30
 	jcc.WriteFlushMs = 500
@@ -159,8 +161,13 @@ func (c *Config) Apply(cfg *Config) {
 	if cfg == nil {
 		return
 	}
+
 	c.JrnlCtrlConfig.Apply(&cfg.JrnlCtrlConfig)
 	c.PipesConfig.Apply(&cfg.PipesConfig)
+
+	if cfg.BaseDir != "" {
+		c.BaseDir = cfg.BaseDir
+	}
 	if cfg.HostHostId > 0 {
 		c.HostHostId = cfg.HostHostId
 	}

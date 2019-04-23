@@ -34,7 +34,7 @@ const (
 	argStartLogCfgFile = "log-config-file"
 	argStartCfgFile    = "config-file"
 	argStartHostHostId = "host-id"
-	argStartJournalDir = "journals-dir"
+	argStartBaseDir    = "base-dir"
 	argStartAsDaemon   = "daemon"
 	argMaxReadFDS      = "max-read-fds"
 )
@@ -65,8 +65,8 @@ func main() {
 						Usage: "unique host id, if 0 the id will be automatically assigned",
 					},
 					&cli.StringFlag{
-						Name:  argStartJournalDir,
-						Usage: "path to the journals database directory",
+						Name:  argStartBaseDir,
+						Usage: "path to the directory, where logrange data will be stored",
 					},
 					&cli.IntFlag{
 						Name:  argMaxReadFDS,
@@ -88,8 +88,8 @@ func main() {
 						Usage: "server configuration file path",
 					},
 					&cli.StringFlag{
-						Name:  argStartJournalDir,
-						Usage: "path to the journals database directory",
+						Name:  argStartBaseDir,
+						Usage: "path to the directory, where logrange data is stored",
 					},
 				},
 			},
@@ -139,9 +139,9 @@ func runServer(c *cli.Context) error {
 		return cmd2.RunCommand(os.Args[0], res...)
 	}
 
-	err = fileutil.EnsureDirExists(cfg.JrnlCtrlConfig.JournalsDir)
+	err = fileutil.EnsureDirExists(cfg.BaseDir)
 	if err != nil {
-		return fmt.Errorf("could not create dir %s err=%s", cfg.JrnlCtrlConfig.JournalsDir, err)
+		return fmt.Errorf("could not create dir %s err=%s", cfg.BaseDir, err)
 	}
 
 	pf := cmd2.NewPidFile(pidFileName(cfg))
@@ -173,8 +173,8 @@ func applyArgsToCfg(c *cli.Context, cfg *server.Config) {
 	if hid := c.Int(argStartHostHostId); int(cfg.HostHostId) != hid {
 		cfg.HostHostId = cluster.HostId(hid)
 	}
-	if jd := c.String(argStartJournalDir); jd != "" {
-		cfg.JrnlCtrlConfig.JournalsDir = jd
+	if jd := c.String(argStartBaseDir); jd != "" {
+		cfg.BaseDir = jd
 	}
 	if mfds := c.Int(argMaxReadFDS); mfds > 0 {
 		cfg.JrnlCtrlConfig.MaxOpenFileDescs = mfds
@@ -182,5 +182,5 @@ func applyArgsToCfg(c *cli.Context, cfg *server.Config) {
 }
 
 func pidFileName(cfg *server.Config) string {
-	return path.Join(cfg.JrnlCtrlConfig.JournalsDir, "logrange.pid")
+	return path.Join(cfg.BaseDir, "logrange.pid")
 }

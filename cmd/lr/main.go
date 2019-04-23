@@ -137,10 +137,7 @@ func main() {
 	}
 
 	if err := app.Run(os.Args); err != nil {
-		logger.Error(err)
-		if logger.GetLevel() == log4g.FATAL {
-			fmt.Println(err)
-		}
+		fmt.Println(err)
 	}
 }
 
