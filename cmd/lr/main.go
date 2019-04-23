@@ -24,25 +24,28 @@ import (
 	"github.com/logrange/logrange/client/collector"
 	"github.com/logrange/logrange/client/forwarder"
 	"github.com/logrange/logrange/client/shell"
+	"github.com/logrange/logrange/cmd"
 	"github.com/logrange/logrange/pkg/storage"
 	"github.com/logrange/logrange/pkg/utils"
+	"github.com/logrange/range/pkg/utils/fileutil"
 	ucli "gopkg.in/urfave/cli.v2"
 	"os"
+	"path"
 	"sort"
 	"strings"
 )
 
 const (
-	argCfgFile    = "config-file"
-	argLogCfgFile = "log-config-file"
-	argServerAddr = "server-addr"
-	argStorageDir = "storage-dir"
+	argCfgFile       = "config-file"
+	argLogCfgFile    = "log-config-file"
+	argServerAddr    = "server-addr"
+	argStorageDir    = "storage-dir"
+	argStartAsDaemon = "daemon"
 
 	argQueryStreamMode = "pipe-mode"
 )
 
 var (
-	cfg    = client.NewDefaultConfig()
 	logger = log4g.GetLogger("lr")
 )
 
@@ -72,6 +75,10 @@ func main() {
 			Name:  argLogCfgFile,
 			Usage: "log4g configuration file path",
 		},
+		&ucli.BoolFlag{
+			Name:  argStartAsDaemon,
+			Usage: "starting collector or forwarder as daemon (detached from the console)",
+		},
 	}
 
 	app := &ucli.App{
@@ -90,6 +97,18 @@ func main() {
 				Usage:  "Run data forwarding",
 				Action: runForwarder,
 				Flags:  cmnFlags,
+			},
+			{
+				Name:   "stop-collect",
+				Usage:  "Stop data collection",
+				Action: stopCollector,
+				Flags:  []ucli.Flag{cmnFlags[1], cmnFlags[2]},
+			},
+			{
+				Name:   "stop-forward",
+				Usage:  "Stop data forwarding",
+				Action: stopForwarder,
+				Flags:  []ucli.Flag{cmnFlags[1], cmnFlags[2]},
 			},
 			{
 				Name:   "shell",
@@ -125,16 +144,17 @@ func main() {
 	}
 }
 
-func initCfg(c *ucli.Context) error {
+func initCfg(c *ucli.Context) (*client.Config, error) {
 	var (
 		err error
+		cfg = client.NewDefaultConfig()
 	)
 
 	logCfgFile := c.String(argLogCfgFile)
 	if logCfgFile != "" {
 		err = log4g.ConfigF(logCfgFile)
 		if err != nil {
-			return err
+			return nil, err
 		}
 	}
 
@@ -143,13 +163,26 @@ func initCfg(c *ucli.Context) error {
 		logger.Info("Loading config from=", cfgFile)
 		config, err := client.LoadCfgFromFile(cfgFile)
 		if err != nil {
-			return err
+			return nil, err
 		}
 		cfg.Apply(config)
 	}
 
 	applyArgsToCfg(c, cfg)
-	return nil
+	return cfg, nil
+}
+
+// pidFileName returns the name of file, where the client process pid will be stored
+func pidFileName(cname string, cfg *client.Config) string {
+	if cfg.Storage.Type == storage.TypeInMem {
+		return ""
+	}
+	err := fileutil.EnsureDirExists(cfg.Storage.Location)
+	if err != nil {
+		fmt.Println("Error: the folder ", cfg.Storage.Location, " could not be created err=", err)
+		return ""
+	}
+	return path.Join(cfg.Storage.Location, cname+".pid")
 }
 
 func applyArgsToCfg(c *ucli.Context, cfg *client.Config) {
@@ -174,9 +207,26 @@ func newCtx() context.Context {
 //===================== collector =====================
 
 func runCollector(c *ucli.Context) error {
-	err := initCfg(c)
+	cfg, err := initCfg(c)
 	if err != nil {
 		return err
+	}
+
+	pfn := pidFileName("collector", cfg)
+	if c.Bool(argStartAsDaemon) {
+		if pfn == "" {
+			fmt.Println("Warning: starting as daemon with in-mem storage. There will be no way to stop it via lr command.")
+		}
+		res := cmd.RemoveArgsWithName(os.Args[1:], argStartAsDaemon)
+		return cmd.RunCommand(os.Args[0], res...)
+	}
+
+	if pfn != "" {
+		pf := cmd.NewPidFile(pfn)
+		if !pf.Lock() {
+			return fmt.Errorf("already running?")
+		}
+		defer pf.Unlock()
 	}
 
 	cli, err := client.NewClient(*cfg.Transport)
@@ -193,12 +243,44 @@ func runCollector(c *ucli.Context) error {
 	return collector.Run(newCtx(), cfg.Collector, cli, strg)
 }
 
+func stopCollector(c *ucli.Context) error {
+	cfg, err := initCfg(c)
+	if err != nil {
+		return err
+	}
+
+	pfn := pidFileName("collector", cfg)
+	if pfn == "" {
+		return fmt.Errorf("could not determine collector pid, the configuration doesn't have permanent storage, in-mem only")
+	}
+
+	pf := cmd.NewPidFile(pfn)
+	return pf.Interrupt()
+}
+
 //===================== forwarder =====================
 
 func runForwarder(c *ucli.Context) error {
-	err := initCfg(c)
+	cfg, err := initCfg(c)
 	if err != nil {
 		return err
+	}
+
+	pfn := pidFileName("forwarder", cfg)
+	if c.Bool(argStartAsDaemon) {
+		if pfn == "" {
+			fmt.Println("Warning: starting as daemon with in-mem storage. There will be no way to stop it via lr command.")
+		}
+		res := cmd.RemoveArgsWithName(os.Args[1:], argStartAsDaemon)
+		return cmd.RunCommand(os.Args[0], res...)
+	}
+
+	if pfn != "" {
+		pf := cmd.NewPidFile(pfn)
+		if !pf.Lock() {
+			return fmt.Errorf("already running?")
+		}
+		defer pf.Unlock()
 	}
 
 	cli, err := client.NewClient(*cfg.Transport)
@@ -215,11 +297,26 @@ func runForwarder(c *ucli.Context) error {
 	return forwarder.Run(newCtx(), cfg.Forwarder, cli, strg)
 }
 
+func stopForwarder(c *ucli.Context) error {
+	cfg, err := initCfg(c)
+	if err != nil {
+		return err
+	}
+
+	pfn := pidFileName("forwarder", cfg)
+	if pfn == "" {
+		return fmt.Errorf("could not determine forwarder pid, the configuration doesn't have permanent storage, in-mem only")
+	}
+
+	pf := cmd.NewPidFile(pfn)
+	return pf.Interrupt()
+}
+
 //===================== query =====================
 
 func execQuery(c *ucli.Context) error {
 	log4g.SetLogLevel("", log4g.FATAL)
-	err := initCfg(c)
+	cfg, err := initCfg(c)
 	if err != nil {
 		return err
 	}
@@ -242,7 +339,7 @@ func execQuery(c *ucli.Context) error {
 
 func runShell(c *ucli.Context) error {
 	log4g.SetLogLevel("", log4g.FATAL)
-	err := initCfg(c)
+	cfg, err := initCfg(c)
 	if err != nil {
 		return err
 	}

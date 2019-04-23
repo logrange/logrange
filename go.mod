@@ -3,6 +3,7 @@ module github.com/logrange/logrange
 require (
 	github.com/alecthomas/participle v0.2.1
 	github.com/dustin/go-humanize v1.0.0
+	github.com/gofrs/flock v0.7.1
 	github.com/jrivets/gorivets v0.0.0-20170920013151-fa5c087ad733 // indirect
 	github.com/jrivets/log4g v0.0.0-20171008071556-0d3a418ba12a
 	github.com/kr/pretty v0.1.0 // indirect

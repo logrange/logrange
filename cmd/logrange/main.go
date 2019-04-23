@@ -16,13 +16,16 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"github.com/jrivets/log4g"
 	"github.com/logrange/logrange"
+	cmd2 "github.com/logrange/logrange/cmd"
 	"github.com/logrange/logrange/pkg/utils"
 	"github.com/logrange/logrange/server"
 	"github.com/logrange/range/pkg/cluster"
 	"gopkg.in/urfave/cli.v2"
 	"os"
+	"path"
 	"sort"
 )
 
@@ -31,10 +34,9 @@ const (
 	argStartCfgFile    = "config-file"
 	argStartHostHostId = "host-id"
 	argStartJournalDir = "journals-dir"
+	argStartAsDaemon   = "daemon"
 	argMaxReadFDS      = "max-read-fds"
 )
-
-var cfg = server.GetDefaultConfig()
 
 func main() {
 	defer log4g.Shutdown()
@@ -69,6 +71,25 @@ func main() {
 						Name:  argMaxReadFDS,
 						Usage: "maximum number of file desrcriptors used for read operations",
 					},
+					&cli.BoolFlag{
+						Name:  argStartAsDaemon,
+						Usage: "starting the server as daemon (detached from the console)",
+					},
+				},
+			},
+			{
+				Name:   "stop",
+				Usage:  "Run logrange service, if it is started",
+				Action: stopServer,
+				Flags: []cli.Flag{
+					&cli.StringFlag{
+						Name:  argStartCfgFile,
+						Usage: "server configuration file path",
+					},
+					&cli.StringFlag{
+						Name:  argStartJournalDir,
+						Usage: "path to the journals database directory",
+					},
 				},
 			},
 		},
@@ -78,37 +99,68 @@ func main() {
 	sort.Sort(cli.FlagsByName(app.Commands[0].Flags))
 	sort.Sort(cli.CommandsByName(app.Commands))
 	if err := app.Run(os.Args); err != nil {
-		getLogger().Fatal("Failed to run server, cause: ", err)
+		fmt.Println("Error: ", err)
 	}
 }
 
-func runServer(c *cli.Context) error {
+func getServerConfig(c *cli.Context) (*server.Config, error) {
+	var cfg = server.GetDefaultConfig()
 	logCfgFile := c.String(argStartLogCfgFile)
 	if logCfgFile != "" {
 		err := log4g.ConfigF(logCfgFile)
 		if err != nil {
-			return err
+			return nil, err
 		}
 	}
 
-	logger := getLogger()
 	cfgFile := c.String(argStartCfgFile)
 	if cfgFile != "" {
-		logger.Info("Loading server config from=", cfgFile)
+		fmt.Println("Loading server config from=", cfgFile)
 		config, err := server.ReadConfigFromFile(cfgFile)
 		if err != nil {
-			return err
+			return nil, err
 		}
 		cfg.Apply(config)
 	}
 
 	applyArgsToCfg(c, cfg)
+	return cfg, nil
+}
+
+func runServer(c *cli.Context) error {
+	cfg, err := getServerConfig(c)
+	if err != nil {
+		return err
+	}
+
+	if c.Bool(argStartAsDaemon) {
+		res := cmd2.RemoveArgsWithName(os.Args[1:], argStartAsDaemon)
+		return cmd2.RunCommand(os.Args[0], res...)
+	}
+
+	pf := cmd2.NewPidFile(pidFileName(cfg))
+	if !pf.Lock() {
+		return fmt.Errorf("already running?")
+	}
+	defer pf.Unlock()
+
 	ctx, cancel := context.WithCancel(context.Background())
 	utils.NewNotifierOnIntTermSignal(func(s os.Signal) {
-		getLogger().Warn("Handling signal=", s)
+		fmt.Println(" Handling signal=", s)
 		cancel()
 	})
+
 	return server.Start(ctx, cfg)
+}
+
+func stopServer(c *cli.Context) error {
+	cfg, err := getServerConfig(c)
+	if err != nil {
+		return err
+	}
+
+	pf := cmd2.NewPidFile(pidFileName(cfg))
+	return pf.Interrupt()
 }
 
 func applyArgsToCfg(c *cli.Context, cfg *server.Config) {
@@ -123,6 +175,6 @@ func applyArgsToCfg(c *cli.Context, cfg *server.Config) {
 	}
 }
 
-func getLogger() log4g.Logger {
-	return log4g.GetLogger("logrange")
+func pidFileName(cfg *server.Config) string {
+	return path.Join(cfg.JrnlCtrlConfig.JournalsDir, "logrange.pid")
 }

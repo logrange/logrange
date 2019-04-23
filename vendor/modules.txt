@@ -5,6 +5,8 @@ github.com/alecthomas/participle/lexer
 github.com/davecgh/go-spew/spew
 # github.com/dustin/go-humanize v1.0.0
 github.com/dustin/go-humanize
+# github.com/gofrs/flock v0.7.1
+github.com/gofrs/flock
 # github.com/jrivets/gorivets v0.0.0-20170920013151-fa5c087ad733
 github.com/jrivets/gorivets
 # github.com/jrivets/log4g v0.0.0-20171008071556-0d3a418ba12a
@@ -18,12 +20,12 @@ github.com/logrange/range/pkg/transport
 github.com/logrange/range/pkg/utils/bytes
 github.com/logrange/range/pkg/utils/encoding/xbinary
 github.com/logrange/range/pkg/cluster
+github.com/logrange/range/pkg/utils/fileutil
 github.com/logrange/range/pkg/context
 github.com/logrange/range/pkg/records/journal
 github.com/logrange/range/pkg/records/chunk
 github.com/logrange/range/pkg/records/chunk/chunkfs
 github.com/logrange/range/pkg/utils/errors
-github.com/logrange/range/pkg/utils/fileutil
 github.com/logrange/range/pkg/cluster/model
 github.com/logrange/range/pkg/kv/inmem
 github.com/logrange/range/pkg/records/journal/ctrlr

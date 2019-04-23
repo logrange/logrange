@@ -2,20 +2,55 @@
 
 function error {
     msg=$1
-    echo "ERROR! ${msg}"
+    echo "Error: ${msg}"
     exit 1
 }
 
 ################# Main #################
+CMD="lr"
+VERSION="latest"
+DEST="/usr/local/bin"
 
-CMD=$1
-if [[ -z ${CMD} ]]; then
-    CMD="lr"
+if [[ "$1" == "logrange" || "$1" == "lr" ]]; then
+    CMD=$1
+    shift
 fi
 
-if [[ "${CMD}" != "logrange" && "${CMD}" != "lr" ]]; then
-    error "Command '${CMD}' does not exist!"
-fi
+while [[ "$1" != "" ]]; do
+    case $1 in
+        -r|--release)
+            shift
+            VERSION=$1
+            ;;
+        -d|--dest)
+            shift
+            DEST=$1
+            ;;
+        -h|--help)
+            cat <<EOT
+
+USAGE: install [lr|logrange] [options]
+
+    install allows to download 'logrange' (server) or 'lr' (client) command
+    and copy it into specified place. install expects the command name (lr|logrange)
+    which is optional. Default command is 'lr'
+
+OPTIONS:
+    -d, --dest <dir>    allows to specify the destination where the command
+                        will be copied. Default value is '/usr/local/bin'
+    -r, --release <ver> specifies the version for the downloaded command. The
+                        version must be in the form vX.Y.Z[suffix] or 'latest'
+    -h, --help          prints the help
+
+EOT
+            exit 0
+            ;;
+         *)
+            error "Unknown argument $1 passed! Try to run 'install --help' ..."
+            ;;
+    esac
+    shift
+done
 
 OS=$(uname)
 if [[ "${OS}" == "Linux" ]]; then
@@ -31,15 +66,24 @@ if [[ "$ARCH" != "x86_64" ]]; then
     error "Architecture '${ARCH}' is not supported!"
 fi
 
-URL=http://get.logrange.io/binaries/master/${OS}/${ARCH}/${CMD}
-echo "Downloading from ${URL}..."
+cd ${DEST}
+if [[ $? -ne 0 ]]; then
+    error "Could not change dir to '${DEST}', please check permissions and whether the dir exists"
+fi
+
+DEST=$(pwd)
+
+URL=http://get.logrange.io/binaries/${VERSION}/${OS}/${ARCH}/${CMD}
+echo "Downloading from ${URL} to ${DEST} ..."
 
 curl -sOfL ${URL}
 if [[ $? -ne 0 ]]; then
-    error "Failed downloading '${CMD}', please check URL and retry..."
+    error "Failed downloading '${CMD}', please check params and retry..."
 fi
 
 chmod +x ${CMD}
-mv ./${CMD} /usr/local/bin
-echo "Done! Try running '${CMD}'..."
+if [[ $? -ne 0 ]]; then
+    error "Could not make '${CMD}' executable, please check permissions"
+fi
+echo "Done! Try running '${DEST}/${CMD} --help'"
 

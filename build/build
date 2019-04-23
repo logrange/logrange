@@ -28,6 +28,9 @@ while [[ "$1" != "" ]]; do
             shift
             VERSION=$1
             ;;
+        -l|--latest)
+            LATEST=1
+            ;;
         -h|--help)
             cat <<EOT
 
@@ -49,6 +52,7 @@ OPTIONS:
                             be used.
     -r, --release <version> defines the release version. Version must be in the form vX.Y.Z[suffix]
                             where X, Y and Z an numbers. Visit https://semver.org/
+    -l, --latest            put into latest version the same context as for the release version
     -u, --upload            allows to upload the artifacts to S3
     -h, --help              prints the help
 
@@ -56,7 +60,7 @@ EOT
             exit 0
             ;;
         *)
-            echo "Unknown argument $1 passed! Try --help ..."
+            echo "Error: Unknown argument $1 passed! Try --help ..."
             exit 1
             ;;
     esac
@@ -64,13 +68,18 @@ EOT
 done
 
 if [[ -z ${VERSION} ]]; then
-    echo "release version must be provided e.g. 'build --release v1.2.3'  or you can try 'build --help' as well"
+    echo "Error: release version must be provided e.g. 'build --release v1.2.3'  or you can try 'build --help' as well"
     exit 1
 fi
 
 if [[ ! ${VERSION} =~ ^v[0-9]+\.[0-9]+\.[0-9]+.* ]]; then
-    echo "release version must start with 'v' has <X.Y.Z> format and an optional suffix. E.g. v1.3.123-test"
+    echo "Error: release version must start with 'v' has <X.Y.Z> format and an optional suffix. E.g. v1.3.123-test"
     exit 1
+fi
+
+if [ -n "$(git status --porcelain)" ]; then
+    UNCOMMITED=$(git rev-parse --abbrev-ref HEAD)
+    echo "Warning: found uncommited changes on the branch ${UNCOMMITED}"
 fi
 
 echo "Creating temporary dir for building artficats."
@@ -107,6 +116,11 @@ else
     if [[ -z ${BRANCH} ]]; then
         BRANCH=$(git rev-parse --abbrev-ref HEAD)
         check $?
+    fi
+
+    if [[ "${UNCOMMITED}" == "${BRANCH}" ]]; then
+        echo "Error: there are uncommited changes on the branch ${BRANCH}, could not making release out of there yet."
+        exit 1
     fi
 
     echo "There is no tag $VERSION. Will build the product for latest known commit from ${BRANCH}, and tag it by the version, if the build is successful."
@@ -173,6 +187,11 @@ if [[ ! -z $BRANCH ]]; then
     git tag $VERSION
     git push origin $VERSION
     check $?
+fi
+
+if [[ ! -z ${LATEST} ]]; then
+    echo "copy context of ${SRC_PATH}/binaries/${VERSION} to ${SRC_PATH}/binaries/latest"
+    cp -r ${SRC_PATH}/binaries/${VERSION} ${SRC_PATH}/binaries/latest
 fi
 
 if [[ ! -z ${UPLOAD} ]]; then
