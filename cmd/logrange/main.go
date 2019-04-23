@@ -23,6 +23,7 @@ import (
 	"github.com/logrange/logrange/pkg/utils"
 	"github.com/logrange/logrange/server"
 	"github.com/logrange/range/pkg/cluster"
+	"github.com/logrange/range/pkg/utils/fileutil"
 	"gopkg.in/urfave/cli.v2"
 	"os"
 	"path"
@@ -136,6 +137,11 @@ func runServer(c *cli.Context) error {
 	if c.Bool(argStartAsDaemon) {
 		res := cmd2.RemoveArgsWithName(os.Args[1:], argStartAsDaemon)
 		return cmd2.RunCommand(os.Args[0], res...)
+	}
+
+	err = fileutil.EnsureDirExists(cfg.JrnlCtrlConfig.JournalsDir)
+	if err != nil {
+		return fmt.Errorf("could not create dir %s err=%s", cfg.JrnlCtrlConfig.JournalsDir, err)
 	}
 
 	pf := cmd2.NewPidFile(pidFileName(cfg))
