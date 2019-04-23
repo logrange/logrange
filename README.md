@@ -27,21 +27,21 @@ cd lrquick
 
 ### Step 2. Install logrange server and run it
 ```bash
-curl -s http://get.logrange.io/install | bash -s logrange -d .
-./logrange start --base-dir=./data --daemon
+curl -s http://get.logrange.io/install | bash -s logrange -d ./bin
+./bin/logrange start --base-dir=./data --daemon
 ```
 Normally, you have to see something like `Started. pid=12345`
 
 ### Step 3. Install logrange client and start collecting logs from the machine
 ```bash
-curl -s http://get.logrange.io/install | bash -s lr -d .
-./lr collect --storage-dir=./collector --daemon
+curl -s http://get.logrange.io/install | bash -s lr -d ./bin
+./bin/lr collect --storage-dir=./collector --daemon
 ```
-The command above runs collector in background. It will send logs found in '/var/log' folder to the logrange server.
+The command above runs collector in background. It will send logs found in `/var/log` folder to the logrange server started in step 2.
 
 ### Step 4. Connect to the server, using CLI tool.
 ```bash
-./lr shell
+./bin/lr shell
 ...
 ```
 
@@ -54,11 +54,11 @@ Or try `help` command to find out what commands are available.
 ## Quick stop 
 From the logrange folder (`lrquick`) type the following commands to stop collector and the logrange server:
 ```bash
-./lr stop-collect --storage-dir=./collector
-./logrange stop --base-dir=./data
+./bin/lr stop-collect --storage-dir=./collector
+./bin/logrange stop --base-dir=./data
 ```
 
-Now, to clean up, just remove the folder:
+Now, to clean up, just remove the `lrquick` folder:
 ```bash
 cd ..
 rm -rf ./lrquick/

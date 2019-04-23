@@ -66,6 +66,14 @@ if [[ "$ARCH" != "x86_64" ]]; then
     error "Architecture '${ARCH}' is not supported!"
 fi
 
+if [ ! -d "${DEST}" ]; then
+    echo "There is no dir '${DEST}', trying to create it ..."
+    mkdir ${DEST}
+    if [[ $? -ne 0 ]]; then
+        error "Could not create '${DEST}', please check permissions"
+    fi
+fi
+
 cd ${DEST}
 if [[ $? -ne 0 ]]; then
     error "Could not change dir to '${DEST}', please check permissions and whether the dir exists"
