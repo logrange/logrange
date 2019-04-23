@@ -16,42 +16,54 @@ __The product__
 * _Easy installation_ either in a containerized (k8s or docker) or a custom environment.
 
 ## Quick start
-Logrange shipment includes 2 executables - `logrange` server and `lr` - the logrange client. In the quick start you can use precompiled binaries to try Logrange out. 
+Logrange shipment includes 2 executables - `logrange` server and `lr` - the logrange client. In the quick start you can use precompiled binaries to try logrange out within 1 minute: 
 
-### Step 1. Install logrange server and run it.
-The following 2 commands allow to download, install and run the logrange server:
+### Step 1. Let's put everything into one dir
+Make a directory and enter there:
 ```bash
-
-$ curl -s http://get.logrange.io/install | bash -s logrange
-$ logrange start --journals-dir /tmp
-...
+mkdir lrquick
+cd lrquick
 ```
-Normally, you have to see logrange server logs, cause the server attached to the console where the it runs. Don't stop it, just switch to another console.
 
-### Step 2. Collecting logs and sending them to the server.
-To collect logs, we need to download and run the `lr` client, which will collect logs from the machine where it runs (`/var/log` folder, by default). Having server runs, type in another console:
+### Step 2. Install logrange server and run it
 ```bash
-
-$ curl -s http://get.logrange.io/install | bash
-$ lr collect
-...
+curl -s http://get.logrange.io/install | bash -s logrange -d .
+./logrange start --base-dir=./data --daemon
 ```
-You have to see the collector logs, cause the collector is attached to the console where the it runs.
+Normally, you have to see something like `Started. pid=12345`
 
-### Step 3. Connect to the server, using CLI tool.
-You can connect to the logrange server and type commands in CLI tool:
+### Step 3. Install logrange client and start collecting logs from the machine
 ```bash
-$ lr shell
+curl -s http://get.logrange.io/install | bash -s lr -d .
+./lr collect --storage-dir=./collector --daemon
+```
+The command above runs collector in background. It will send logs found in '/var/log' folder to the logrange server.
+
+### Step 4. Connect to the server, using CLI tool.
+```bash
+./lr shell
 ...
 ```
 
 In the logrange shell, you can try `select` to retrieve collected data: 
 ```
 > select limit 10
-...
+```
+Or try `help` command to find out what commands are available.
+
+## Quick stop 
+From the logrange folder (`lrquick`) type the following commands to stop collector and the logrange server:
+```bash
+./lr stop-collect --storage-dir=./collector
+./logrange stop --base-dir=./data
 ```
 
-Or try `help` to find out what commands are available.
+Now, to clean up, just remove the folder:
+```bash
+cd ..
+rm -rf ./lrquick/
+```
+
 
 ## Documentation 
 [k8s Installation](https://github.com/logrange/k8s)
