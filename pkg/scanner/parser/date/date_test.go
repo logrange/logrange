@@ -15,6 +15,7 @@
 package date
 
 import (
+	"fmt"
 	"github.com/stretchr/testify/assert"
 	"testing"
 	"time"
@@ -54,4 +55,13 @@ func TestParseFormat1(t *testing.T) {
 	act, fmt = p.Parse([]byte("no datetime"))
 	assert.Nil(t, fmt)
 	assert.Equal(t, exp, act)
+}
+
+func TestCustomParse(t *testing.T) {
+	p := NewParser("hh:mm:ss")
+	tm, f := p.Parse([]byte("12:43:54"))
+	if f == nil {
+		t.Fatal("format must not be nil")
+	}
+	fmt.Println(tm.String())
 }

@@ -41,6 +41,7 @@ type (
 		dRegexp     *regexp.Regexp // regexp to determine given format in a line
 		hasLocation bool           // if format doesn't have location UTC is used
 		hasYear     bool           // if format doesn't have year, current/previous year is used
+		noDate      bool           // if format doesn't have date, usually time only like 'hh:mm:ss.SSS'
 	}
 
 	parser struct {
@@ -198,7 +199,8 @@ func NewParser(fmts ...string) *parser {
 	p.formats = make([]*Format, len(fmts))
 
 	for i, fmtStr := range fmts {
-		hasYear := strings.Contains(fmtStr, "Y")
+		noDate := !strings.ContainsAny(fmtStr, "YMD")
+		hasYear := !noDate && strings.Contains(fmtStr, "Y")
 		hasLocation := strings.Contains(fmtStr, "Z")
 		dRegexp := regexp.MustCompile(fmt.Sprintf("(?P<%v>%v)", dateGroup, regexpMap(fmtStr)))
 
@@ -214,6 +216,7 @@ func NewParser(fmts ...string) *parser {
 			dRegexp:     dRegexp,
 			hasLocation: hasLocation,
 			hasYear:     hasYear,
+			noDate:      noDate,
 		}
 	}
 	return p
@@ -272,10 +275,14 @@ func (f *Format) Parse(buf []byte) (tm time.Time, err error) {
 	} else {
 		tm, err = time.ParseInLocation(f.dLayout, str, time.UTC)
 	}
+
 	if err != nil {
 		return tm, err
 	}
-	if !f.hasYear {
+
+	if f.noDate {
+		tm = adjustDate(tm)
+	} else if !f.hasYear {
 		//no year given, trying to add one...
 		tm = adjustYear(tm)
 	}
@@ -295,4 +302,10 @@ func adjustYear(tm time.Time) time.Time {
 
 	return time.Date(year, tm.Month(), tm.Day(), tm.Hour(),
 		tm.Minute(), tm.Second(), tm.Nanosecond(), tm.Location())
+}
+
+func adjustDate(tm time.Time) time.Time {
+	y, M, d := time.Now().Date()
+	h, m, s := tm.Clock()
+	return time.Date(y, M, d, h, m, s, tm.Nanosecond(), tm.Location())
 }
