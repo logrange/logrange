@@ -107,6 +107,8 @@ func (ims *inmemService) GetJournal(tags string) (string, tag.Set, error) {
 	return ims.getOrCreateJournal(tags, false)
 }
 
+// GetJournalTags acquires the src and returns its Tags, if it is found. If no
+// error, the src must be released after usage.
 func (ims *inmemService) GetJournalTags(src string) (ts tag.Set, err error) {
 	for {
 		ims.lock.Lock()

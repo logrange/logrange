@@ -23,6 +23,7 @@ import (
 	"github.com/logrange/logrange/pkg/model"
 	"github.com/logrange/logrange/pkg/model/tag"
 	"github.com/logrange/logrange/pkg/tindex"
+	"github.com/logrange/logrange/pkg/tmindex"
 	"github.com/logrange/range/pkg/records/chunk"
 	"github.com/logrange/range/pkg/records/chunk/chunkfs"
 	"github.com/logrange/range/pkg/records/journal"
@@ -37,15 +38,15 @@ import (
 type (
 	// Service struct provides functionality and some functions to work with partitions(LogEvent journals)
 	Service struct {
-		Pool     *bytes.Pool        `inject:""`
-		Journals journal.Controller `inject:""`
-		TIndex   tindex.Service     `inject:""`
-		CIdxDir  string             `inject:"cindexDir"`
-		MainCtx  context.Context    `inject:"mainCtx"`
+		Pool      *bytes.Pool        `inject:""`
+		Journals  journal.Controller `inject:""`
+		TIndex    tindex.Service     `inject:""`
+		MainCtx   context.Context    `inject:"mainCtx"`
+		TsIndexer tmindex.TsIndexer  `inject:""`
 
-		cIdx   *cindex
 		logger log4g.Logger
 		weCh   chan WriteEvent
+		tmir   *tmirebuilder
 	}
 
 	// TruncateParams allows to provide parameters for Truncate() functions
@@ -134,20 +135,20 @@ type (
 // NewService creates new service for controlling partitions
 func NewService() *Service {
 	s := new(Service)
-	s.cIdx = newCIndex()
 	s.logger = log4g.GetLogger("logrange.partition.Service")
 	s.weCh = make(chan WriteEvent, 100)
 	return s
 }
 
+// Init is part of linker.Initializer
 func (s *Service) Init(ctx context.Context) error {
-	s.logger.Info("Initializing")
-	return s.cIdx.init(s.CIdxDir)
+	s.tmir = newTmirebuilder(s, 10)
+	return nil
 }
 
+// Shutdown is part of linker.Shutdowner
 func (s *Service) Shutdown() {
-	s.logger.Info("Shutdown()")
-	s.cIdx.saveDataToFile()
+	s.tmir.close()
 }
 
 // Write performs Write operation to a partition defined by tags.
@@ -343,7 +344,7 @@ func (s *Service) GetParitionInfo(tags string) (PartitionInfo, error) {
 		return PartitionInfo{}, err
 	}
 
-	sc := s.cIdx.syncChunks(s.MainCtx, jrnl.Name(), cks)
+	sc := s.TsIndexer.SyncChunks(s.MainCtx, jrnl.Name(), cks)
 	var res PartitionInfo
 	res.Chunks = make([]*ChunkInfo, len(sc))
 	sz := uint64(0)
@@ -420,9 +421,9 @@ func (s *Service) Truncate(ctx context.Context, tp TruncateParams, otf OnTruncat
 		}
 
 		if err == nil {
-			lci := s.cIdx.getLastChunkInfo(jn)
+			lci, err := s.TsIndexer.LastChunkRecordsInfo(jn)
 			lts := uint64(0)
-			if lci != nil {
+			if err == nil {
 				lts = lci.MaxTs
 			}
 			ti := &TruncateInfo{lts, tags, jn, size, size - tr, recs, arecs, n, deleted}
@@ -564,7 +565,7 @@ func (s *Service) truncate(ctx context.Context, jrnl journal.Journal, tp *Trunca
 	s.logger.Debug("After checking size first ", idx, " chunks considered to be removed. New size=", size)
 
 	if tp.OldestTs > 0 && idx < len(cks) {
-		sc := s.cIdx.syncChunks(ctx, jrnl.Name(), cks)
+		sc := s.TsIndexer.SyncChunks(ctx, jrnl.Name(), cks)
 		for ; idx < len(sc) && sc[idx].MaxTs <= tp.OldestTs && size-uint64(cks[idx].Size()) >= tp.MinSrcSize; idx++ {
 			size -= uint64(cks[idx].Size())
 		}
@@ -633,8 +634,12 @@ func (s *Service) deleteChunk(cfname string) {
 }
 
 func (s *Service) onWriteCIndex(src string, iw *iwrapper, n int, pos journal.Pos) {
-	ci := chkInfo{pos.CId, iw.minTs, iw.maxTs}
-	s.cIdx.onWrite(src, pos.Idx-uint32(n), pos.Idx-1, ci)
+	ri := tmindex.RecordsInfo{pos.CId, iw.minTs, iw.maxTs}
+	err := s.TsIndexer.OnWrite(src, pos.Idx-uint32(n), pos.Idx-1, ri)
+	if err == tmindex.ErrTmIndexCorrupted {
+		// if no time-index kick the rebuilder to make it
+		s.tmir.rebuildIndex(src, ri.Id)
+	}
 }
 
 func (tp TruncateParams) String() string {

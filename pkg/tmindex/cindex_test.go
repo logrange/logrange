@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package partition
+package tmindex
 
 import (
 	"encoding/json"
@@ -22,7 +22,7 @@ import (
 )
 
 func TestMarshal(t *testing.T) {
-	v := map[string]sortedChunks{"aaa": {&chkInfo{Id: chunk.NewId(), MinTs: 1234, MaxTs: 1234}}}
+	v := map[string]sortedChunks{"aaa": {&chkInfo{Id: chunk.NewId(), MinTs: 1234, MaxTs: 1234, IdxRoot: Item{1234, 123}}}}
 	res, err := json.Marshal(v)
 	if err != nil {
 		t.Fatal("could not marshal v=", v, ", err=", err)

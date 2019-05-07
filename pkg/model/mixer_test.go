@@ -54,9 +54,9 @@ func TestMixer(t *testing.T) {
 func testMix(t *testing.T, sf SelectF, i1, i2, res []LogEvent) {
 	m := &Mixer{}
 	it1 := &LogEventIterator{}
-	it1.Wrap("t1", newTestLogEventsWrapper(i1))
+	it1.Wrap("t1", NewTestLogEventsWrapper(i1))
 	it2 := &LogEventIterator{}
-	it2.Wrap("t2", newTestLogEventsWrapper(i2))
+	it2.Wrap("t2", NewTestLogEventsWrapper(i2))
 	m.Init(sf, it1, it2)
 	testIt(t, m, res)
 }

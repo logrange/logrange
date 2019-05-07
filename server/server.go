@@ -24,6 +24,7 @@ import (
 	"github.com/logrange/logrange/pkg/partition"
 	"github.com/logrange/logrange/pkg/pipe"
 	"github.com/logrange/logrange/pkg/tindex"
+	"github.com/logrange/logrange/pkg/tmindex"
 	"github.com/logrange/range/pkg/cluster/model"
 	"github.com/logrange/range/pkg/kv/inmem"
 	"github.com/logrange/range/pkg/records/journal/ctrlr"
@@ -44,6 +45,8 @@ func Start(ctx context.Context, cfg *Config) error {
 	cfg.PipesConfig.Dir = pipeDir
 	cfg.JrnlCtrlConfig.JournalsDir = dbDir
 
+	tmidxCfg := &tmindex.TsIndexerConfig{Dir: cindexDir}
+
 	log := log4g.GetLogger("server")
 	log.Info("Start with config:", cfg)
 
@@ -52,15 +55,16 @@ func Start(ctx context.Context, cfg *Config) error {
 	injector.Register(
 		linker.Component{Name: "HostRegistryConfig", Value: cfg},
 		linker.Component{Name: "JournalControllerConfig", Value: &cfg.JrnlCtrlConfig},
-		linker.Component{Name: "cindexDir", Value: cindexDir},
 		linker.Component{Name: "", Value: &cfg.PipesConfig},
 		linker.Component{Name: "publicRpcTransport", Value: cfg.PublicApiRpc},
 		linker.Component{Name: "tindexInMemCfg", Value: imsCfg},
+		linker.Component{Name: "", Value: tmidxCfg},
 		linker.Component{Name: "mainCtx", Value: ctx},
 		linker.Component{Name: "", Value: new(bytes.Pool)},
 		linker.Component{Name: "", Value: inmem.New()},
 		linker.Component{Name: "", Value: tindex.NewInmemService()},
 		linker.Component{Name: "", Value: partition.NewService()},
+		linker.Component{Name: "", Value: tmindex.NewTsIndexer()},
 		linker.Component{Name: "", Value: pipe.NewService()},
 		linker.Component{Name: "", Value: model.NewHostRegistry()},
 		linker.Component{Name: "", Value: model.NewJournalCatalog()},

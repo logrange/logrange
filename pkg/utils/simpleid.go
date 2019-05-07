@@ -15,7 +15,9 @@
 package utils
 
 import (
+	"fmt"
 	"github.com/logrange/range/pkg/cluster"
+	"strconv"
 	"sync/atomic"
 	"time"
 )
@@ -37,4 +39,16 @@ func NextSimpleId() uint64 {
 			return tid
 		}
 	}
+}
+
+// ParseSimpleId receives sid - string representation of an Id and tries to turn it
+// to Id. Returns an error if the string cannot be decoded.
+func ParseSimpleId(cid string) (uint64, error) {
+	c, err := strconv.ParseUint(cid, 16, 64)
+	return c, err
+}
+
+// SimpleId turns sid to string
+func SimpleId(sid uint64) string {
+	return fmt.Sprintf("%016X", sid)
 }

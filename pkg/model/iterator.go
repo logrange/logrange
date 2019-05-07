@@ -95,17 +95,17 @@ func (lei *LogEventIterator) CurrentPos() records.IteratorPos {
 	return lei.it.CurrentPos()
 }
 
-type testLogEventsWrapper struct {
+type TestLogEventsWrapper struct {
 	les  []LogEvent
 	idx  int
 	bkwd bool
 }
 
-func newTestLogEventsWrapper(les []LogEvent) *testLogEventsWrapper {
-	return &testLogEventsWrapper{les, 0, false}
+func NewTestLogEventsWrapper(les []LogEvent) *TestLogEventsWrapper {
+	return &TestLogEventsWrapper{les, 0, false}
 }
 
-func (tle *testLogEventsWrapper) Next(ctx context.Context) {
+func (tle *TestLogEventsWrapper) Next(ctx context.Context) {
 	if tle.bkwd {
 		if tle.idx >= 0 {
 			tle.idx--
@@ -118,7 +118,7 @@ func (tle *testLogEventsWrapper) Next(ctx context.Context) {
 	}
 }
 
-func (tle *testLogEventsWrapper) Get(ctx context.Context) (records.Record, error) {
+func (tle *TestLogEventsWrapper) Get(ctx context.Context) (records.Record, error) {
 	if tle.bkwd && tle.idx >= len(tle.les) {
 		tle.idx = len(tle.les) - 1
 	}
@@ -136,13 +136,13 @@ func (tle *testLogEventsWrapper) Get(ctx context.Context) (records.Record, error
 	return nil, io.EOF
 }
 
-func (tle *testLogEventsWrapper) Release() {
+func (tle *TestLogEventsWrapper) Release() {
 }
 
-func (tle *testLogEventsWrapper) SetBackward(bkwd bool) {
+func (tle *TestLogEventsWrapper) SetBackward(bkwd bool) {
 	tle.bkwd = bkwd
 }
 
-func (tle *testLogEventsWrapper) CurrentPos() records.IteratorPos {
+func (tle *TestLogEventsWrapper) CurrentPos() records.IteratorPos {
 	return tle.idx
 }
