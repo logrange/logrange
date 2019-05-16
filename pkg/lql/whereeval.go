@@ -18,10 +18,8 @@ import (
 	bytes2 "bytes"
 	"fmt"
 	"github.com/logrange/logrange/pkg/model"
-	"github.com/logrange/logrange/pkg/scanner/parser/date"
 	"github.com/logrange/range/pkg/utils/bytes"
 	"path"
-	"strconv"
 	"strings"
 )
 
@@ -151,10 +149,11 @@ func (web *whereExpFuncBuilder) buildCond(cn *Condition) (err error) {
 }
 
 func (web *whereExpFuncBuilder) buildTsCond(cn *Condition) error {
-	tm, err := parseTime(cn.Value)
+	tt, err := parseLqlDateTime(cn.Value)
 	if err != nil {
 		return err
 	}
+	tm := tt.UnixNano()
 
 	switch cn.Op {
 	case "<":
@@ -172,14 +171,6 @@ func (web *whereExpFuncBuilder) buildTsCond(cn *Condition) error {
 	case ">=":
 		web.wef = func(le *model.LogEvent) bool {
 			return le.Timestamp >= tm
-		}
-	case "!=":
-		web.wef = func(le *model.LogEvent) bool {
-			return le.Timestamp != tm
-		}
-	case "=":
-		web.wef = func(le *model.LogEvent) bool {
-			return le.Timestamp == tm
 		}
 	default:
 		err = fmt.Errorf("Unsupported operation %s for timetstamp comparison", cn.Op)
@@ -215,7 +206,7 @@ func (web *whereExpFuncBuilder) buildMsgCond(cn *Condition) (err error) {
 			}
 		}
 	default:
-		err = fmt.Errorf("Unsupported operation %s for msg field %s", cn.Op, cn.Operand)
+		err = fmt.Errorf("Unsupported operation \"%s\" for msg field %s", cn.Op, cn.Operand)
 	}
 	return err
 }
@@ -273,21 +264,7 @@ func (web *whereExpFuncBuilder) buildFldCond(cn *Condition) (err error) {
 			return le.Fields.Value(fldName) <= cn.Value
 		}
 	default:
-		err = fmt.Errorf("Unsupported operation %s for field %s", cn.Op, cn.Operand)
+		err = fmt.Errorf("Unsupport edoperation \"%s\" for field %s", cn.Op, cn.Operand)
 	}
 	return err
-}
-
-func parseTime(val string) (uint64, error) {
-	v, err := strconv.ParseInt(val, 10, 64)
-	if err == nil {
-		return uint64(v), nil
-	}
-
-	tm, err := date.Parse(bytes.StringToByteArray(val))
-	if err != nil {
-		return 0, err
-	}
-
-	return uint64(tm.UnixNano()), nil
 }

@@ -22,6 +22,14 @@ import (
 )
 
 type (
+	// TmIndexRebuilder allows to send requests for rebuilding corrupted time index data
+	TmIndexRebuilder interface {
+		// RebuildIndex sends request for rebuilding time index. It works asynchronusly
+		// and should not block the go-routine
+		// if force is true the index will be rebuilt even if it is alive
+		RebuildIndex(src string, cid chunk.Id, force bool)
+	}
+
 	tmirebuilder struct {
 		logger   log4g.Logger
 		parts    *Service
@@ -35,6 +43,7 @@ type (
 	rebuildStatus struct {
 		src     string
 		started bool
+		force   bool
 	}
 )
 
@@ -56,7 +65,9 @@ func (tir *tmirebuilder) close() {
 	close(tir.closedCh)
 }
 
-func (tir *tmirebuilder) rebuildIndex(src string, cid chunk.Id) {
+// RebuildIndex allows to request an index rebuilding. The function never blocks
+// the go routine which invokes it, so just put the request into the queue.
+func (tir *tmirebuilder) RebuildIndex(src string, cid chunk.Id, force bool) {
 	tir.lock.Lock()
 	if _, ok := tir.chunks[cid]; ok {
 		// already run or scheduled
@@ -76,20 +87,20 @@ func (tir *tmirebuilder) rebuildIndex(src string, cid chunk.Id) {
 		//
 		tir.logger.Debug("All workers seems to be busy, adding the chunk ", cid, " into waiting list")
 	}
-	tir.chunks[cid] = rebuildStatus{src, startWorker}
+	tir.chunks[cid] = rebuildStatus{src, startWorker, force}
 	tir.lock.Unlock()
 
 	if startWorker {
-		go tir.runWorker(src, cid)
+		go tir.runWorker(src, cid, force)
 	}
 }
 
-func (tir *tmirebuilder) runWorker(src string, cid chunk.Id) {
+func (tir *tmirebuilder) runWorker(src string, cid chunk.Id, force bool) {
 	tir.logger.Debug("New worker started for serving partition ", src, ", chunkId=", cid)
 	defer tir.doneWorker()
 
 	for cid != 0 {
-		tir.serve(src, cid)
+		tir.serve(src, cid, force)
 
 		tir.lock.Lock()
 		delete(tir.chunks, cid)
@@ -98,6 +109,7 @@ func (tir *tmirebuilder) runWorker(src string, cid chunk.Id) {
 			if !rs.started {
 				cid = c
 				src = rs.src
+				force = rs.force
 				rs.started = true
 				tir.chunks[cid] = rs
 				tir.logger.Debug("picking up ", cid, " for serving from the list")
@@ -113,7 +125,7 @@ func (tir *tmirebuilder) doneWorker() {
 	tir.logger.Debug("worker done")
 }
 
-func (tir *tmirebuilder) serve(src string, cid chunk.Id) {
+func (tir *tmirebuilder) serve(src string, cid chunk.Id, force bool) {
 	_, err := tir.parts.TIndex.GetJournalTags(src)
 	if err != nil {
 		tir.logger.Warn("Could not acquire partition ", src, ", the err=", err)
@@ -140,6 +152,6 @@ func (tir *tmirebuilder) serve(src string, cid chunk.Id) {
 		return
 	}
 
-	tir.logger.Debug("starting to build the time index for chunk id=", cid, " journal ", src)
-	tir.parts.TsIndexer.RebuildIndex(ctx, src, chks[idx])
+	tir.logger.Debug("starting to build the time index for chunk id=", cid, " journal ", src, " force=", force)
+	tir.parts.TsIndexer.RebuildIndex(ctx, src, chks[idx], force)
 }

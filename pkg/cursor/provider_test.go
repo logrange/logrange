@@ -25,7 +25,7 @@ func TestGetOrCreate(t *testing.T) {
 	p := NewProvider().(*provider)
 	defer p.Shutdown()
 
-	p.JrnlsProvider = &testJrnlsProvider{j: map[tag.Line]*testJrnl{"j1=j1": &testJrnl{"j1"}}}
+	p.Itf = &testItFactory{j: map[tag.Line]*testJrnl{"j1=j1": &testJrnl{"j1"}}}
 	c1, err := p.GetOrCreate(nil, State{Query: "select limit 10"}, true)
 	if err != nil {
 		t.Fatal("err must be nil, but err=", err)
@@ -54,7 +54,7 @@ func TestRelease(t *testing.T) {
 	p := NewProvider().(*provider)
 	defer p.Shutdown()
 
-	p.JrnlsProvider = &testJrnlsProvider{j: map[tag.Line]*testJrnl{"j1=j1": &testJrnl{"j1"}}}
+	p.Itf = &testItFactory{j: map[tag.Line]*testJrnl{"j1=j1": &testJrnl{"j1"}}}
 	cur, err := p.GetOrCreate(nil, State{Id: 1, Query: "select limit 10"}, true)
 	if e, ok := p.curs[1]; !ok || e != p.busy || err != nil {
 		t.Fatal("cur=", cur, ", was not found or err=", err)
@@ -87,8 +87,8 @@ func TestSweepByTime(t *testing.T) {
 		t.Fatal("p.Init() == ", err)
 	}
 
-	tjp := &testJrnlsProvider{j: map[tag.Line]*testJrnl{"j1=j1": &testJrnl{"j1"}}}
-	p.JrnlsProvider = tjp
+	tjp := &testItFactory{j: map[tag.Line]*testJrnl{"j1=j1": &testJrnl{"j1"}}}
+	p.Itf = tjp
 	cur, err := p.GetOrCreate(nil, State{Id: 1, Query: "select limit 10"}, true)
 	if e, ok := p.curs[1]; !ok || e != p.busy || err != nil {
 		t.Fatal("cur=", cur, ", was not found or err=", err)
@@ -123,7 +123,7 @@ func TestSweepBySize(t *testing.T) {
 
 	log4g.SetLogLevel("", log4g.DEBUG)
 
-	p.JrnlsProvider = &testJrnlsProvider{j: map[tag.Line]*testJrnl{"j1=j1": &testJrnl{"j1"}}}
+	p.Itf = &testItFactory{j: map[tag.Line]*testJrnl{"j1=j1": &testJrnl{"j1"}}}
 	cur, err := p.GetOrCreate(nil, State{Id: 1, Query: "select limit 10"}, true)
 	if e, ok := p.curs[1]; !ok || e != p.busy || err != nil {
 		t.Fatal("cur=", cur, ", was not found or err=", err)

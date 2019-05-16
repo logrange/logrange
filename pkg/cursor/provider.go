@@ -36,7 +36,7 @@ type (
 	}
 
 	provider struct {
-		JrnlsProvider JournalsProvider `inject:""`
+		Itf ItFactory `inject:""`
 
 		logger     log4g.Logger
 		lock       sync.Mutex
@@ -119,7 +119,7 @@ func (p *provider) GetOrCreate(ctx context.Context, state State, cache bool) (Cu
 		state.Id = utils.NextSimpleId()
 	}
 
-	cur, err := newCursor(ctx, state, p.JrnlsProvider)
+	cur, err := newCursor(ctx, state, p.Itf)
 	if err != nil {
 		return nil, err
 	}

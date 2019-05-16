@@ -122,13 +122,13 @@ func (cc *ckiCtrlr) cleanup(knownIndexes map[uint64]bool) {
 
 // arrangeRoot allocates a root block in one of the known indexes, returns
 // its position with one recrord rec, or an error if any
-func (cc *ckiCtrlr) arrangeRoot(rec record) (Item, error) {
+func (cc *ckiCtrlr) arrangeRoot(it interval) (Item, error) {
 	id, cki, err := cc.allocateIndex()
 	if err != nil {
 		return Item{}, err
 	}
 
-	pos, err := cki.addRecord(-1, rec)
+	pos, err := cki.addInterval(-1, it)
 	if err != nil {
 		return Item{}, err
 	}
@@ -138,7 +138,7 @@ func (cc *ckiCtrlr) arrangeRoot(rec record) (Item, error) {
 
 // onWrite notifies about writing data to a chunk. root describes the root
 // block for the index tree.
-func (cc *ckiCtrlr) onWrite(root Item, rec record) (Item, error) {
+func (cc *ckiCtrlr) onWrite(root Item, it interval) (Item, error) {
 	cki := cc.getIndex(root.IndexId)
 	if cki == nil {
 		return root, errors2.NotFound
@@ -151,7 +151,7 @@ func (cc *ckiCtrlr) onWrite(root Item, rec record) (Item, error) {
 		return root, err
 	}
 
-	pos, err := cki.addRecord(root.Pos, rec)
+	pos, err := cki.addInterval(root.Pos, it)
 	if err != nil && err != errors2.ClosedState {
 		cc.logger.Warn("error while adding data index ", cki, " removing it... err=", err)
 		// considering it like corrupted. Drop the index!

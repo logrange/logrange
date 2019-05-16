@@ -96,6 +96,7 @@ var helps = map[string]commandHelp{
 
 	SELECT [<format string>] 
 		[FROM ({<tags>}|<tags expression)] 
+        [RANGE (<timePoint>|[<timePoint>:<timePoint>])]
 		[WHERE <fields expression>] 
 		[POSITION (head|tail|<specific pos>)] 
 		[OFFSET <number>]
@@ -123,6 +124,28 @@ Also the FROM statement can contain an expression with tags for selecting multip
 partitions e.g. '... FROM name="app1" OR ns="system" ...' - select partitions with
 tag name equals to "app1" or partitions with tag ns equals to "system"
 Default value is "", what matches to all partitions.
+
+The RANGE statement allows to define the time-range from which records will be selected. 
+The RANGE statement is a special type of time filtering, which allows to utilize time
+index for records selection. For streams with monotonically increased time-stamp field
+value 'ts' this kind of requests could be very effective. 
+
+Range defines the time interval with 2 values, which identify the time
+interval. The interval's time-points, could be specified in relative form or an absolute one. 
+Relative form is a negative number of minutes, hours, days etc. to the current time. For 
+example: "-10m" means ten minutes before (from now), "-3.5h" means 3 and a half hours ago etc. 
+The form allows the letters 'm' for minutes, 'h' for hours and 'd' for days. 
+
+The time point can be one of the words "minute", "hour", "day" and "week" which mean
+beginning of last minute, hour, day or week correspondingly. 
+
+Absolute time point could be specified in the form "2019-05-03 15:43:55 -0700" which contains
+date, time and timezone, or it could be just time of the current date "07:15:23" etc. Many 
+different patterns are supported. 
+
+The RANGE could be specified in one of 2 forms. First one is short, which allows to specify
+only start time point like RANGE "-1.5h". The second form allows to specify both time points
+like RANGE ["-1h":"-0.5h"] or only the end one like RANGE [:"-1.5h"] 
 
 The WHERE statement allows to define an exression to filter records. The WHERE statement
 can contain mandatory record fields 'ts' and 'msg' or an optional record fields prefixed 
@@ -200,7 +223,7 @@ so all pipes will be shown.
 `,
 	},
 	"describe partition": {
-		short: "show the details about partition by the tags. e.g. 'describe partition name=app1,ns=system'",
+		short: "show the details about partition by the tags. e.g. 'describe partition {name=app1,ns=system}'",
 		long: `DESCRIBE PARTITION has the following syntax:
 
 	DESCRIBE PARTITION {<tags>}

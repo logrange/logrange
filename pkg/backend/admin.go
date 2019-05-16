@@ -164,7 +164,7 @@ func (ad *Admin) cmdTruncate(t *lql.Truncate) (api.ExecResult, error) {
 		TagsExpr:   t.Source,
 		MinSrcSize: utils.GetUint64Val((*uint64)(t.MinSize), 0),
 		MaxSrcSize: utils.GetUint64Val((*uint64)(t.MaxSize), 0),
-		OldestTs:   utils.GetUint64Val((*uint64)(t.Before), 0),
+		OldestTs:   utils.GetInt64Val((*int64)(t.Before), 0),
 		MaxDBSize:  utils.GetUint64Val((*uint64)(t.MaxDbSize), math.MaxUint64),
 	}, func(ti partition.TruncateInfo) {
 		if first {
@@ -269,6 +269,7 @@ func (ad *Admin) cmdDescribePartition(d *lql.TagsVal) (api.ExecResult, error) {
 		sb.WriteString(fmt.Sprintf("\n\tSize:      %s (%d)", humanize.Bytes(uint64(ci.Size)), ci.Size))
 		sb.WriteString(fmt.Sprintf("\n\tT1(small): %s", time.Unix(0, int64(ci.MinTs)).String()))
 		sb.WriteString(fmt.Sprintf("\n\tT2(big):   %s\n", time.Unix(0, int64(ci.MaxTs)).String()))
+		sb.WriteString(fmt.Sprintf("\n\tComment:   %s\n", ci.Comment))
 	}
 
 	return api.ExecResult{Output: sb.String()}, nil

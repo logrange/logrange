@@ -64,6 +64,7 @@ func Start(ctx context.Context, cfg *Config) error {
 		linker.Component{Name: "", Value: inmem.New()},
 		linker.Component{Name: "", Value: tindex.NewInmemService()},
 		linker.Component{Name: "", Value: partition.NewService()},
+		linker.Component{Name: "", Value: cursor.NewItFactory()},
 		linker.Component{Name: "", Value: tmindex.NewTsIndexer()},
 		linker.Component{Name: "", Value: pipe.NewService()},
 		linker.Component{Name: "", Value: model.NewHostRegistry()},

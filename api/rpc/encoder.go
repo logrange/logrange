@@ -57,7 +57,7 @@ func unmarshalLogEvent(buf []byte, res *api.LogEvent, newBuf bool) (int, error) 
 		return 0, err
 	}
 	nn := n
-	res.Timestamp = v
+	res.Timestamp = int64(v)
 
 	n, msg, err := xbinary.UnmarshalString(buf[nn:], newBuf)
 	nn += n

@@ -15,7 +15,7 @@
 /*
 lql package contains parser's functions and structures for working with Logrange Query Language (LQL)
 The LQL supports the following constructions so far:
-	SELECT [<format string>] [FROM ({<tags>}|<tags expression)] [WHERE <fields expression>] [POSITION (head|tail|<specific pos>)] [OFFSET <number>][LIMIT <number>]
+	SELECT [<format string>] [FROM ({<tags>}|<tags expression)] [RANGE <time range>] [WHERE <fields expression>] [POSITION (head|tail|<specific pos>)] [OFFSET <number>][LIMIT <number>]
 	SHOW PARTITIONS [({<tags>}|<tags expression)][OFFSET <number>][LIMIT <number>]
 	SHOW PIPES [OFFSET <number>][LIMIT <number>]
 	DESCRIBE PARTITION {<tags>}

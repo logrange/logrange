@@ -21,10 +21,12 @@ import (
 	"github.com/logrange/logrange/pkg/lql"
 	"github.com/logrange/logrange/pkg/model"
 	"github.com/logrange/logrange/pkg/model/tag"
+	"github.com/logrange/logrange/pkg/utils"
 	"github.com/logrange/range/pkg/records"
 	"github.com/logrange/range/pkg/records/journal"
 	"github.com/pkg/errors"
 	"io"
+	"math"
 	"strings"
 )
 
@@ -59,21 +61,11 @@ type (
 	// a new cursor could be created from the struct. crsr supports model.Iterator interface which allows to access
 	// to records the cursor selects
 	crsr struct {
-		logger       log4g.Logger
-		state        State
-		it           model.Iterator
-		jrnlProvider JournalsProvider
-		jDescs       map[string]*jrnlDesc
-	}
-
-	// JournalsProvider interface is used for creating new cursors. partition.Service most probably implements it.
-	JournalsProvider interface {
-		// GetJournals returns map of journals by tags:partition.Journal or an error, if any. The returned journals
-		// must be released after usage by Release() function
-		GetJournals(ctx context.Context, tagsCond *lql.Source, maxLimit int) (map[tag.Line]journal.Journal, error)
-
-		// Release releases the partition. Journal must not be used after the call
-		Release(jn string)
+		logger log4g.Logger
+		state  State
+		it     model.Iterator
+		itf    ItFactory
+		jDescs map[string]*jrnlDesc
 	}
 
 	jrnlDesc struct {
@@ -84,21 +76,27 @@ type (
 )
 
 // newCursor creates the new cursor based on the state provided.
-func newCursor(ctx context.Context, state State, jrnlProvider JournalsProvider) (*crsr, error) {
+func newCursor(ctx context.Context, state State, itf ItFactory) (*crsr, error) {
 	l, err := lql.ParseLql(state.Query)
 	if err != nil || l.Select == nil {
 		return nil, errors.Wrapf(err, "could not parse lql=%s, expecting select statement", state.Query)
 	}
 	sel := l.Select
 
-	srcs, err := jrnlProvider.GetJournals(ctx, sel.Source, 50)
-
+	srcs, err := itf.GetJournals(ctx, sel.Source, 50)
 	if err != nil {
 		return nil, errors.Wrapf(err, "could not get a list of journals for the query %s", state.Query)
 	}
-
 	if len(srcs) == 0 {
 		return nil, errors.Errorf("no sources for the expression the query %s", state.Query)
+	}
+
+	// Range
+	var tmr *model.TimeRange
+	if sel.Range != nil {
+		tmr = &model.TimeRange{}
+		tmr.MinTs = utils.GetInt64Val((*int64)(sel.Range.TmPoint1), 0)
+		tmr.MaxTs = utils.GetInt64Val((*int64)(sel.Range.TmPoint2), math.MaxInt64)
 	}
 
 	jd := make(map[string]*jrnlDesc, len(srcs))
@@ -106,7 +104,8 @@ func newCursor(ctx context.Context, state State, jrnlProvider JournalsProvider) 
 	var it model.Iterator
 	if len(srcs) == 1 {
 		for tags, jrnl := range srcs {
-			jit := jrnl.Iterator()
+			//jit := partition.NewJIterator(tmr, jrnl, jrnlProvider.GetTsIndexer(), jrnlProvider.GetTmIndexRebuilder())
+			jit := itf.Itearator(jrnl, tmr)
 			it = (&model.LogEventIterator{}).Wrap(tags, jit)
 
 			jd[jrnl.Name()] = &jrnlDesc{tags, jrnl, jit}
@@ -116,7 +115,7 @@ func newCursor(ctx context.Context, state State, jrnlProvider JournalsProvider) 
 
 		i := 0
 		for tags, jrnl := range srcs {
-			jit := jrnl.Iterator()
+			jit := itf.Itearator(jrnl, tmr)
 			jd[jrnl.Name()] = &jrnlDesc{tags, jrnl, jit}
 			mxs[i] = (&model.LogEventIterator{}).Wrap(tags, jit)
 			i++
@@ -140,8 +139,10 @@ func newCursor(ctx context.Context, state State, jrnlProvider JournalsProvider) 
 		it = mxs[0]
 	}
 
-	if sel.Where != nil {
-		it, err = newFIterator(it, sel.Where)
+	if sel.Where != nil || tmr != nil {
+		// whell. either we have some filtering where condition or time Range interval, wrapping
+		// initial iterator into the filter then.
+		it, err = newFIterator(it, sel.Where, tmr)
 		if err != nil {
 			return nil, errors.Wrapf(err, "could not create filter for %s ", state.Query)
 		}
@@ -152,7 +153,7 @@ func newCursor(ctx context.Context, state State, jrnlProvider JournalsProvider) 
 	cur.state = state
 	cur.it = it
 	cur.jDescs = jd
-	cur.jrnlProvider = jrnlProvider
+	cur.itf = itf
 	if err := cur.applyPos(); err != nil {
 		return nil, errors.Wrapf(err, "the position %s could not be applied ", state.Pos)
 	}
@@ -308,7 +309,7 @@ func (cur *crsr) collectPos() string {
 func (cur *crsr) close() {
 	for _, jd := range cur.jDescs {
 		jd.it.Close()
-		cur.jrnlProvider.Release(jd.j.Name())
+		cur.itf.Release(jd.j.Name())
 		jd.it = nil
 		jd.j = nil
 	}

@@ -16,17 +16,18 @@ package cursor
 import (
 	"context"
 	"github.com/logrange/logrange/pkg/lql"
+	"github.com/logrange/logrange/pkg/model"
 	"github.com/logrange/logrange/pkg/model/tag"
 	"github.com/logrange/range/pkg/records"
 	"github.com/logrange/range/pkg/records/journal"
 )
 
-type testJrnlsProvider struct {
+type testItFactory struct {
 	j        map[tag.Line]*testJrnl
 	released map[string]string
 }
 
-func (tjp *testJrnlsProvider) GetJournals(ctx context.Context, tagsCond *lql.Source, maxLimit int) (map[tag.Line]journal.Journal, error) {
+func (tjp *testItFactory) GetJournals(ctx context.Context, tagsCond *lql.Source, maxLimit int) (map[tag.Line]journal.Journal, error) {
 	res := make(map[tag.Line]journal.Journal)
 	for k, v := range tjp.j {
 		res[k] = v
@@ -34,11 +35,15 @@ func (tjp *testJrnlsProvider) GetJournals(ctx context.Context, tagsCond *lql.Sou
 	return res, nil
 }
 
-func (tjp *testJrnlsProvider) Release(jn string) {
+func (tjp *testItFactory) Release(jn string) {
 	if tjp.released == nil {
 		tjp.released = make(map[string]string)
 	}
 	tjp.released[jn] = jn
+}
+
+func (tjp *testItFactory) Itearator(j journal.Journal, tmRange *model.TimeRange) journal.Iterator {
+	return &testJIterator{journal: j.(*testJrnl).name}
 }
 
 type testJrnl struct {

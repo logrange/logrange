@@ -25,15 +25,16 @@ import (
 type (
 	// fiterator struct is a wrapper for filtering events from an iterator
 	fiterator struct {
-		it    model.Iterator
-		fltF  lql.WhereExpFunc
-		le    model.LogEvent
-		ln    tag.Line
-		valid bool
+		it      model.Iterator
+		fltF    lql.WhereExpFunc
+		tmRange model.TimeRange
+		le      model.LogEvent
+		ln      tag.Line
+		valid   bool
 	}
 )
 
-func newFIterator(it model.Iterator, wExp *lql.Expression) (*fiterator, error) {
+func newFIterator(it model.Iterator, wExp *lql.Expression, timeRange *model.TimeRange) (*fiterator, error) {
 	fltF, err := lql.BuildWhereExpFuncByExpression(wExp)
 	if err != nil {
 		return nil, err
@@ -42,6 +43,11 @@ func newFIterator(it model.Iterator, wExp *lql.Expression) (*fiterator, error) {
 	fit := new(fiterator)
 	fit.it = it
 	fit.fltF = fltF
+	if timeRange != nil {
+		fit.tmRange = *timeRange
+	} else {
+		fit.tmRange = model.TimeRange{model.MinTimestamp, model.MaxTimestamp}
+	}
 	return fit, nil
 }
 
@@ -61,7 +67,7 @@ func (fit *fiterator) Get(ctx context.Context) (model.LogEvent, tag.Line, error)
 			break
 		}
 
-		fit.valid = fit.fltF(&fit.le)
+		fit.valid = fit.fltF(&fit.le) && fit.fitInRange()
 		if !fit.valid {
 			fit.Next(ctx)
 		}
@@ -82,4 +88,8 @@ func (fit *fiterator) SetBackward(bkwd bool) {
 
 func (fit *fiterator) CurrentPos() records.IteratorPos {
 	return fit.it.CurrentPos()
+}
+
+func (fit *fiterator) fitInRange() bool {
+	return int64(fit.le.Timestamp) >= fit.tmRange.MinTs && int64(fit.le.Timestamp) <= fit.tmRange.MaxTs
 }

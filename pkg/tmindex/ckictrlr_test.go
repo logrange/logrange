@@ -84,14 +84,14 @@ func TestCkiCtrlrOnWriteToFull(t *testing.T) {
 		t.Fatal("init must be ok, but err=", err)
 	}
 
-	root, err := cc.arrangeRoot(record{0, 0})
+	root, err := cc.arrangeRoot(interval{record{0, 0}, record{0, 0}})
 	if err != nil {
 		t.Fatal("could not arrange root err=", err)
 	}
 	cnt := 0
 
 	for err == nil {
-		root, err = cc.onWrite(root, record{int64(cnt), uint32(cnt)})
+		root, err = cc.onWrite(root, interval{record{int64(cnt), uint32(cnt)}, record{int64(cnt + 1), uint32(cnt + 1)}})
 		cnt++
 	}
 
@@ -116,13 +116,13 @@ func TestCkiCtrlrOnWriteInTheLoop(t *testing.T) {
 	}
 
 	for i := 0; i < 1000; i++ {
-		root, err := cc.arrangeRoot(record{0, 0})
+		root, err := cc.arrangeRoot(interval{record{0, 0}, record{0, 0}})
 		if err != nil {
 			t.Fatal("could not arrange root err=", err)
 		}
 
 		for cnt := 0; cnt < 1000; cnt++ {
-			root, err = cc.onWrite(root, record{int64(cnt), uint32(cnt)})
+			root, err = cc.onWrite(root, interval{record{int64(cnt), uint32(cnt)}, record{int64(cnt + 1), uint32(cnt + 1)}})
 			if err != nil {
 				t.Fatal("something wrong with onWrite err=", err)
 			}
@@ -159,13 +159,13 @@ func TestCkiCtrlrNewIndex(t *testing.T) {
 	}
 
 	for {
-		root, err := cc.arrangeRoot(record{0, 0})
+		root, err := cc.arrangeRoot(interval{record{0, 0}, record{0, 0}})
 		if err != nil {
 			t.Fatal("could not arrange root err=", err)
 		}
 
 		for cnt := 0; cnt < 1000; cnt++ {
-			root, err = cc.onWrite(root, record{int64(cnt), uint32(cnt)})
+			root, err = cc.onWrite(root, interval{record{int64(cnt), uint32(cnt)}, record{int64(cnt + 1), uint32(cnt + 1)}})
 			if err != nil {
 				t.Fatal("something wrong with onWrite err=", err)
 			}

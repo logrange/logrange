@@ -12,20 +12,21 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package api
+package model
+
+import "math"
 
 type (
-	// LogEvent struct describes one message
-	LogEvent struct {
-		// Timestamp contains the time-stamp for the message.
-		Timestamp int64
-		// Message is the message itself
-		Message string
-		// Tag line for the message. It could be empty
-		// The tag line has the form like `tag1=value1,tag2=value2...`
-		Tags string
-		// Fields line for the message. It could be empty
-		// The fields line has the form like `field1=value1,field2=value2...`
-		Fields string
+	// TimeRange struct defines a time interval.
+	TimeRange struct {
+		// MinTs contains minimum time in the interval value
+		MinTs int64
+		// MaxTs contains maximum allowed time value in the interval
+		MaxTs int64
 	}
+)
+
+const (
+	MinTimestamp = 0
+	MaxTimestamp = math.MaxInt64
 )

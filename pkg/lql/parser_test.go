@@ -52,6 +52,10 @@ func TestParse(t *testing.T) {
 	testOk(t, "SELECT from a=b OR b contains 'r' WHERE filename=\"system.log\" or filename=\"wifi.log\" OFFSET 0 LIMIT -1")
 	testOk(t, "SELECT From a=b AND c=d WHERE filename=\"system.log\" or filename=\"wifi.log\" OFFSET 0 LIMIT -1")
 	testOk(t, `SELECT FROM a>b WHERE from='this is tag value' or filename="wifi.log" OFFSET 0 LIMIT -1`)
+	testOk(t, `SELECT Range "2019-03-11 12:34:43"`)
+	testOk(t, `SELECT Range "-1.0m"`)
+	testOk(t, `SELECT Range [:"-1.0m"]`)
+	testOk(t, `SELECT Range ["minute":"-1.0m"]`)
 	testOk(t, `show PARTITIONS`)
 	testOk(t, `SHOW PARTITIONs from1="abc"`)
 	testOk(t, `SHOW PARTITIONs from1="abc" offset 10`)
@@ -118,6 +122,32 @@ func TestConditionString(t *testing.T) {
 	testCondParse(t, `a like '12"3'`)
 	testCondParse(t, `a=b`)
 	testCondParse(t, `a=bcd`)
+}
+
+func TestParsingRange(t *testing.T) {
+	r := testParsingRange(t, `range "-123.3M"`)
+	if r.TmPoint1 == nil || r.TmPoint2 != nil {
+		t.Fatal("expecting only tmPoint1, but ", r)
+	}
+
+	r = testParsingRange(t, `range [:"-123.3M"]`)
+	if r.TmPoint1 != nil || r.TmPoint2 == nil {
+		t.Fatal("expecting only tmPoint2, but ", r)
+	}
+
+	r = testParsingRange(t, `range ["-23H":"-123.3M"]`)
+	if r.TmPoint1 == nil || r.TmPoint2 == nil {
+		t.Fatal("expecting only tmPoint2, but ", r)
+	}
+}
+
+func testParsingRange(t *testing.T, sel string) *Range {
+	var s Select
+	err := parserSelect.ParseString(sel, &s)
+	if err != nil || s.Range == nil {
+		t.Fatal("Expecting range and no error, but err=", err)
+	}
+	return s.Range
 }
 
 func testCondParse(t *testing.T, str string) {

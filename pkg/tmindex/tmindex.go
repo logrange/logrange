@@ -13,9 +13,9 @@
 // limitations under the License.
 
 /*
- tmindex package contains structures and interfaces which allows to build time
+ tmindex package contains structures and interfaces which allow to build time
  indexes on top of journal chunks. The time indexes allow to identify chunk
- segments where data with a certain time is collected
+ segments where data with a certain time is collected.
 */
 
 package tmindex
@@ -28,13 +28,22 @@ import (
 )
 
 type (
-	// TsIndexer interface defines the public interface for the chunk indexes
+	// TsIndexer interface defines the public interface for the chunk's time indexes
 	TsIndexer interface {
 		// OnWrite notifies the indexer about new data added
 		OnWrite(src string, firstRec, lastRec uint32, rInfo RecordsInfo) error
 
 		// LastChunkRecordsInfo returns information about last chunk, or an error if not found
 		LastChunkRecordsInfo(src string) (res RecordsInfo, err error)
+
+		// GetRecordsInfo returns records info by chunk Id
+		GetRecordsInfo(src string, cid chunk.Id) (res RecordsInfo, err error)
+
+		// Count returns number of records in the time index or it returns error if the index is corrupted
+		Count(src string, cid chunk.Id) (int, error)
+
+		// ReadData allows to read all points and return them.
+		ReadData(src string, cid chunk.Id) ([]IdxRecord, error)
 
 		// GetPosForGreaterOrEqualTime returns the position in the chunk which records'
 		// timestamps are greater or equal to ts starting from the position. Could return
@@ -43,7 +52,7 @@ type (
 		// ErrTmIndexCorrupted - there is a timestamp in the index, but it is corrupted, must be rebuilt, but
 		// 				starting from 0, most probably will get some records
 		// ErrOutOfRange - all known timestamps are less than ts
-		GetPosForGreaterOrEqualTime(src string, cid chunk.Id, ts uint64) (uint32, error)
+		GetPosForGreaterOrEqualTime(src string, cid chunk.Id, ts int64) (uint32, error)
 
 		// GetPosForLessTime returns the position in the chunk which records' timestamps are
 		// less than ts starting from the position. Could return the following errors:
@@ -51,14 +60,14 @@ type (
 		// ErrTmIndexCorrupted - there is a timestamp in the index, but it is corrupted, must be rebuilt, but
 		// 				starting from tail, most probably will get some records
 		// ErrOutOfRange - all known timestamps are less than ts
-		GetPosForLessTime(src string, cid chunk.Id, ts uint64) (uint32, error)
+		GetPosForLessTime(src string, cid chunk.Id, ts int64) (uint32, error)
 
 		// SyncChunks provides list of known chunks and update their information locally
 		SyncChunks(ctx context.Context, src string, cks chunk.Chunks) []RecordsInfo
 
 		// Rebuild Index allows to re-build time index for the chunk provided. It
 		// runs the procedure for building the time index if it is marked as corrupted
-		RebuildIndex(ctx context.Context, src string, ck chunk.Chunk)
+		RebuildIndex(ctx context.Context, src string, ck chunk.Chunk, force bool)
 	}
 
 	// TsIndexerConfig struct contains settings for the component
@@ -70,12 +79,20 @@ type (
 	// RecordsInfo is used to describe a records range information
 	RecordsInfo struct {
 		Id    chunk.Id
-		MinTs uint64
-		MaxTs uint64
+		MinTs int64
+		MaxTs int64
+	}
+
+	// IdxRecord a record in the time index
+	IdxRecord struct {
+		Ts  int64
+		Val uint32
 	}
 
 	// tmidx struct supports TsIndexer
 	tmidx struct {
+		TsIndexer
+
 		Config *TsIndexerConfig `inject:""`
 
 		logger log4g.Logger
@@ -115,24 +132,36 @@ func (ti *tmidx) LastChunkRecordsInfo(src string) (res RecordsInfo, err error) {
 	return ti.ci.lastChunkRecordsInfo(src)
 }
 
+func (ti *tmidx) GetRecordsInfo(src string, cid chunk.Id) (res RecordsInfo, err error) {
+	return ti.ci.getRecordsInfo(src, cid)
+}
+
 // SyncChunks provides list of known chunks and update their information locally
 func (ti *tmidx) SyncChunks(ctx context.Context, src string, cks chunk.Chunks) []RecordsInfo {
 	return ti.ci.syncChunks(ctx, src, cks)
 }
 
 // RebuildIndex is part of TsIndexer
-func (ti *tmidx) RebuildIndex(ctx context.Context, src string, ck chunk.Chunk) {
-	ti.ci.rebuildIndex(ctx, src, ck)
+func (ti *tmidx) RebuildIndex(ctx context.Context, src string, ck chunk.Chunk, force bool) {
+	ti.ci.rebuildIndex(ctx, src, ck, force)
 }
 
 // GetPosForGreaterOrEqualTime is part of TsIndexer
-func (ti *tmidx) GetPosForGreaterOrEqualTime(src string, cid chunk.Id, ts uint64) (uint32, error) {
+func (ti *tmidx) GetPosForGreaterOrEqualTime(src string, cid chunk.Id, ts int64) (uint32, error) {
 	return ti.ci.getPosForGreaterOrEqualTime(src, cid, ts)
 }
 
 // GetPosForLessTime is part of TsIndexer
-func (ti *tmidx) GetPosForLessTime(src string, cid chunk.Id, ts uint64) (uint32, error) {
+func (ti *tmidx) GetPosForLessTime(src string, cid chunk.Id, ts int64) (uint32, error) {
 	return ti.ci.getPosForLessTime(src, cid, ts)
+}
+
+func (ti *tmidx) ReadData(src string, cid chunk.Id) ([]IdxRecord, error) {
+	return ti.ci.readData(src, cid)
+}
+
+func (ti *tmidx) Count(src string, cid chunk.Id) (int, error) {
+	return ti.ci.count(src, cid)
 }
 
 func (ri RecordsInfo) String() string {

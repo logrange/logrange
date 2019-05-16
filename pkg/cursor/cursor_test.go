@@ -22,16 +22,16 @@ import (
 )
 
 func TestNewCursor(t *testing.T) {
-	if _, err := newCursor(nil, State{Query: "ddd"}, &testJrnlsProvider{}); err == nil {
+	if _, err := newCursor(nil, State{Query: "ddd"}, &testItFactory{}); err == nil {
 		t.Fatal("err must not be nil, From expression compilation must fail")
 	}
 
-	if _, err := newCursor(nil, State{}, &testJrnlsProvider{}); err == nil {
+	if _, err := newCursor(nil, State{}, &testItFactory{}); err == nil {
 		t.Fatal("err must not be nil, No sources are provided")
 	}
 
 	cur, err := newCursor(nil, State{Query: "select limit 10"},
-		&testJrnlsProvider{j: map[tag.Line]*testJrnl{"j1=j1": &testJrnl{"j1"}}})
+		&testItFactory{j: map[tag.Line]*testJrnl{"j1=j1": &testJrnl{"j1"}}})
 	if err != nil {
 		t.Fatal("err must be nil, but err=", err)
 	}
@@ -43,7 +43,7 @@ func TestNewCursor(t *testing.T) {
 	}
 
 	cur, err = newCursor(nil, State{Query: "select limit 10"},
-		&testJrnlsProvider{j: map[tag.Line]*testJrnl{"j1=j1": &testJrnl{"j1"}, "j2=j2": &testJrnl{"j2"}}})
+		&testItFactory{j: map[tag.Line]*testJrnl{"j1=j1": &testJrnl{"j1"}, "j2=j2": &testJrnl{"j2"}}})
 	if err != nil {
 		t.Fatal("err must be nil, but err=", err)
 	}
@@ -56,7 +56,7 @@ func TestNewCursor(t *testing.T) {
 }
 
 func TestCursorClose(t *testing.T) {
-	tp := &testJrnlsProvider{j: map[tag.Line]*testJrnl{"j1=j1": &testJrnl{"j1"}, "j2=j2": &testJrnl{"j2"}}}
+	tp := &testItFactory{j: map[tag.Line]*testJrnl{"j1=j1": &testJrnl{"j1"}, "j2=j2": &testJrnl{"j2"}}}
 	cur, err := newCursor(nil, State{Query: "select limit 10"}, tp)
 	if err != nil {
 		t.Fatal("err must be nil, but err=", err)
@@ -79,7 +79,7 @@ func TestCursorClose(t *testing.T) {
 
 func TestNewCursorWithPos(t *testing.T) {
 	cur, err := newCursor(nil, State{Query: "select limit 10", Pos: "tail"},
-		&testJrnlsProvider{j: map[tag.Line]*testJrnl{"j1=j1": &testJrnl{"j1"}}})
+		&testItFactory{j: map[tag.Line]*testJrnl{"j1=j1": &testJrnl{"j1"}}})
 	if err != nil {
 		t.Fatal("err must be nil, but err=", err)
 	}
@@ -89,7 +89,7 @@ func TestNewCursorWithPos(t *testing.T) {
 
 	j1Pos := journal.Pos{0x1234D, 0xABC}
 	cur, err = newCursor(nil, State{Query: "select limit 10", Pos: "j1=" + j1Pos.String()},
-		&testJrnlsProvider{j: map[tag.Line]*testJrnl{"j1=j1": &testJrnl{"j1"}}})
+		&testItFactory{j: map[tag.Line]*testJrnl{"j1=j1": &testJrnl{"j1"}}})
 	if err != nil {
 		t.Fatal("err must be nil, but err=", err)
 	}
@@ -98,7 +98,7 @@ func TestNewCursorWithPos(t *testing.T) {
 	}
 
 	cur, err = newCursor(nil, State{Query: "select limit 10", Pos: "j1=" + j1Pos.String()},
-		&testJrnlsProvider{j: map[tag.Line]*testJrnl{"j1=j1": &testJrnl{"j1"}, "j2=j2": &testJrnl{"j2"}}})
+		&testItFactory{j: map[tag.Line]*testJrnl{"j1=j1": &testJrnl{"j1"}, "j2=j2": &testJrnl{"j2"}}})
 	if err != nil {
 		t.Fatal("err must be nil, but err=", err)
 	}
@@ -111,7 +111,7 @@ func TestNewCursorWithPos(t *testing.T) {
 
 func TestApplyState(t *testing.T) {
 	cur, _ := newCursor(nil, State{Query: "select limit 10", Pos: "tail"},
-		&testJrnlsProvider{j: map[tag.Line]*testJrnl{"j1=j1": &testJrnl{"j1"}}})
+		&testItFactory{j: map[tag.Line]*testJrnl{"j1=j1": &testJrnl{"j1"}}})
 	state := cur.state
 	err := cur.ApplyState(State{Id: state.Id, Pos: "blah blah"})
 	if err == nil || cur.state != state {

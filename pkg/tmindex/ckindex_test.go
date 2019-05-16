@@ -26,7 +26,7 @@ func TestAddRecordsAndCountToCKI(t *testing.T) {
 	defer cki.Close()
 
 	for cnt := 10; cnt < 3000; cnt += 50 {
-		idx, err := addData(cki, 0, cnt)
+		idx, err := addData(cki, 0, 10, cnt)
 		if err != nil {
 			t.Fatal("Must be able to be added, but err=", err)
 		}
@@ -51,25 +51,32 @@ func TestPruneCKI(t *testing.T) {
 	cki := createNewCKI()
 	defer cki.Close()
 
-	// level 3
-	idx, _ := addData(cki, 0, maxRecsPerBlock*maxRecsPerBlock+20)
-	if getUsedBlocks(cki) <= maxRecsPerBlock {
-		t.Fatal(" expected used at least, ", maxRecsPerBlock, " but ", getUsedBlocks(cki))
+	n := maxIntervalsPerBlock
+
+	// level 2
+	idx, _ := addData(cki, 0, 10, n*n+n/2)
+	cnt, err := cki.count(idx)
+	if cnt != n*n+n/2 || err != nil {
+		t.Fatal(" expected cnt=", n*n+n/2, " but cnt=", cnt, ", err=", err)
+	}
+	if getUsedBlocks(cki) != n+4 {
+		t.Fatal(" expected used at least, ", n+4, " but ", getUsedBlocks(cki))
 	}
 
-	idx, _ = cki.addRecord(idx, record{maxRecsPerBlock + 1, maxRecsPerBlock + 1})
-	if getUsedBlocks(cki) <= 2 {
-		t.Fatal(" expected used at least, 2 but ", getUsedBlocks(cki))
+	// make it to level 1
+	idx, _ = cki.addInterval(idx, interval{record{int64(2*n*10 + 3), uint32(2*n*10 + 3)}, record{int64(2*n*10 + 4), uint32(2*n*10 + 4)}})
+	if getUsedBlocks(cki) != 3 {
+		t.Fatal(" expected used at least, 3 but ", getUsedBlocks(cki))
 	}
 
-	idx, _ = cki.addRecord(idx, record{maxRecsPerBlock - 1, maxRecsPerBlock - 1})
+	// turn to level 0
+	idx, _ = cki.addInterval(idx, interval{record{int64(2*n*10 - 23), uint32(2*n*10 - 23)}, record{int64(2*n*10 - 22), uint32(2*n*10 - 22)}})
 	if getUsedBlocks(cki) != 1 {
 		t.Fatal(" expected used at least 1 but ", getUsedBlocks(cki))
 	}
-
-	idx, _ = cki.addRecord(idx, record{maxRecsPerBlock, maxRecsPerBlock})
-	if getUsedBlocks(cki) != 3 {
-		t.Fatal(" expected used at least 3 but ", getUsedBlocks(cki))
+	cnt, err = cki.count(idx)
+	if cnt != int(n) || err != nil {
+		t.Fatal("expecting cnt=", n, " but it is ", cnt, ", err=", err)
 	}
 
 	cki.deleteIndex(idx)
@@ -82,7 +89,7 @@ func TestGeEqCKI(t *testing.T) {
 	cki := createNewCKI()
 	defer cki.Close()
 
-	idx, _ := addData(cki, 100, 1100)
+	idx, _ := addData(cki, 100, 1, 1100)
 	r, err := cki.grEq(idx, 500)
 	if err != nil {
 		t.Fatal("must not be errors but err=", err)
@@ -93,17 +100,13 @@ func TestGeEqCKI(t *testing.T) {
 	}
 
 	r, err = cki.grEq(idx, 50)
+	if err != errAllMatches {
+		t.Fatal("must be errAllMatches but err=", err)
+	}
+
+	r, err = cki.grEq(idx, 2600)
 	if err != nil {
-		t.Fatal("must not be errors but err=", err)
-	}
-
-	if r.idx != 100 || r.ts != 100 {
-		t.Fatal("wrong data ", r)
-	}
-
-	r, err = cki.grEq(idx, 1300)
-	if err != nil || r.idx != 1199 || r.ts != 1199 {
-		t.Fatal("must not be error, but r=", r, ", err=", err)
+		t.Fatal("must be no errors, but last record r=", r, ", err=", err)
 	}
 
 	r, err = cki.grEq(idx, 1199)
@@ -111,7 +114,7 @@ func TestGeEqCKI(t *testing.T) {
 		t.Fatal("must not be errors but err=", err)
 	}
 
-	if r.idx != 1199 || r.ts != 1199 {
+	if r.idx != 1198 || r.ts != 1198 {
 		t.Fatal("wrong data ", r)
 	}
 }
@@ -120,26 +123,25 @@ func TestGetLessCKI(t *testing.T) {
 	cki := createNewCKI()
 	defer cki.Close()
 
-	idx, _ := addData(cki, 100, 1100)
+	idx, _ := addData(cki, 100, 1, 1100)
 	r, err := cki.less(idx, 500)
 	if err != nil {
 		t.Fatal("must not be errors but err=", err)
 	}
 
-	if r.idx != 510 || r.ts != 510 {
+	if r.idx != 502 || r.ts != 502 {
 		t.Fatal("wrong data ", r)
 	}
 
 	r, err = cki.less(idx, 5000)
 	if err != errAllMatches {
-		t.Fatal("must not be errors but err=", err)
+		t.Fatal("must be errAllMatches but err=", err)
 	}
 
-	r, err = cki.less(idx, 100)
-	if r.idx != 100 || r.ts != 100 {
-		t.Fatal("wrong data ", r)
+	r, err = cki.less(idx, 90)
+	if err != nil {
+		t.Fatal("expecting err==nil, but err=", err)
 	}
-
 }
 
 func TestCKICLoseBlocked(t *testing.T) {
@@ -192,6 +194,104 @@ func TestCKIExecExlusively(t *testing.T) {
 	}
 }
 
+func TestCKITraversal(t *testing.T) {
+	cki := createNewCKI()
+	defer cki.Close()
+
+	idx, err := addData(cki, 100, 1, 1100)
+	if err != nil {
+		t.Fatal(" unexpected err=", err)
+	}
+	res := make([]interval, 0, 10)
+	res, err = cki.traversal(idx, res)
+	if err != nil {
+		t.Fatal("Something goes wrong err=", err)
+	}
+
+	if len(res) < 1100 {
+		t.Fatal("expecting len 1100, but len(res)=", len(res))
+	}
+
+	ts := int64(102)
+	for i := 2; i < len(res); i++ {
+		it := res[i]
+		if it.p0.ts != ts {
+			t.Fatal(" at position i=", i, ", expected ts=", ts, ", but ", it)
+		}
+		ts += 2
+	}
+
+	idx, err = addDataExisting(cki, idx, 200, 1, 1)
+	if err != nil {
+		t.Fatal("unexpected err=", err)
+	}
+
+	res = make([]interval, 0, 10)
+	res, err = cki.traversal(idx, res)
+	if err != nil {
+		t.Fatal("Something goes wrong err=", err)
+	}
+
+	if len(res) != 52 {
+		t.Fatal("expecting len 52, but len(res)=", len(res))
+	}
+
+	ts = int64(102)
+	for i := 2; i < len(res); i++ {
+		it := res[i]
+		if it.p0.ts != ts {
+			t.Fatal(" at position i=", i, ", expected ts=", ts, ", but ", it)
+		}
+		ts += 2
+	}
+}
+
+func TestInsertAndCorrectionCKI(t *testing.T) {
+	cki := createNewCKI()
+	defer cki.Close()
+
+	root, _ := addData(cki, 10, 10, 1)    // {{10,10}, {20, 20}}
+	addDataExisting(cki, root, 22, 8, 1)  // {{20,20}, {30, 30}}
+	addDataExisting(cki, root, 30, 10, 1) // {{30,30}, {40, 40}}
+
+	i0 := interval{record{10, uint32(10)}, record{20, uint32(20)}}
+	i1 := interval{record{20, uint32(20)}, record{30, uint32(30)}}
+	i2 := interval{record{30, uint32(30)}, record{40, uint32(40)}}
+	ints, _ := cki.traversal(root, []interval{})
+	if len(ints) != 3 || ints[0] != i0 || ints[1] != i1 || ints[2] != i2 {
+		t.Fatal("wrong result ", ints)
+	}
+
+	addDataExisting(cki, root, 22, 4, 1) // {{22,22}, {26, 26}}
+	i1 = interval{record{20, uint32(20)}, record{40, uint32(26)}}
+	ints, _ = cki.traversal(root, []interval{})
+	if len(ints) != 2 || ints[0] != i0 || ints[1] != i1 {
+		t.Fatal("wrong result ", ints)
+	}
+
+	addDataExisting(cki, root, 12, 4, 1) // {{12,12}, {16, 16}}
+	i0 = interval{record{10, uint32(10)}, record{40, uint32(16)}}
+	ints, _ = cki.traversal(root, []interval{})
+	if len(ints) != 1 || ints[0] != i0 {
+		t.Fatal("wrong result ", ints)
+	}
+
+	addDataExisting(cki, root, 10, 4, 1) // {{10,10}, {14, 14}}
+	i0 = interval{record{10, uint32(10)}, record{40, uint32(14)}}
+	ints, _ = cki.traversal(root, []interval{})
+	if len(ints) != 1 || ints[0] != i0 {
+		t.Fatal("wrong result ", ints)
+	}
+
+	addDataExisting(cki, root, 2, 40, 1) // {{2,2}, {42, 42}}
+	i0 = interval{record{2, uint32(2)}, record{42, uint32(42)}}
+	ints, _ = cki.traversal(root, []interval{})
+	if len(ints) != 1 || ints[0] != i0 {
+		t.Fatal("wrong result ", ints)
+	}
+
+}
+
 func createNewCKI() *ckindex {
 	bks := bstorage.GetBlocksInSegment(blockSize)
 	bts := bstorage.NewInMemBytes(2 * bks * blockSize)
@@ -207,14 +307,18 @@ func getUsedBlocks(cki *ckindex) int {
 	return cki.bks.Count() - cki.bks.Available()
 }
 
-func addData(cki *ckindex, start, count int) (int, error) {
-	idx, err := cki.addRecord(-1, record{int64(start), uint32(start)})
+func addData(cki *ckindex, start, step, count int) (int, error) {
+	idx, err := cki.addInterval(-1, interval{record{int64(start), uint32(start)}, record{int64(start + step), uint32(start + step)}})
 	if err != nil {
 		return idx, err
 	}
 
-	for ts := 1; ts < count; ts++ {
-		idx1, err := cki.addRecord(idx, record{int64(ts + start), uint32(ts + start)})
+	return addDataExisting(cki, idx, start+step, step, count-1)
+}
+
+func addDataExisting(cki *ckindex, idx int, start, step, count int) (int, error) {
+	for ts := 0; ts < count; ts++ {
+		idx1, err := cki.addInterval(idx, interval{record{int64(2*ts*step + start), uint32(2*ts*step + start)}, record{int64(2*ts*step + start + step), uint32(2*ts*step + start + step)}})
 		if err != nil {
 			return idx, err
 		}

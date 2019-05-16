@@ -9,7 +9,7 @@ import (
 func BenchmarkPrintResult(b *testing.B) {
 	qr := api.QueryResult{Events: []*api.LogEvent{
 		{
-			Timestamp: uint64(time.Now().UnixNano()),
+			Timestamp: time.Now().UnixNano(),
 			Message:   "BenchmarkPrintResult",
 			Tags:      "t1=v2,t2=v2",
 		},

@@ -61,7 +61,7 @@ type (
 		MinSrcSize uint64
 		// OldestTs defines the oldest record timestamp. Chunks with records less than the parameter are candidates
 		// for truncation
-		OldestTs uint64
+		OldestTs int64
 		// Max Global size
 		MaxDBSize uint64
 	}
@@ -69,7 +69,7 @@ type (
 	// TruncateInfo describes a truncated partition information
 	TruncateInfo struct {
 		// LatestTs contains timestamp for latest record in the partition
-		LatestTs      uint64
+		LatestTs      int64
 		Tags          tag.Set
 		Src           string
 		BeforeSize    uint64
@@ -126,9 +126,11 @@ type (
 		// Records contains number of records in the chunk
 		Records uint32
 		// MinTs contains minimal timestamp value for the chunk records
-		MinTs uint64
+		MinTs int64
 		// MaxTs contains maximal timestamp value for the chunk records
-		MaxTs uint64
+		MaxTs int64
+		// Comment any supplemental info
+		Comment string
 	}
 )
 
@@ -254,6 +256,16 @@ func (s *Service) Release(jn string) {
 	s.TIndex.Release(jn)
 }
 
+// GetIsIndexer returns TsIndexer object
+func (s *Service) GetTsIndexer() tmindex.TsIndexer {
+	return s.TsIndexer
+}
+
+// TmIndexRebuilder returns the time index rebuilder
+func (s *Service) GetTmIndexRebuilder() TmIndexRebuilder {
+	return s.tmir
+}
+
 // Partitions function returns list of partitions with tags, that match to tagsCond with the specific offset and limit in the result
 func (s *Service) Partitions(ctx context.Context, expr *lql.Source, offset, limit int) (*PartitionsInfo, error) {
 	s.logger.Debug("Partitions(): ", expr.String(), " offset=", offset, ", limit=", limit)
@@ -356,6 +368,15 @@ func (s *Service) GetParitionInfo(tags string) (PartitionInfo, error) {
 		ci.MinTs = c.MinTs
 		ci.Records = cks[i].Count()
 		ci.Size = cks[i].Size()
+
+		cnt, err := s.TsIndexer.Count(src, c.Id)
+		if err != nil {
+			s.tmir.RebuildIndex(src, c.Id, true)
+			ci.Comment = "Time index was corrupted or did not exist. Rebuilding..."
+		} else {
+			ci.Comment = fmt.Sprintf("Found %d intervals in the time index", cnt)
+		}
+
 		sz += uint64(ci.Size)
 		tr += uint64(ci.Records)
 		res.Chunks[i] = ci
@@ -422,7 +443,7 @@ func (s *Service) Truncate(ctx context.Context, tp TruncateParams, otf OnTruncat
 
 		if err == nil {
 			lci, err := s.TsIndexer.LastChunkRecordsInfo(jn)
-			lts := uint64(0)
+			lts := int64(0)
 			if err == nil {
 				lts = lci.MaxTs
 			}
@@ -638,7 +659,7 @@ func (s *Service) onWriteCIndex(src string, iw *iwrapper, n int, pos journal.Pos
 	err := s.TsIndexer.OnWrite(src, pos.Idx-uint32(n), pos.Idx-1, ri)
 	if err == tmindex.ErrTmIndexCorrupted {
 		// if no time-index kick the rebuilder to make it
-		s.tmir.rebuildIndex(src, ri.Id)
+		s.tmir.RebuildIndex(src, ri.Id, false)
 	}
 }
 

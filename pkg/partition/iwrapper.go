@@ -29,7 +29,7 @@ type (
 		rec  []byte
 		read bool
 
-		minTs, maxTs uint64
+		minTs, maxTs int64
 	}
 )
 
@@ -48,11 +48,11 @@ func (iw *iwrapper) Get(ctx context.Context) (records.Record, error) {
 		return nil, err
 	}
 
-	if iw.minTs == 0 || iw.minTs > lge.Timestamp {
+	if iw.minTs > lge.Timestamp || iw.minTs == 0 {
 		iw.minTs = lge.Timestamp
 	}
 
-	if iw.maxTs == 0 || iw.maxTs < lge.Timestamp {
+	if iw.maxTs < lge.Timestamp || iw.maxTs == 0 {
 		iw.maxTs = lge.Timestamp
 	}
 

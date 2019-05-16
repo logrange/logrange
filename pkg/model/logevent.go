@@ -25,7 +25,7 @@ type (
 	LogEvent struct {
 		// Timestamp of the message. It is filled by collector and can contain either collection timestamp or the
 		// message timestamp
-		Timestamp uint64
+		Timestamp int64
 
 		// Msg - the message iteself. Usually it is a slice of bytes that refer to a temporary buffer
 		Msg records.Record
@@ -123,7 +123,7 @@ func (le *LogEvent) Unmarshal(buf []byte, newBuf bool) (int, error) {
 		return nn, err
 	}
 
-	le.Timestamp = ts
+	le.Timestamp = int64(ts)
 	n, le.Msg, err = xbinary.UnmarshalBytes(buf[nn:], newBuf)
 	nn += n
 	if hdr&1 != 0 && err == nil {

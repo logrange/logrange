@@ -82,7 +82,7 @@ func toApiEvents(ev *model.Event) []*api.LogEvent {
 	res := make([]*api.LogEvent, 0, len(ev.Records))
 	for _, r := range ev.Records {
 		res = append(res, &api.LogEvent{
-			Timestamp: uint64(r.Date.UnixNano()),
+			Timestamp: r.Date.UnixNano(),
 			Message:   bytes.ByteArrayToString(r.Data),
 		})
 	}

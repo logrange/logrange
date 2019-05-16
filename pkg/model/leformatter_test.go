@@ -24,7 +24,7 @@ import (
 )
 
 func BenchmarkLogEventParser(b *testing.B) {
-	le := LogEvent{Timestamp: uint64(time.Now().UnixNano()), Msg: []byte(" Test message")}
+	le := LogEvent{Timestamp: time.Now().UnixNano(), Msg: []byte(" Test message")}
 	tgs, _ := tag.Parse("aaa=bbb, ccc=ddd")
 
 	fmtParser := FormatParser{fields: []formatField{{frmtFldConst, "SOME CONSTANT "}, {frmtFldTs, time.RFC822},
@@ -37,7 +37,7 @@ func BenchmarkLogEventParser(b *testing.B) {
 }
 
 func TestLogEventFormatter(t *testing.T) {
-	le := LogEvent{Timestamp: uint64(time.Now().UnixNano()), Msg: []byte("Test message")}
+	le := LogEvent{Timestamp: time.Now().UnixNano(), Msg: []byte("Test message")}
 	tgs, _ := tag.Parse("aaa=bbb,ccc=ddd")
 
 	fmtParser, err := NewFormatParser("{msg}{vars}, aaa={vars:aaa}")
@@ -53,7 +53,7 @@ func TestLogEventFormatter(t *testing.T) {
 
 func TestLogEventFormatter2(t *testing.T) {
 	tm := time.Now()
-	le := &LogEvent{Timestamp: uint64(tm.UnixNano()), Msg: []byte("\test\" message"), Fields: field.Parse("field1=value1, field2=value2")}
+	le := &LogEvent{Timestamp: tm.UnixNano(), Msg: []byte("\test\" message"), Fields: field.Parse("field1=value1, field2=value2")}
 	tgs, _ := tag.Parse("a=bbb,b=ddd")
 
 	testLogEventFormatter2(t, le, tgs.Line().String(), "AAA{msg}|{vars} aaa={vars:a} {ts}", fmt.Sprintf("AAA%s|%s,%s aaa=%s %s", le.Msg, tgs.Line(), le.Fields.AsKVString(), tgs.Tag("a"), time.Unix(0, int64(le.Timestamp)).Format(time.RFC3339)))

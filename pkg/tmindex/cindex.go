@@ -52,13 +52,15 @@ type (
 
 	// chkInfo struct keeps information about a chunk. Used by cindex
 	chkInfo struct {
-		Id      chunk.Id
-		MinTs   uint64
-		MaxTs   uint64
-		IdxRoot Item
+		Id    chunk.Id
+		MinTs int64
+		MaxTs int64
 
-		// the rwLock is used to access to the ckIndex
+		// the rwLock is used to access to the ckIndex and it guards
+		// the following fields - IdxRoot, lastRec, idxCorrupted.
+		// the values could be changed only when Write lock on rwLock is acquired
 		rwLock  sync2.RWLock
+		IdxRoot Item
 		lastRec uint32
 		// returns whether the ckIndex is considered
 		idxCorrupted bool
@@ -69,7 +71,7 @@ type (
 const cIndexFileName = "cindex.dat"
 
 // sparseSpace defines a coefficient how often to fix timestamp point in the index
-const sparseSpace = 500
+const sparseSpace = 250
 
 func newCIndex() *cindex {
 	ci := new(cindex)
@@ -116,7 +118,7 @@ func (ci *cindex) close() error {
 }
 
 // onWrite updates the partition cindex. It receives the partition name src, number of records in the
-// chunk and the cinfo
+// chunk and the rInfo
 func (ci *cindex) onWrite(src string, firstRec, lastRec uint32, rInfo RecordsInfo) (err error) {
 	ci.lock.Lock()
 	sc, ok := ci.journals[src]
@@ -153,6 +155,7 @@ func (ci *cindex) onWrite(src string, firstRec, lastRec uint32, rInfo RecordsInf
 		return nil
 	}
 
+	it := interval{record{rInfo.MinTs, firstRec}, record{rInfo.MaxTs, lastRec}}
 	if last.IdxRoot.IndexId == 0 {
 		if lastRec-last.lastRec > sparseSpace*20 {
 			// well, it is big gap in the index, let's make it rebuilt later...
@@ -162,7 +165,7 @@ func (ci *cindex) onWrite(src string, firstRec, lastRec uint32, rInfo RecordsInf
 			return ErrTmIndexCorrupted
 		}
 
-		root, err := ci.cc.arrangeRoot(record{int64(rInfo.MinTs), firstRec})
+		root, err := ci.cc.arrangeRoot(it)
 		if err != nil {
 			ci.logger.Warn("could not create root element for ", rInfo, ", err=", err)
 			last.IdxRoot = Item{}
@@ -177,7 +180,7 @@ func (ci *cindex) onWrite(src string, firstRec, lastRec uint32, rInfo RecordsInf
 		return nil
 	}
 
-	last.IdxRoot, err = ci.cc.onWrite(last.IdxRoot, record{int64(rInfo.MinTs), firstRec})
+	last.IdxRoot, err = ci.cc.onWrite(last.IdxRoot, it)
 	if err != nil {
 		ci.logger.Warn("could not add new record to the index, err=", err, " last=", last)
 		last.IdxRoot = Item{}
@@ -189,7 +192,7 @@ func (ci *cindex) onWrite(src string, firstRec, lastRec uint32, rInfo RecordsInf
 	return err
 }
 
-func (ci *cindex) getPosForGreaterOrEqualTime(src string, cid chunk.Id, ts uint64) (uint32, error) {
+func (ci *cindex) getPosForGreaterOrEqualTime(src string, cid chunk.Id, ts int64) (uint32, error) {
 	ci.lock.Lock()
 	sc, ok := ci.journals[src]
 	if !ok {
@@ -219,6 +222,11 @@ func (ci *cindex) getPosForGreaterOrEqualTime(src string, cid chunk.Id, ts uint6
 	cinfo.rwLock.RLock()
 	if !cinfo.idxCorrupted {
 		pos, err := ci.cc.grEq(cinfo.IdxRoot, int64(ts))
+		if err == errAllMatches {
+			pos = 0
+			err = nil
+		}
+
 		if err == nil {
 			cinfo.rwLock.RUnlock()
 			return pos, nil
@@ -229,7 +237,7 @@ func (ci *cindex) getPosForGreaterOrEqualTime(src string, cid chunk.Id, ts uint6
 	return 0, ErrTmIndexCorrupted
 }
 
-func (ci *cindex) getPosForLessTime(src string, cid chunk.Id, ts uint64) (uint32, error) {
+func (ci *cindex) getPosForLessTime(src string, cid chunk.Id, ts int64) (uint32, error) {
 	ci.lock.Lock()
 	sc, ok := ci.journals[src]
 	if !ok {
@@ -285,16 +293,64 @@ func (ci *cindex) lastChunkRecordsInfo(src string) (res RecordsInfo, err error) 
 	return
 }
 
+func (ci *cindex) getRecordsInfo(src string, cid chunk.Id) (res RecordsInfo, err error) {
+	err = errors2.NotFound
+	ci.lock.Lock()
+	if sc, ok := ci.journals[src]; ok && len(sc) > 0 {
+		cidx := sc.findChunkIdx(cid)
+		if cidx >= 0 {
+			res = sc[cidx].getRecordsInfo()
+			err = nil
+		}
+	}
+	ci.lock.Unlock()
+	return
+}
+
+func (ci *cindex) count(src string, cid chunk.Id) (count int, err error) {
+	err = errors2.NotFound
+	var cinfo *chkInfo
+	ci.lock.Lock()
+	if sc, ok := ci.journals[src]; ok && len(sc) > 0 {
+		cidx := sc.findChunkIdx(cid)
+		if cidx >= 0 {
+			cinfo = sc[cidx]
+			err = nil
+		}
+	}
+	ci.lock.Unlock()
+
+	if cinfo == nil {
+		return
+	}
+
+	cinfo.rwLock.RLock()
+	if cinfo.IdxRoot.IndexId == 0 || cinfo.idxCorrupted {
+		cinfo.rwLock.RUnlock()
+		return 0, ErrTmIndexCorrupted
+	}
+
+	cki := ci.cc.getIndex(cinfo.IdxRoot.IndexId)
+	if cki == nil {
+		cinfo.rwLock.RUnlock()
+		return 0, ErrTmIndexCorrupted
+	}
+
+	count, err = cki.count(cinfo.IdxRoot.Pos)
+
+	cinfo.rwLock.RUnlock()
+
+	return
+}
+
 // rebuildIndex runs the building new index for the source and the chunk provided
-func (ci *cindex) rebuildIndex(ctx context.Context, src string, chk chunk.Chunk) {
+func (ci *cindex) rebuildIndex(ctx context.Context, src string, chk chunk.Chunk, force bool) {
 	ci.lock.Lock()
 	var res *chkInfo
 	if sc, ok := ci.journals[src]; ok {
-		for _, c := range sc {
-			if c.Id == chk.Id() {
-				res = c
-				break
-			}
+		idx := sc.findChunkIdx(chk.Id())
+		if idx >= 0 {
+			res = sc[idx]
 		}
 	}
 	ci.lock.Unlock()
@@ -311,9 +367,12 @@ func (ci *cindex) rebuildIndex(ctx context.Context, src string, chk chunk.Chunk)
 
 	if res.IdxRoot.IndexId != 0 && !res.idxCorrupted {
 		if ci.cc.getIndex(res.IdxRoot.IndexId) != nil {
-			ci.logger.Warn("The index for chunk ", chk, " for partition \"", src, "\" seems to be ok and alive. Do not build one. ")
-			res.rwLock.Unlock()
-			return
+			if !force {
+				ci.logger.Warn("The index for chunk ", chk, " for partition \"", src, "\" seems to be ok and alive. Do not build one. ")
+				res.rwLock.Unlock()
+				return
+			}
+			ci.cc.removeIndex(res.IdxRoot.IndexId)
 		}
 		res.IdxRoot = Item{}
 		res.idxCorrupted = true
@@ -350,6 +409,8 @@ func (ci *cindex) rebuildIndex(ctx context.Context, src string, chk chunk.Chunk)
 	}
 }
 
+// rebuildIndexInt allows to check several hundred, may be thoursands records from the chunk and
+// remember their time points and positions in the time index.
 func (ci *cindex) rebuildIndexInt(ctx context.Context, chk chunk.Chunk) (RecordsInfo, Item, error) {
 	var rInfo RecordsInfo
 	var root Item
@@ -372,12 +433,16 @@ func (ci *cindex) rebuildIndexInt(ctx context.Context, chk chunk.Chunk) (Records
 
 		rInfo.MinTs = ts
 		rInfo.MaxTs = ts
-		root, err = ci.cc.arrangeRoot(record{int64(ts), 0})
+		intv := interval{record{ts, uint32(0)}, record{ts, uint32(0)}}
+		root, err = ci.cc.arrangeRoot(intv)
 		if err != nil {
 			ci.logger.Warn("rebuildIndexInt(): could not create root element for ", rInfo, ", err=", err)
 			return rInfo, root, err
 		}
 
+		minTs := ts
+		maxTs := ts
+		prPos := int64(0)
 		pos := int64(sparseSpace)
 		doRun := true
 		for doRun {
@@ -394,13 +459,6 @@ func (ci *cindex) rebuildIndexInt(ctx context.Context, chk chunk.Chunk) (Records
 				ci.logger.Error("rebuildIndexInt(): could not read timestamp for position", pos, ", err=", err)
 				return rInfo, root, err
 			}
-
-			root, err = ci.cc.onWrite(root, record{int64(ts), uint32(pos)})
-			if err != nil {
-				ci.cc.removeItem(root)
-				ci.logger.Error("rebuildIndexInt(): could not write index info for ", pos, ", err=", err)
-				return rInfo, root, err
-			}
 			if rInfo.MinTs > ts {
 				rInfo.MinTs = ts
 			}
@@ -408,6 +466,23 @@ func (ci *cindex) rebuildIndexInt(ctx context.Context, chk chunk.Chunk) (Records
 				rInfo.MaxTs = ts
 			}
 
+			minTs = maxTs
+			if ts < minTs {
+				minTs = ts
+			} else {
+				maxTs = ts
+			}
+
+			intv = interval{record{minTs, uint32(prPos)}, record{maxTs, uint32(pos)}}
+			root, err = ci.cc.onWrite(root, intv)
+			if err != nil {
+				ci.cc.removeItem(root)
+				ci.logger.Error("rebuildIndexInt(): could not write index info for ", pos, ", err=", err)
+				return rInfo, root, err
+			}
+
+			maxTs = ts
+			prPos = pos
 			pos += sparseSpace
 		}
 	} else {
@@ -415,6 +490,68 @@ func (ci *cindex) rebuildIndexInt(ctx context.Context, chk chunk.Chunk) (Records
 	}
 
 	return rInfo, root, nil
+}
+
+// readData reads all index data and returns it as a slice []IdxRecord
+func (ci *cindex) readData(src string, cid chunk.Id) ([]IdxRecord, error) {
+	ci.lock.Lock()
+	var res *chkInfo
+	if sc, ok := ci.journals[src]; ok {
+		idx := sc.findChunkIdx(cid)
+		if idx >= 0 {
+			res = sc[idx]
+		}
+	}
+	ci.lock.Unlock()
+
+	if res == nil {
+		ci.logger.Debug("readData(): no recods for partition \"", src, "\" cid=", cid)
+		return nil, errors2.NotFound
+	}
+
+	res.rwLock.RLock()
+
+	if res.idxCorrupted {
+		ci.logger.Debug("readData(): could not read data for partition \"", src, "\" cid=", cid, " index corrupted.")
+		res.rwLock.RUnlock()
+		return nil, ErrTmIndexCorrupted
+	}
+
+	cki := ci.cc.getIndex(res.IdxRoot.IndexId)
+	if cki == nil {
+		ci.logger.Debug("readData(): could not read data for partition \"", src, "\" cid=", cid, " index not found by IndexId")
+		res.rwLock.RUnlock()
+		return nil, errors2.NotFound
+	}
+
+	cnt, err := cki.count(res.IdxRoot.Pos)
+	if err != nil {
+		ci.logger.Warn("readData(): could not count records in index for partition \"", src, "\" cid=", cid, ", err=", err)
+		res.rwLock.RUnlock()
+		return nil, err
+	}
+
+	rr := make([]interval, 0, cnt)
+	rr, err = cki.traversal(res.IdxRoot.Pos, rr)
+	if err != nil {
+		ci.logger.Warn("readData(): could not traverse index for partition \"", src, "\" cid=", cid, ", err=", err)
+		res.rwLock.RUnlock()
+		return nil, err
+	}
+
+	ir := make([]IdxRecord, len(rr)+1)
+	for i, it := range rr {
+		ir[i] = IdxRecord{it.p0.ts, it.p0.idx}
+	}
+
+	lastIdx := len(rr)
+	if lastIdx > 0 {
+		it := rr[lastIdx-1]
+		ir[lastIdx] = IdxRecord{it.p1.ts, it.p1.idx}
+	}
+
+	res.rwLock.RUnlock()
+	return ir, nil
 }
 
 // syncChunks receives a list of chunks for a partition src and updates the cindex information by the data from the chunks
@@ -505,7 +642,7 @@ func (ci *cindex) lightFill(ctx context.Context, cks chunk.Chunks, sc sortedChun
 		c.MinTs = ts1
 		c.MaxTs = ts2
 		if ts2 < ts1 {
-			ci.logger.Warn("lightFill(): first record of chunk ", chk.Id(), " has greater timestamp, thant its last one")
+			ci.logger.Warn("lightFill(): first record of chunk ", chk.Id(), " has greater timestamp, than its last one")
 			c.MinTs = ts2
 			c.MaxTs = ts1
 		}
@@ -513,7 +650,7 @@ func (ci *cindex) lightFill(ctx context.Context, cks chunk.Chunks, sc sortedChun
 	}
 }
 
-func getRecordTimestamp(ctx context.Context, it chunk.Iterator) (uint64, error) {
+func getRecordTimestamp(ctx context.Context, it chunk.Iterator) (int64, error) {
 	rec, err := it.Get(ctx)
 	if err != nil {
 		return 0, errors.Wrapf(err, "getRecordTimestamp(): could not read record")
@@ -565,7 +702,7 @@ func (ci *cindex) saveDataToFile() {
 func chunksToSortedChunks(cks chunk.Chunks) sortedChunks {
 	res := make(sortedChunks, len(cks))
 	for i, ck := range cks {
-		res[i] = &chkInfo{Id: ck.Id(), MinTs: math.MaxUint64}
+		res[i] = &chkInfo{Id: ck.Id(), MinTs: math.MaxInt64}
 	}
 	return res
 }

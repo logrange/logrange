@@ -66,11 +66,11 @@ func TestFilter(t *testing.T) {
 		{5, []byte("jjjjee"), ""}}
 	lew := (&model.LogEventIterator{}).Wrap(tag.Line("aaa=bbb"), newTestLogEventsWrapper(les))
 
-	exp, err := lql.ParseExpr("ts = 4 OR msg contains 'asdf'")
+	exp, err := lql.ParseExpr("msg contains 'asdf' OR msg suffix 'jjjj'")
 	if err != nil {
 		t.Fatal("unexpected err=", err)
 	}
-	fit, err := newFIterator(lew, exp)
+	fit, err := newFIterator(lew, exp, &model.TimeRange{1, 5})
 	if err != nil {
 		t.Fatal("unexpected err=", err)
 	}
@@ -83,7 +83,7 @@ func TestFilter(t *testing.T) {
 	fit.Next(nil)
 	le, _, err = fit.Get(nil)
 	if !reflect.DeepEqual(le, les[3]) {
-		t.Fatal("Expected ", les[3], " but received ", le)
+		t.Fatal("Expected ", les[3], " but received ", le, "err=", err)
 	}
 
 	fit.Next(nil)
