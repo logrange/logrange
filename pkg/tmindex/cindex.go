@@ -25,6 +25,7 @@ import (
 	errors2 "github.com/logrange/range/pkg/utils/errors"
 	"github.com/logrange/range/pkg/utils/fileutil"
 	"github.com/pkg/errors"
+	"io"
 	"io/ioutil"
 	"math"
 	"path"
@@ -379,7 +380,7 @@ func (ci *cindex) rebuildIndex(ctx context.Context, src string, chk chunk.Chunk,
 	}
 
 	rInfo, root, err := ci.rebuildIndexInt(ctx, chk)
-	if err != nil || root.IndexId == 0 {
+	if err != nil {
 		res.rwLock.Unlock()
 		return
 	}
@@ -409,16 +410,33 @@ func (ci *cindex) rebuildIndex(ctx context.Context, src string, chk chunk.Chunk,
 	}
 }
 
-// rebuildIndexInt allows to check several hundred, may be thoursands records from the chunk and
-// remember their time points and positions in the time index.
+func (ci *cindex) writeIndexInterval(root Item, ri RecordsInfo, pos0, pos1 int) (Item, error) {
+	if pos0 == pos1 {
+		return root, nil
+	}
+
+	var err error
+	intv := interval{record{ri.MinTs, uint32(pos0)}, record{ri.MaxTs, uint32(pos1)}}
+	root, err = ci.cc.onWrite(root, intv)
+	if err != nil {
+		ci.cc.removeItem(root)
+		ci.logger.Error("rebuildIndexInt(): could not write index info for ", pos0, " .. ", pos1, ", err=", err)
+	}
+	return root, err
+}
+
+// rebuildIndexInt allows to check the chunk's records from the chunk remembering
+// their time points and positions in the time index.
 func (ci *cindex) rebuildIndexInt(ctx context.Context, chk chunk.Chunk) (RecordsInfo, Item, error) {
-	var rInfo RecordsInfo
+	var rInfo, segmInfo RecordsInfo
 	var root Item
+	var err error
 
 	rInfo.Id = chk.Id()
 
 	if chk.Count() > 0 {
-		it, err := chk.Iterator()
+		var it chunk.Iterator
+		it, err = chk.Iterator()
 		if err != nil {
 			ci.logger.Error("rebuildIndexInt(): could not create iterator, err=", err)
 			return rInfo, root, err
@@ -431,65 +449,48 @@ func (ci *cindex) rebuildIndexInt(ctx context.Context, chk chunk.Chunk) (Records
 			return rInfo, root, err
 		}
 
-		rInfo.MinTs = ts
-		rInfo.MaxTs = ts
 		intv := interval{record{ts, uint32(0)}, record{ts, uint32(0)}}
 		root, err = ci.cc.arrangeRoot(intv)
 		if err != nil {
 			ci.logger.Warn("rebuildIndexInt(): could not create root element for ", rInfo, ", err=", err)
 			return rInfo, root, err
 		}
+		rInfo.MaxTs = ts
+		rInfo.MinTs = ts
+		segmInfo = RecordsInfo{MinTs: math.MaxInt64}
 
-		minTs := ts
-		maxTs := ts
-		prPos := int64(0)
-		pos := int64(sparseSpace)
-		doRun := true
-		for doRun {
-			if pos >= int64(chk.Count()) {
-				// set pos to the last record
-				pos = int64(chk.Count()) - 1
-				doRun = false
+		pos0 := 0
+		pos1 := 0
+		for err == nil {
+			ts, err = getRecordTimestamp(ctx, it)
+			if err == io.EOF {
+				root, err = ci.writeIndexInterval(root, segmInfo, pos0, pos1)
+				break
 			}
 
-			it.SetPos(pos)
-			ts, err := getRecordTimestamp(ctx, it)
 			if err != nil {
 				ci.cc.removeItem(root)
-				ci.logger.Error("rebuildIndexInt(): could not read timestamp for position", pos, ", err=", err)
+				ci.logger.Error("rebuildIndexInt(): could not read next record, err=", err)
 				return rInfo, root, err
 			}
-			if rInfo.MinTs > ts {
-				rInfo.MinTs = ts
-			}
-			if rInfo.MaxTs < ts {
-				rInfo.MaxTs = ts
+			it.Next(ctx)
+
+			rInfo.ApplyTs(ts)
+			segmInfo.ApplyTs(ts)
+			pos1++
+			if pos1-pos0 < sparseSpace {
+				continue
 			}
 
-			minTs = maxTs
-			if ts < minTs {
-				minTs = ts
-			} else {
-				maxTs = ts
-			}
-
-			intv = interval{record{minTs, uint32(prPos)}, record{maxTs, uint32(pos)}}
-			root, err = ci.cc.onWrite(root, intv)
-			if err != nil {
-				ci.cc.removeItem(root)
-				ci.logger.Error("rebuildIndexInt(): could not write index info for ", pos, ", err=", err)
-				return rInfo, root, err
-			}
-
-			maxTs = ts
-			prPos = pos
-			pos += sparseSpace
+			root, err = ci.writeIndexInterval(root, segmInfo, pos0, pos1)
+			pos0 = pos1
+			segmInfo = RecordsInfo{MinTs: math.MaxInt64}
 		}
 	} else {
 		ci.logger.Info("rebuildIndex(): the chunk ", chk, " has 0 size")
 	}
 
-	return rInfo, root, nil
+	return rInfo, root, err
 }
 
 // readData reads all index data and returns it as a slice []IdxRecord
@@ -653,7 +654,7 @@ func (ci *cindex) lightFill(ctx context.Context, cks chunk.Chunks, sc sortedChun
 func getRecordTimestamp(ctx context.Context, it chunk.Iterator) (int64, error) {
 	rec, err := it.Get(ctx)
 	if err != nil {
-		return 0, errors.Wrapf(err, "getRecordTimestamp(): could not read record")
+		return 0, err
 	}
 
 	var le model.LogEvent

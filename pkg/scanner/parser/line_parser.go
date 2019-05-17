@@ -161,9 +161,9 @@ func (lp *lineParser) parse(buf []byte) *model.Record {
 func (lp *lineParser) calcDate(tm time.Time) time.Time {
 	if tm.IsZero() {
 		tm = lp.lastDate
-		if tm.IsZero() {
-			tm = time.Now()
-		}
+		//if tm.IsZero() {
+		//	tm = time.Now()
+		//}
 	}
 	return tm
 }

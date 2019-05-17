@@ -325,7 +325,7 @@ func (ci *ckindex) traversalInt(root int, res []interval) ([]interval, error) {
 		return res, nil
 	}
 
-	for i := 0; i < b.records(); i++ {
+	for i := 0; i < b.records()-1; i++ {
 		r := b.readRecord(i)
 		res, err = ci.traversalInt(int(r.idx), res)
 		if err != nil {

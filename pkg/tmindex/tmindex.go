@@ -164,6 +164,16 @@ func (ti *tmidx) Count(src string, cid chunk.Id) (int, error) {
 	return ti.ci.count(src, cid)
 }
 
+func (ri *RecordsInfo) ApplyTs(ts int64) {
+	if ri.MaxTs < ts {
+		ri.MaxTs = ts
+	}
+
+	if ri.MinTs > ts {
+		ri.MinTs = ts
+	}
+}
+
 func (ri RecordsInfo) String() string {
 	return fmt.Sprintf("{Id: %s, MinTs: %d, MaxTs: %d}", ri.Id, ri.MinTs, ri.MaxTs)
 }

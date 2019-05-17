@@ -144,6 +144,7 @@ func newCursor(ctx context.Context, state State, itf ItFactory) (*crsr, error) {
 		// initial iterator into the filter then.
 		it, err = newFIterator(it, sel.Where, tmr)
 		if err != nil {
+			releaseJournals(itf, srcs)
 			return nil, errors.Wrapf(err, "could not create filter for %s ", state.Query)
 		}
 	}
@@ -155,10 +156,17 @@ func newCursor(ctx context.Context, state State, itf ItFactory) (*crsr, error) {
 	cur.jDescs = jd
 	cur.itf = itf
 	if err := cur.applyPos(); err != nil {
+		releaseJournals(itf, srcs)
 		return nil, errors.Wrapf(err, "the position %s could not be applied ", state.Pos)
 	}
 
 	return cur, nil
+}
+
+func releaseJournals(itf ItFactory, srcs map[tag.Line]journal.Journal) {
+	for _, j := range srcs {
+		itf.Release(j.Name())
+	}
 }
 
 // String returns the cursor description
