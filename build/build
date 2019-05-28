@@ -2,6 +2,7 @@
 
 function cleanup {
     echo "Cleaning up..."
+    chmod -R +w ${TMP_PATH}
     rm -rf ${TMP_PATH}
 }
 
@@ -171,7 +172,7 @@ do
     do
         echo "Building cmd=${cmd}, os=${OS}, arch=${ARCH}..."
         env GOPATH=${TMP_PATH} GOOS=${OS} GOARCH=${ARCH} GO111MODULE=on \
-            go build -o ./${cmd} ${LGR_PATH}/logrange/cmd/${cmd}
+            go build -o ./${cmd} github.com/logrange/logrange/cmd/${cmd}
         check $?
      done
 done
