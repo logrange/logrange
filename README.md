@@ -1,7 +1,7 @@
 [![Go Report Card](https://goreportcard.com/badge/logrange/logrange)](https://goreportcard.com/report/logrange/logrange) [![Build Status](https://travis-ci.org/logrange/logrange.svg?branch=master)](https://travis-ci.org/logrange/logrange) [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://github.com/logrange/logrange/blob/master/LICENSE)
 
 # Logrange - streaming database 
-Logrange is highly performant streaming database for aggregating streams of records like application logs, system metrics, audit logs etc. from thousands of sources. Logrange  provides an API to do operations from simple search to the data analysis and machine learning.
+[Logrange](https://www.logrange.io) is highly performant streaming database for aggregating streams of records like application logs, system metrics, audit logs etc. from thousands of sources. Logrange  provides an API to do operations from simple search to the data analysis and machine learning.
 
 __The product__
 * _Size tollerant_. Logrange is able to store as much data as written there. The only limitation is the storage space available for the database.
