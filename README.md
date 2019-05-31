@@ -4,7 +4,7 @@
 [Logrange](https://www.logrange.io) is highly performant streaming database for aggregating streams of records like application logs, system metrics, audit logs etc. from thousands of sources. Logrange  provides an API to do operations from simple search to the data analysis and machine learning.
 
 __The product__
-* _Size tollerant_. Logrange is able to store as much data as written there. The only limitation is the storage space available for the database.
+* _Size tolerant_. Logrange is able to store as much data as written there. The only limitation is the storage space available for the database.
 * _Higly performant_. Writing and reading millions of records per second (hundered megabytes or gigabytes of data).
 * _Write optimized_. Logrange persists the raw data in realtime. All other data processing like indexing can be done later.
 * _Low latency_. Data becomes available for read within milliseconds after it is written
