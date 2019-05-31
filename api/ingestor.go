@@ -23,11 +23,11 @@ type (
 		Err error
 	}
 
-	// Ingestor provides Wrtie method for sending log data into the storage. This intrface is exposed as
+	// Ingestor provides Wrtie method for sending log data into the storage. This interface is exposed as
 	// a public API
 	Ingestor interface {
-		// Write sends log events into the pipe identified by tag provided. It expects a slice of events and
-		// the reference to the WriteResult. Tags and Fields fields in LogEvents are ignored during the writing operation,
+		// Write sends log events into the partition identified by tags provided. It expects a slice of events and
+		// LogEvent(s) and a pointer to the WriteResult. Tags and Fields fields in LogEvents are ignored during the writing operation,
 		// but tags and fields params will be applied to all of the events.
 		Write(ctx context.Context, tags, fields string, evs []*LogEvent, res *WriteResult) error
 	}

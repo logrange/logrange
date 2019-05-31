@@ -58,7 +58,7 @@ type (
 
 	// Querier - executes a query agains logrange database
 	Querier interface {
-		// Query runs lql to collect the server data and return it in the QueryResult. It returns an error which indicates
+		// Query runs lql to collect the server data and returns it in the QueryResult. It returns an error which indicates
 		// that the query could not be delivered to the server, or it did not happen.
 		Query(ctx context.Context, req *QueryRequest, res *QueryResult) error
 	}
