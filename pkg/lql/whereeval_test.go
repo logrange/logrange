@@ -45,6 +45,9 @@ func TestWhereExpGeneral(t *testing.T) {
 	flds, _ := field.NewFields(map[string]string{"f1": "val1", "f2": "val2"})
 	le := &model.LogEvent{Timestamp: 123, Msg: []byte("aaaabbbb"), Fields: flds}
 	testWhereExpGeneral(t, "msg like \"aaa*\"", le, true)
+	testWhereExpGeneral(t, "msg like \"AAA*\"", le, false)
+	testWhereExpGeneral(t, "upper(msg) like \"AAA*\"", le, true)
+	testWhereExpGeneral(t, "lower(upper(msg)) like \"AAA*\"", le, false)
 	testWhereExpGeneral(t, "msg contains ab", le, true)
 	testWhereExpGeneral(t, "msg prefix aa", le, true)
 	testWhereExpGeneral(t, "msg prefix ab", le, false)
@@ -57,6 +60,8 @@ func TestWhereExpGeneral(t *testing.T) {
 	testWhereExpGeneral(t, "fields:f1 != aaa", le, true)
 	testWhereExpGeneral(t, "fields:f13 != aaa", le, true)
 	testWhereExpGeneral(t, "fields:f1 = val1 and fields:f2=val2", le, true)
+	testWhereExpGeneral(t, "fields:f1 = VAL1 and fields:f2=val2", le, false)
+	testWhereExpGeneral(t, "upper(fields:f1) = VAL1 and fields:f2=val2", le, true)
 	testWhereExpGeneral(t, "fields:f1 = val1 and fields:f2=val2 and fields:f3 = \"\"", le, true)
 	testWhereExpGeneral(t, "fields:f1 = val1 and fields:f2=val3", le, false)
 }

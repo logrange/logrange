@@ -77,6 +77,8 @@ Whether you have problems with log aggregating, processing or analysis, or wanti
  
 Reach out to mail@logrange.io
 
+Join our [gitter chat](https://gitter.im/logrange/community)
+
 ## License
 Apache License 2.0, see [LICENSE](LICENSE).
 

@@ -154,9 +154,14 @@ type (
 	}
 
 	Condition struct {
-		Operand string `  (@Ident|@Keyword)`
-		Op      string ` (@("<"|">"|">="|"<="|"!="|"="|"CONTAINS"|"PREFIX"|"SUFFIX"|"LIKE"))`
-		Value   string ` (@String|@Ident|@Number)`
+		Ident *Identifier `  @@`
+		Op    string      ` (@("<"|">"|">="|"<="|"!="|"="|"CONTAINS"|"PREFIX"|"SUFFIX"|"LIKE"))`
+		Value string      ` (@String|@Ident|@Number)`
+	}
+
+	Identifier struct {
+		Operand string        `  (@Ident|@Keyword)`
+		Params  []*Identifier ` ("("@@ {"," @@} ")")?`
 	}
 
 	Position struct {
@@ -359,7 +364,7 @@ func (c *Condition) makeString(sb *strings.Builder) {
 	}
 
 	sb.WriteByte(' ')
-	sb.WriteString(c.Operand)
+	c.Ident.makeString(sb)
 	sb.WriteByte(' ')
 	sb.WriteString(c.Op)
 	sb.WriteByte(' ')
@@ -369,6 +374,32 @@ func (c *Condition) makeString(sb *strings.Builder) {
 func (c *Condition) String() string {
 	var sb strings.Builder
 	c.makeString(&sb)
+	return sb.String()
+}
+
+// === Identifier
+func (id *Identifier) makeString(sb *strings.Builder) {
+	if id == nil {
+		return
+	}
+
+	sb.WriteString(id.Operand)
+	if len(id.Params) == 0 {
+		return
+	}
+	sb.WriteByte('(')
+	for i, p := range id.Params {
+		if i > 0 {
+			sb.WriteByte(',')
+		}
+		p.makeString(sb)
+	}
+	sb.WriteByte(')')
+}
+
+func (id *Identifier) String() string {
+	var sb strings.Builder
+	id.makeString(&sb)
 	return sb.String()
 }
 

@@ -15,7 +15,6 @@
 package lql
 
 import (
-	bytes2 "bytes"
 	"fmt"
 	"github.com/logrange/logrange/pkg/model"
 	"github.com/logrange/range/pkg/utils/bytes"
@@ -132,8 +131,17 @@ func (web *whereExpFuncBuilder) buildXCond(xc *XCondition) (err error) {
 	return nil
 }
 
+func getFirstParamName(id *Identifier) string {
+	if len(id.Params) == 0 {
+		return id.Operand
+	}
+
+	return getFirstParamName(id.Params[0])
+}
+
 func (web *whereExpFuncBuilder) buildCond(cn *Condition) (err error) {
-	op := strings.ToLower(cn.Operand)
+	fldName := getFirstParamName(cn.Ident)
+	op := strings.ToLower(fldName)
 	if op == OPND_TIMESTAMP {
 		return web.buildTsCond(cn)
 	}
@@ -145,10 +153,14 @@ func (web *whereExpFuncBuilder) buildCond(cn *Condition) (err error) {
 	if !strings.HasPrefix(op, "fields:") || len(op) < 8 {
 		return fmt.Errorf("operand must be ts, msg, or fields:<fieldname> with non-empty fieldname")
 	}
-	return web.buildFldCond(cn)
+	return web.buildFldCond(cn, fldName)
 }
 
 func (web *whereExpFuncBuilder) buildTsCond(cn *Condition) error {
+	if len(cn.Ident.Params) != 0 {
+		return fmt.Errorf("functions are not supported for ts fields, but %s() is provided ", cn.Ident.Operand)
+	}
+
 	tt, err := parseLqlDateTime(cn.Value)
 	if err != nil {
 		return err
@@ -178,93 +190,138 @@ func (web *whereExpFuncBuilder) buildTsCond(cn *Condition) error {
 	return err
 }
 
+// strTransF returns
+type strTransF func(str string) string
+
+func buildMsgLeStrFldF(id *Identifier) (strTransF, error) {
+	if len(id.Params) == 0 {
+		return func(str string) string {
+			return str
+		}, nil
+	}
+
+	fn := strings.ToUpper(id.Operand)
+	if len(id.Params) != 1 {
+		return nil, fmt.Errorf("only functions with 1 param supported so far, but for %s() %d params provided", id.Operand, len(id.Params))
+	}
+
+	inf, err := buildMsgLeStrFldF(id.Params[0])
+	if err != nil {
+		return nil, err
+	}
+
+	switch fn {
+	case "UPPER":
+		return func(str string) string {
+			return strings.ToUpper(inf(str))
+		}, nil
+	case "LOWER":
+		return func(str string) string {
+			return strings.ToLower(inf(str))
+		}, nil
+	}
+	return nil, fmt.Errorf("only functions with 1 param supported so far, but for %s() %d params provided", id.Operand, len(id.Params))
+
+}
+
 func (web *whereExpFuncBuilder) buildMsgCond(cn *Condition) (err error) {
 	op := strings.ToUpper(cn.Op)
-	val := bytes.StringToByteArray(cn.Value)
+	val := cn.Value
+	lsf, err := buildMsgLeStrFldF(cn.Ident)
+	if err != nil {
+		return err
+	}
+
 	switch op {
 	case CMP_CONTAINS:
 		web.wef = func(le *model.LogEvent) bool {
-			return bytes2.Contains(le.Msg, val)
+			return strings.Contains(lsf(bytes.ByteArrayToString(le.Msg)), val)
 		}
 	case CMP_HAS_PREFIX:
 		web.wef = func(le *model.LogEvent) bool {
-			return bytes2.HasPrefix(le.Msg, val)
+			return strings.HasPrefix(lsf(bytes.ByteArrayToString(le.Msg)), val)
 		}
 	case CMP_HAS_SUFFIX:
 		web.wef = func(le *model.LogEvent) bool {
-			return bytes2.HasSuffix(le.Msg, val)
+			return strings.HasSuffix(lsf(bytes.ByteArrayToString(le.Msg)), val)
 		}
 	case CMP_LIKE:
 		// test it first
 		_, err := path.Match(cn.Value, "abc")
 		if err != nil {
-			err = fmt.Errorf("Wrong 'like' expression for %s, err=%s", cn.Value, err.Error())
+			err = fmt.Errorf("wrong 'like' expression for %s, err=%s", cn.Value, err.Error())
 		} else {
 			web.wef = func(le *model.LogEvent) bool {
-				res, _ := path.Match(cn.Value, le.Msg.AsWeakString())
+				res, _ := path.Match(cn.Value, lsf(bytes.ByteArrayToString(le.Msg)))
 				return res
 			}
 		}
 	default:
-		err = fmt.Errorf("Unsupported operation \"%s\" for msg field %s", cn.Op, cn.Operand)
+		err = fmt.Errorf("unsupported operation \"%s\" for field msg", cn.Op)
 	}
 	return err
 }
 
-func (web *whereExpFuncBuilder) buildFldCond(cn *Condition) (err error) {
+func (web *whereExpFuncBuilder) buildFldCond(cn *Condition, fldName string) (err error) {
 	// the fldName is prefixed by `fields:`, so cut it
-	fldName := cn.Operand[7:]
+	fldName = fldName[7:]
 	op := strings.ToUpper(cn.Op)
+	val := cn.Value
+	lsf, err := buildMsgLeStrFldF(cn.Ident)
+	if err != nil {
+		return err
+	}
+
 	switch op {
 	case CMP_CONTAINS:
 		web.wef = func(le *model.LogEvent) bool {
-			return strings.Contains(le.Fields.Value(fldName), cn.Value)
+			return strings.Contains(lsf(le.Fields.Value(fldName)), val)
 		}
 	case CMP_HAS_PREFIX:
 		web.wef = func(le *model.LogEvent) bool {
-			return strings.HasPrefix(le.Fields.Value(fldName), cn.Value)
+			return strings.HasPrefix(lsf(le.Fields.Value(fldName)), val)
 		}
 	case CMP_HAS_SUFFIX:
 		web.wef = func(le *model.LogEvent) bool {
-			return strings.HasSuffix(le.Fields.Value(fldName), cn.Value)
+			return strings.HasSuffix(lsf(le.Fields.Value(fldName)), val)
 		}
 	case CMP_LIKE:
 		// test it first
 		_, err := path.Match(cn.Value, "abc")
 		if err != nil {
-			err = fmt.Errorf("Uncompilable 'like' expression for \"%s\", expected a shell pattern (not regexp) err=%s", cn.Value, err.Error())
+			err = fmt.Errorf("uncompilable 'like' expression for \"%s\", expected a shell pattern (not regexp) err=%s", val, err.Error())
 		} else {
 			web.wef = func(le *model.LogEvent) bool {
-				res, _ := path.Match(cn.Value, le.Fields.Value(fldName))
+				res, _ := path.Match(val, lsf(le.Fields.Value(fldName)))
 				return res
 			}
 		}
 	case "=":
 		web.wef = func(le *model.LogEvent) bool {
-			return le.Fields.Value(fldName) == cn.Value
+			return lsf(le.Fields.Value(fldName)) == val
 		}
 	case "!=":
 		web.wef = func(le *model.LogEvent) bool {
-			return le.Fields.Value(fldName) != cn.Value
+			return lsf(le.Fields.Value(fldName)) != val
 		}
 	case ">":
 		web.wef = func(le *model.LogEvent) bool {
-			return le.Fields.Value(fldName) > cn.Value
+			return lsf(le.Fields.Value(fldName)) > val
 		}
 	case "<":
 		web.wef = func(le *model.LogEvent) bool {
-			return le.Fields.Value(fldName) < cn.Value
+			return lsf(le.Fields.Value(fldName)) < val
 		}
 	case ">=":
 		web.wef = func(le *model.LogEvent) bool {
-			return le.Fields.Value(fldName) >= cn.Value
+			return lsf(le.Fields.Value(fldName)) >= val
 		}
 	case "<=":
 		web.wef = func(le *model.LogEvent) bool {
-			return le.Fields.Value(fldName) <= cn.Value
+			return lsf(le.Fields.Value(fldName)) <= val
 		}
 	default:
-		err = fmt.Errorf("Unsupport edoperation \"%s\" for field %s", cn.Op, cn.Operand)
+		err = fmt.Errorf("unsupport edoperation \"%s\" for field %s", cn.Op, fldName)
 	}
 	return err
 }

@@ -157,31 +157,36 @@ func (teb *tagsExpFuncBuilder) buildXCond(xc *XCondition) (err error) {
 }
 
 func (teb *tagsExpFuncBuilder) buildTagCond(cn *Condition) (err error) {
+	tvf, err := buildTagIdent(cn.Ident)
+	if err != nil {
+		return err
+	}
+
 	op := strings.ToUpper(cn.Op)
 	switch op {
 	case "<":
 		teb.tef = func(tags tag.Set) bool {
-			return tags.Tag(cn.Operand) < cn.Value
+			return tvf(tags) < cn.Value
 		}
 	case ">":
 		teb.tef = func(tags tag.Set) bool {
-			return tags.Tag(cn.Operand) > cn.Value
+			return tvf(tags) > cn.Value
 		}
 	case "<=":
 		teb.tef = func(tags tag.Set) bool {
-			return tags.Tag(cn.Operand) <= cn.Value
+			return tvf(tags) <= cn.Value
 		}
 	case ">=":
 		teb.tef = func(tags tag.Set) bool {
-			return tags.Tag(cn.Operand) >= cn.Value
+			return tvf(tags) >= cn.Value
 		}
 	case "!=":
 		teb.tef = func(tags tag.Set) bool {
-			return tags.Tag(cn.Operand) != cn.Value
+			return tvf(tags) != cn.Value
 		}
 	case "=":
 		teb.tef = func(tags tag.Set) bool {
-			return tags.Tag(cn.Operand) == cn.Value
+			return tvf(tags) == cn.Value
 		}
 	case CMP_LIKE:
 		// test it first
@@ -190,24 +195,57 @@ func (teb *tagsExpFuncBuilder) buildTagCond(cn *Condition) (err error) {
 			err = fmt.Errorf("Wrong 'like' expression for %s, err=%s", cn.Value, err.Error())
 		} else {
 			teb.tef = func(tags tag.Set) bool {
-				res, _ := path.Match(cn.Value, tags.Tag(cn.Operand))
+				res, _ := path.Match(cn.Value, tvf(tags))
 				return res
 			}
 		}
 	case CMP_CONTAINS:
 		teb.tef = func(tags tag.Set) bool {
-			return strings.Contains(tags.Tag(cn.Operand), cn.Value)
+			return strings.Contains(tvf(tags), cn.Value)
 		}
 	case CMP_HAS_PREFIX:
 		teb.tef = func(tags tag.Set) bool {
-			return strings.HasPrefix(tags.Tag(cn.Operand), cn.Value)
+			return strings.HasPrefix(tvf(tags), cn.Value)
 		}
 	case CMP_HAS_SUFFIX:
 		teb.tef = func(tags tag.Set) bool {
-			return strings.HasSuffix(tags.Tag(cn.Operand), cn.Value)
+			return strings.HasSuffix(tvf(tags), cn.Value)
 		}
 	default:
-		err = fmt.Errorf("Unsupported operation %s for '%s' tag ", cn.Op, cn.Operand)
+		err = fmt.Errorf("Unsupported operation %s for '%s' identifier ", cn.Op, cn.Ident.String())
 	}
 	return err
+}
+
+type tagValueF func(tags tag.Set) string
+
+func buildTagIdent(id *Identifier) (tagValueF, error) {
+	if len(id.Params) == 0 {
+		return func(tags tag.Set) string {
+			return tags.Tag(id.Operand)
+		}, nil
+	}
+
+	if len(id.Params) != 1 {
+		return nil, fmt.Errorf("the function UPPER() expects, one parameter, but %d provided", len(id.Params))
+	}
+
+	fint, err := buildTagIdent(id.Params[0])
+	if err != nil {
+		return nil, err
+	}
+
+	fn := strings.ToUpper(id.Operand)
+	switch fn {
+	case "UPPER":
+		return func(tags tag.Set) string {
+			return strings.ToUpper(fint(tags))
+		}, nil
+	case "LOWER":
+		return func(tags tag.Set) string {
+			return strings.ToLower(fint(tags))
+		}, nil
+	}
+
+	return nil, fmt.Errorf("unexpected function %s", id.Operand)
 }
