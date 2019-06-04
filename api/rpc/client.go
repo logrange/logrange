@@ -37,7 +37,7 @@ type (
 	}
 )
 
-// NewClient creates new Client for connecting to the server, using the transport config tcfg
+// NewClient creates new rpc.Client for connecting to the server, using the transport config tcfg
 func NewClient(tcfg transport.Config) (*Client, error) {
 	if err := tcfg.Check(); err != nil {
 		return nil, fmt.Errorf("invalid config; %v", err)

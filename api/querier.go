@@ -21,53 +21,74 @@ import (
 
 type (
 
+	// Querier interface allows to perform read operations.
+	Querier interface {
+		// Query runs lql to collect the server data and returns it in the QueryResult.
+		// It returns an error which indicates that the query could not be delivered to
+		// the server. If there is no communication problems, but server could not perform
+		// the query by any reason, the function will return nil, but the server error could
+		// be found in res.Err
+		//
+		// The Query expects res param, where the Query result will be placed (see QueryResult).
+		// The QueryResult contains the data, which is read and the NextQueryRequest field
+		// which value may be used for consecutive read requests. Using res.NextQueryRequest allows
+		// to improve the read performance. Also the res.NextQueryRequest.Pos contains the next
+		// record read position, which could be used for iterating over the result record collection.
+		Query(ctx context.Context, req *QueryRequest, res *QueryResult) error
+	}
+
 	// QueryRequest struct describes a request for reading records
 	QueryRequest struct {
-		// ReqId identifies the request on server side. The field should not be populated by client,
-		// but it can be returned with the structure in QueryResult.
+		// ReqId identifies the request Id on server side. The field should not be populated by client in
+		// its first request, but it can be taken from QueryResult.NextQueryRequest for consecutive
+		// requests.
+		//
+		// The field is helpful when records should be read in order by several consecutive reaquests.
+		// Server could cache some resources to perform the iteration quickly. So the server could return
+		// a value in QueryResult.NextQueryRequest field, which could be provided with the following request.
 		ReqId uint64
 
-		// the LQL line for selecting records
+		// Query contains SELECT statement for reading records. This field contains the request, but
+		// some parameters like POSTION, OFFSET and LIMIT could be overwritten by fields from the QueryResult
 		Query string
 
-		// Pos contains the next read record position.
+		// Pos contains the next read record position. For consecutive batch reading the value
+		// can be taken from the previous request result QueryResult.NextQueryRequest
 		Pos string
 
 		// WaitTimeout in seconds provide waiting new data timeout in case of the request starts from
-		// the EOF. The timout cannot exceed 60 seconds. When the tiemout expires and no data is arrived
-		// response with no data will be returned.
+		// the end of result stream (no records). The timout cannot exceed 60 seconds. When the timeout
+		// expires and no data is arrived response with no data will be returned.
 		WaitTimeout int
 
-		// Offset contains the offset from the current position (either positive or negative)
+		// Offset contains the offset from the current position (either positive or negative). For
+		// batch read it should be set to 0 for non-first request.
 		Offset int
 
 		// Limit defines the maximum number of records which could be read from the sources
 		Limit int
 	}
 
-	// QeryResult is a result returned by the server in a response on LQL execution (see Querier.Query)
+	// QeryResult struct contains the result returned by the server in a response on LQL execution (see Querier.Query)
 	QueryResult struct {
 		// Events slice contains the result of the query execution
 		Events []*LogEvent
+
 		// NextQueryRequest contains the query for reading next porition of events. It makes sense only if Err is
-		// nil
+		// nil.
 		NextQueryRequest QueryRequest
+
 		// Err the operation error. If the Err is nil, the operation successfully executed
 		Err error `json:"-"`
 	}
-
-	// Querier - executes a query agains logrange database
-	Querier interface {
-		// Query runs lql to collect the server data and returns it in the QueryResult. It returns an error which indicates
-		// that the query could not be delivered to the server, or it did not happen.
-		Query(ctx context.Context, req *QueryRequest, res *QueryResult) error
-	}
 )
 
+// String is part of Stringify interface
 func (qr *QueryRequest) String() string {
 	return fmt.Sprintf("{ReqId: %d, Query: %s, Pos: %s, WaitTimeout: %d, Offset: %d, Limit: %d}", qr.ReqId, qr.Query, qr.Pos, qr.WaitTimeout, qr.Offset, qr.Limit)
 }
 
+// String is part of Stringify interface
 func (qres *QueryResult) String() string {
 	return fmt.Sprintf("{Events: %d, NextQueryReq: %s, Err: %v}", len(qres.Events), qres.NextQueryRequest.String(), qres.Err)
 }

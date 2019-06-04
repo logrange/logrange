@@ -17,7 +17,15 @@ package api
 import "context"
 
 type (
-	// ExecResult struct returns in response of the request to execute a LQL query
+	// Admin interface allows to perform some administrative operations.
+	Admin interface {
+		// Execute runs the lql query on the server and provides the execution result
+		// in text form or an error, if the query could not be run. Not all LQL queries
+		// could be support
+		Execute(ctx context.Context, req ExecRequest) (ExecResult, error)
+	}
+
+	// ExecResult struct is used as a response of the request to execute a LQL query
 	ExecResult struct {
 		// Output contains formatted output result of the command execution
 		Output string
@@ -30,12 +38,5 @@ type (
 	ExecRequest struct {
 		// Query contains a LQL statement to be executed
 		Query string
-	}
-
-	// Admin interface allows to perform some administrative actions
-	Admin interface {
-		// Execute runs the lql query on server and provides the execution result or an error, if the query could not be
-		// run
-		Execute(ctx context.Context, req ExecRequest) (ExecResult, error)
 	}
 )

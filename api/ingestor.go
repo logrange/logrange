@@ -18,17 +18,23 @@ import "context"
 
 type (
 
-	// WriteResult struct contains result of Ingestor.Write operation execution.
-	WriteResult struct {
-		Err error
+	// Ingestor provides Wrtie method for sending records into a partition.
+	Ingestor interface {
+		// Write sends events into the partition identified by tags provided. It expects a slice of events and
+		// LogEvent(s) and a pointer to the WriteResult. 'Tags' and 'Fields' fields in LogEvents
+		// are ignored during the writing operation, but tags and fields params will be applied to all of the events.
+		//
+		// The function returns error if any communication problem to the server happens.
+		// If the Write operation could reach the server, but the operation was failed there by any
+		// reason, the res variable will contain the error result from server (res.Err)
+		Write(ctx context.Context, tags, fields string, evs []*LogEvent, res *WriteResult) error
 	}
 
-	// Ingestor provides Wrtie method for sending log data into the storage. This interface is exposed as
-	// a public API
-	Ingestor interface {
-		// Write sends log events into the partition identified by tags provided. It expects a slice of events and
-		// LogEvent(s) and a pointer to the WriteResult. Tags and Fields fields in LogEvents are ignored during the writing operation,
-		// but tags and fields params will be applied to all of the events.
-		Write(ctx context.Context, tags, fields string, evs []*LogEvent, res *WriteResult) error
+	// WriteResult struct contains result of Ingestor.Write operation execution.
+	WriteResult struct {
+		// Err contains the error which happens on the server side. So the Ingestor.Write
+		// call could be successful (no error is returned), but the Err field in res parameter
+		// (see Ingestor.Write) wil be not nil. The error from the server is here.
+		Err error
 	}
 )

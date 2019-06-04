@@ -17,31 +17,38 @@ package api
 import "context"
 
 type (
+	// Pipes allows to manage streams
+	Pipes interface {
+		// Create a new pipe if it doesn't exist. The function will return an error,
+		// if the function could not connet or reach the server by any reason. If the communiction
+		// was ok, but the operation was failed on the server side by any reason, the function
+		// will return nil, but res.Err will contain the server error.
+		EnsurePipe(ctx context.Context, p Pipe, res *PipeCreateResult) error
+	}
+
 	// Pipe struct describes a pipe
 	Pipe struct {
 		// Name contains the pipe name, which must be unique
 		Name string
+
 		// TagsCond contains the condition, which filters sources for the pipe
 		TagsCond string
-		// FilterCond desribes the filtering condition (the events that must be in the pipe)
+
+		// FilterCond desribes the filtering condition. Only events, for which the condition
+		// is true, will be piped
 		FilterCond string
+
 		// Destination contains tags conditions used for the pipe destination. This field is
-		// defined by server, so it is ignored by Create
+		// defined by server, so it is ignored by Pipes.EnsurePipe
 		Destination string
 	}
 
-	// PipeCreateResult struct describes the result of Pipes.Create() function
+	// PipeCreateResult struct describes the result of Pipes.EnsurePipe function
 	PipeCreateResult struct {
 		// Pipe contains created pipe object
 		Pipe Pipe
 
-		// Err the operaion error, if any
+		// Err the operaion error, if any.
 		Err error `json:"-"`
-	}
-
-	// Pipes allows to manage streams
-	Pipes interface {
-		// Create creates a new pipe
-		EnsurePipe(ctx context.Context, p Pipe, res *PipeCreateResult) error
 	}
 )
