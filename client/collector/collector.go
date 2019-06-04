@@ -53,14 +53,17 @@ func Run(ctx context.Context, cfg *scanner.Config, cl api.Client, storg storage.
 				if err != nil {
 					logger.Info("Communication error, retry in ", 5, "sec; cause: ", err)
 					utils.Sleep(ctx, 5*time.Second)
+					continue
 				}
-				if err == nil {
-					if wr.Err != nil {
-						logger.Warn("Error ingesting event=", ev, ", server err=", wr.Err)
-					}
-					ev.Confirm()
-					break
+
+				if wr.Err != nil {
+					logger.Warn("Error ingesting event=", ev, ", server err=", wr.Err)
+					utils.Sleep(ctx, 5*time.Second)
+					continue
 				}
+
+				ev.Confirm()
+				break
 			}
 		}
 	}

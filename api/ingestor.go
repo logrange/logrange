@@ -18,7 +18,7 @@ import "context"
 
 type (
 
-	// Ingestor provides Wrtie method for sending records into a partition.
+	// Ingestor provides Write method for sending records into a partition.
 	Ingestor interface {
 		// Write sends events into the partition identified by tags provided. It expects a slice of events and
 		// LogEvent(s) and a pointer to the WriteResult. 'Tags' and 'Fields' fields in LogEvents

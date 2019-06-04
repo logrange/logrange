@@ -17,7 +17,10 @@ package api
 import "context"
 
 type (
-	// Admin interface allows to perform some administrative operations.
+	// Admin interface allows to perform some administrative operations. The
+	// Execute function accepts a LQL statement and it returns the server response
+	// in the result. For 'SELECT' statement please use Querier interface instead
+	// of the Execute function.
 	Admin interface {
 		// Execute runs the lql query on the server and provides the execution result
 		// in text form or an error, if the query could not be run. Not all LQL queries

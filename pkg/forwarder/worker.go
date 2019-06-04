@@ -90,8 +90,8 @@ func (w *worker) run(ctx context.Context) error {
 
 		res := &api.QueryResult{}
 		err = w.rpcc.Query(ctx, qr, res)
-		if err != nil {
-			w.logger.Error("Failed to execute query=", qr, ", will retry in 5 sec, err=", err)
+		if err != nil || res.Err != nil {
+			w.logger.Error("Failed to execute query=", qr, ", will retry in 5 sec, err=", err, " res=", res)
 			utils.Sleep(ctx, sleepDur)
 			continue
 		}

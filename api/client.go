@@ -18,23 +18,25 @@ type (
 	}
 )
 
-// Select is a helper function which allows to perform group requests to
-// the server. It expects the following params:
-//   ctx  - context for the call. If the context is closed, the function execution
-// 			will be interrupted.
-// 	 querier 	- the Querier implementation.
-// 	 qr	- the query request. It should contain number of records to be read. In
-// 		stream mode, the value is used for batch reading.
-//   streamMode - the flag indicates whether the read should be in stream mode or not
-// 	 handler - the function to serve the record result. It must not be nil
+// Select is a helper function which allows to perform one or many requests to
+// the server. The function supports 2 modes - limited select and stream mode, that
+// are controlled by streamMode flag
 //
-// In stream mode records will be read until the read is interrupted. So the result
-// is not limited at all. In stream mode qr.Limit is used as a parameter for reading
-// the number of records in one batch. So the value should not be big (hundreds or
-// thousands records). When the end of result stream is reached, the function will
-// not be over, but it continues to read records using qr.WaitTimeout value for
-// waiting new records. In stream mode the function is over only when context is
-// closed or an error happens while the query is executed.
+// The limited select is used when streamMode=false. In this mode Select will
+// return requested number of records, or all records whatever is less. The limit must
+// be explicitly set in qr.Limit param, which will overwrite value specified in qr.Query
+//
+// In stream mode records will be read until the Select is interrupted. So the number
+// of records in the result is not limited at all. In stream mode qr.Limit is used
+// as a parameter for reading the number of records in one batch request. So the value
+// should not be big (hundreds or thousands records). When the end of result stream
+// is reached, the function will not be over, but it continues to read records using
+// qr.WaitTimeout value for waiting the new records. In stream mode the function
+// is over only when context is closed or an error happens while the query is executed.
+//
+// The results of read operations will be passed to the handler, a call-back function.
+// Select will call handler any time when it could make a query to the server and there
+// is no communication errors
 //
 // The function returns error if the query was unsuccessful by any reason.
 //

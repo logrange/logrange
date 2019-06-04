@@ -133,7 +133,7 @@ func (c *Client) Query(ctx context.Context, qr *api.QueryRequest, res *api.Query
 		return err
 	}
 
-	return res.Err
+	return nil
 }
 
 func (c *Client) Write(ctx context.Context, tags, fields string, evs []*api.LogEvent, res *api.WriteResult) error {
@@ -151,7 +151,7 @@ func (c *Client) Write(ctx context.Context, tags, fields string, evs []*api.LogE
 		return err
 	}
 
-	return res.Err
+	return nil
 }
 
 func (c *Client) EnsurePipe(ctx context.Context, p api.Pipe, res *api.PipeCreateResult) error {
@@ -168,5 +168,5 @@ func (c *Client) EnsurePipe(ctx context.Context, p api.Pipe, res *api.PipeCreate
 		_ = c.Close()
 	}
 
-	return err
+	return nil
 }
