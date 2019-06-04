@@ -66,7 +66,8 @@ rm -rf ./lrquick/
 
 
 ## Documentation 
-[k8s Installation](https://github.com/logrange/k8s)
+[k8s Installation](https://github.com/logrange/k8s)<br/>
+[The product](https://logrange.io/docs)
 
 ## Getting Help
 - Found a bug or thinking about a new feature? [File an issue](https://github.com/logrange/logrange/issues/new)
