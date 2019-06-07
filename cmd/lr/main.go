@@ -42,7 +42,7 @@ const (
 	argStorageDir    = "storage-dir"
 	argStartAsDaemon = "daemon"
 
-	argQueryStreamMode = "pipe-mode"
+	argQueryStreamMode = "stream-mode"
 )
 
 var (
@@ -114,17 +114,17 @@ func main() {
 				Name:   "shell",
 				Usage:  "Run lql shell",
 				Action: runShell,
-				Flags:  []ucli.Flag{cmnFlags[0]},
+				Flags:  []ucli.Flag{cmnFlags[0], cmnFlags[2]},
 			},
 			{
 				Name:      "query",
 				Usage:     "Execute lql query",
 				Action:    execQuery,
 				ArgsUsage: "[lql query]",
-				Flags: []ucli.Flag{cmnFlags[0],
+				Flags: []ucli.Flag{cmnFlags[0], cmnFlags[2],
 					&ucli.BoolFlag{
 						Name:  argQueryStreamMode,
-						Usage: "enable query pipe mode (blocking)",
+						Usage: "enable query stream mode (blocking)",
 					},
 				},
 			},
@@ -132,8 +132,8 @@ func main() {
 	}
 
 	sort.Sort(ucli.FlagsByName(app.Flags))
-	for _, cmd := range app.Commands {
-		sort.Sort(ucli.FlagsByName(cmd.Flags))
+	for _, c := range app.Commands {
+		sort.Sort(ucli.FlagsByName(c.Flags))
 	}
 
 	if err := app.Run(os.Args); err != nil {
@@ -221,7 +221,7 @@ func runCollector(c *ucli.Context) error {
 	if pfn != "" {
 		pf := cmd.NewPidFile(pfn)
 		if !pf.Lock() {
-			return fmt.Errorf("already running?")
+			return fmt.Errorf("already running")
 		}
 		defer pf.Unlock()
 	}
@@ -275,7 +275,7 @@ func runForwarder(c *ucli.Context) error {
 	if pfn != "" {
 		pf := cmd.NewPidFile(pfn)
 		if !pf.Lock() {
-			return fmt.Errorf("already running?")
+			return fmt.Errorf("already running")
 		}
 		defer pf.Unlock()
 	}

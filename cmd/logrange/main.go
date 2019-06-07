@@ -80,7 +80,7 @@ func main() {
 			},
 			{
 				Name:   "stop",
-				Usage:  "Run logrange service, if it is started",
+				Usage:  "Stop logrange service, if it is started",
 				Action: stopServer,
 				Flags: []cli.Flag{
 					&cli.StringFlag{

@@ -61,7 +61,7 @@ const (
 	cmdQuitName   = "quit"
 	cmdHelpName   = "help"
 
-	optStreamMode = "pipe-mode"
+	optStreamMode = "stream-mode"
 )
 
 var commands = []command{ //replace with language grammar...
@@ -161,7 +161,7 @@ The OFFSET <number> allows to skip the <number> of records starting from the pos
 Default value is 0.
 
 The LIMIT <number> allows to set the number of records in the result returned. 
-It doesn't make sense in pipe-mode=on. Default value is 0
+It doesn't make sense in stream-mode=on. Default value is 0
 `,
 	},
 	"show partitions": {
@@ -191,15 +191,15 @@ known commands if the command is empty.
 `,
 	},
 	cmdSetOptName: {
-		short: "allows to change an option setting. e.g. 'setoption pipe-mode on'",
+		short: "allows to change an option setting. e.g. 'setoption stream-mode on'",
 		long: `SETOPTION has the following syntax:
 
-	SETOPTION pipe-mode (on|off)
+	SETOPTION stream-mode (on|off)
 
-pipe-mode allows to enable (pipe-mode on) or disable (pipe-mode off) the
-streaming mode. In streaming mode records are retrieved until end of the pipe
+stream-mode allows to enable (stream-mode on) or disable (stream-mode off) the
+streaming mode. In streaming mode records are retrieved until end of the stream
 is reached. When the end is reached the read of records will be blocked until
-new records appear in the pipe.
+new records appear.
 `,
 	},
 	cmdQuitName: {
@@ -479,11 +479,11 @@ func setoptFn(_ context.Context, cfg *config) error {
 	val := strings.Trim(strings.ToLower(cfg.optKV[cmdSetOptName]), " ")
 	res := strings.Split(val, " ")
 	if len(res) != 2 {
-		return fmt.Errorf("Unknown option: \"%s\"", val)
+		return fmt.Errorf("unknown option: \"%s\"", val)
 	}
 
 	if res[0] != optStreamMode {
-		return fmt.Errorf("Unknown option name: \"%s\"", res[0])
+		return fmt.Errorf("unknown option name: \"%s\"", res[0])
 	}
 
 	switch res[1] {
@@ -495,7 +495,7 @@ func setoptFn(_ context.Context, cfg *config) error {
 		return fmt.Errorf("unknown value=%v for option=%s", val, optStreamMode)
 	}
 
-	fmt.Sprintf("%s=%s\n\n", optStreamMode, val)
+	fmt.Printf("%s=%s\n\n", optStreamMode, val)
 	return nil
 }
 
