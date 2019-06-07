@@ -142,7 +142,7 @@ func (pp *ppipe) saveState(src string, st cursor.State) error {
 	if err == nil {
 		pd.Pos = pos
 		pd.curId = st.Id
-		pp.svc.psr.savePipeInfo(pp.cfg.Name, pp.partitions)
+		err = pp.svc.psr.savePipeInfo(pp.cfg.Name, pp.partitions)
 	}
 	pp.lock.Unlock()
 	return err
