@@ -93,19 +93,13 @@ func NewParser(cfg *Config) (Parser, error) {
 	case FmtText:
 		p, err = NewLineParser(cfg.File,
 			date.NewDefaultParser(cfg.DateFmts...), cfg.MaxRecSizeBytes)
-		if err == nil {
-			return p, nil
-		}
 	case FmtK8Json:
 		p, err = NewK8sJsonParser(cfg.File, cfg.MaxRecSizeBytes)
-		if err == nil {
-			return p, nil
-		}
 	default:
 		err = fmt.Errorf("unknown parser for data format=%s", cfg.DataFmt)
 	}
 
-	return nil, err
+	return p, err
 }
 
 func newStats(dataFormat DataFormat, fileStats *fileStats) *Stats {
