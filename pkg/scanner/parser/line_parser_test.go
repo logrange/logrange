@@ -35,14 +35,12 @@ func TestParseAndReposition(t *testing.T) {
 
 	pos := make([]int64, 0)
 	rec := make([]*model.Record, 0)
-	for i := 0; i < 10; i++ {
-		if i%2 == 0 {
-			pos = append(pos, lp.GetStreamPos())
-			r, err := lp.NextRecord(context.Background())
-			assert.NoError(t, err)
-			assert.NotNil(t, r)
-			rec = append(rec, r)
-		}
+	for i := 0; i < 10; i += 2 {
+		pos = append(pos, lp.GetStreamPos())
+		r, err := lp.NextRecord(context.Background())
+		assert.NoError(t, err)
+		assert.NotNil(t, r)
+		rec = append(rec, r)
 	}
 
 	for i := 0; i < len(pos); i++ { // shuffle a bit

@@ -50,7 +50,7 @@ var (
 )
 
 // main function is an entry point for 'lr' command. The lr is logrange client, which groups
-// different functionalities in one executable. The functionalities are:
+// different functionality in one executable. The functionality are:
 // 		shell 	- is an interactive CLI to run commands for logrange
 //		forward	- data forwarding functionality. Holds running console, but runs as background process.
 // 		collect - data collection functionality. It scans local files and sends the data to logrange.
@@ -201,8 +201,6 @@ func newCtx() context.Context {
 	return ctx
 }
 
-//===================== collector =====================
-
 func runCollector(c *ucli.Context) error {
 	cfg, err := initCfg(c)
 	if err != nil {
@@ -254,8 +252,6 @@ func stopCollector(c *ucli.Context) error {
 	pf := cmd.NewPidFile(pfn)
 	return pf.Interrupt()
 }
-
-//===================== forwarder =====================
 
 func runForwarder(c *ucli.Context) error {
 	cfg, err := initCfg(c)
@@ -309,8 +305,6 @@ func stopForwarder(c *ucli.Context) error {
 	return pf.Interrupt()
 }
 
-//===================== query =====================
-
 func execQuery(c *ucli.Context) error {
 	log4g.SetLogLevel("", log4g.FATAL)
 	cfg, err := initCfg(c)
@@ -331,8 +325,6 @@ func execQuery(c *ucli.Context) error {
 	defer cli.Close()
 	return shell.Query(newCtx(), query, c.Bool(argQueryStreamMode), cli)
 }
-
-//===================== shell =====================
 
 func runShell(c *ucli.Context) error {
 	log4g.SetLogLevel("", log4g.FATAL)

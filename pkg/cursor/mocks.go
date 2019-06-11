@@ -35,6 +35,10 @@ func (tjp *testItFactory) GetJournals(ctx context.Context, tagsCond *lql.Source,
 	return res, nil
 }
 
+func (tjp *testItFactory) GetJournal(ctx context.Context, src string) (tag.Set, journal.Journal, error) {
+	panic("not supported")
+}
+
 func (tjp *testItFactory) Release(jn string) {
 	if tjp.released == nil {
 		tjp.released = make(map[string]string)

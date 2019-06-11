@@ -29,6 +29,9 @@ type ItFactory interface {
 	// must be released after usage by Release() function
 	GetJournals(ctx context.Context, tagsCond *lql.Source, maxLimit int) (map[tag.Line]journal.Journal, error)
 
+	// GetJournal returns a journal by its source Id
+	GetJournal(ctx context.Context, src string) (tag.Set, journal.Journal, error)
+
 	// Iterator constructs new iterator for partition src. If the tmRange is provided the
 	// iterator can utilize time-index for finding records
 	Itearator(j journal.Journal, tmRange *model.TimeRange) journal.Iterator
@@ -49,6 +52,11 @@ func NewItFactory() ItFactory {
 // GetJournals is part of ItFactory
 func (itf *itfactory) GetJournals(ctx context.Context, tagsCond *lql.Source, maxLimit int) (map[tag.Line]journal.Journal, error) {
 	return itf.Parts.GetJournals(ctx, tagsCond, maxLimit)
+}
+
+// GetJournal is part of ItFactory
+func (itf *itfactory) GetJournal(ctx context.Context, src string) (tag.Set, journal.Journal, error) {
+	return itf.Parts.GetJournal(ctx, src)
 }
 
 // Iterator is part of ItFactory

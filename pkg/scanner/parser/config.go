@@ -35,14 +35,21 @@ func (c *Config) Check() error {
 
 	switch c.DataFmt {
 	case FmtText:
+	case FmtPure:
+		return c.errorIfDateFormats()
 	case FmtK8Json:
-		if len(c.DateFmts) > 0 {
-			return fmt.Errorf("invalid DateFmts=%v, "+
-				"must be empty for DataFmt=%v", c.DateFmts, c.DataFmt)
-		}
+		return c.errorIfDateFormats()
 	default:
 		return fmt.Errorf("unknown DataFmt=%v", c.DataFmt)
 	}
 
+	return nil
+}
+
+func (c *Config) errorIfDateFormats() error {
+	if len(c.DateFmts) > 0 {
+		return fmt.Errorf("invalid DateFmts=%v, "+
+			"must be empty for DataFmt=%v", c.DateFmts, c.DataFmt)
+	}
 	return nil
 }

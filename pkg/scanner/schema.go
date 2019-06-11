@@ -120,7 +120,7 @@ func (sc *SchemaConfig) Check() error {
 	if err != nil {
 		return fmt.Errorf("PathMatcher=%v is invalid; %v", sc.PathMatcher, err)
 	}
-	if sc.DataFormat != parser.FmtK8Json && sc.DataFormat != parser.FmtText {
+	if sc.DataFormat != parser.FmtK8Json && sc.DataFormat != parser.FmtText && sc.DataFormat != parser.FmtPure {
 		return fmt.Errorf("DataFormat is unknown=%v", sc.DataFormat)
 	}
 	return nil

@@ -155,7 +155,7 @@ func TestCKICLoseBlocked(t *testing.T) {
 
 	cki.Close()
 	if time.Now().Sub(tm) < 5*time.Millisecond {
-		t.Fatal("Close was not blocked")
+		t.Fatal("WaitAllJobsDone was not blocked")
 	}
 }
 

@@ -68,7 +68,7 @@ func Run(ctx context.Context, cfg *scanner.Config, cl api.Client, storg storage.
 		}
 	}
 
-	_ = scanr.Close()
+	_ = scanr.WaitAllJobsDone()
 	close(events)
 
 	logger.Info("Shutdown.")

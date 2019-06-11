@@ -63,7 +63,6 @@ func (si *siterator) Get(ctx context.Context) (model.LogEvent, tag.Line, error) 
 }
 
 func (si *siterator) Release() {
-	si.it.Release()
 	si.ready = false
 }
 
