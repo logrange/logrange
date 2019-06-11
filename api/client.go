@@ -54,6 +54,9 @@ func Select(ctx context.Context, querirer Querier, qr *QueryRequest, streamMode 
 		if err != nil {
 			return err
 		}
+		if res.Err != nil {
+			return res.Err
+		}
 
 		if len(res.Events) != 0 {
 			handler(res)
