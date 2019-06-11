@@ -211,12 +211,7 @@ func (s *Service) Write(ctx context.Context, tags string, lit model.Iterator, no
 
 // GetJournals is part of cursor.JournalsProvider
 func (s *Service) GetJournals(ctx context.Context, tagsCond *lql.Source, maxLimit int) (map[tag.Line]journal.Journal, error) {
-	var res map[tag.Line]journal.Journal
-	if maxLimit < 100 {
-		res = make(map[tag.Line]journal.Journal)
-	} else {
-		res = make(map[tag.Line]journal.Journal)
-	}
+	res := make(map[tag.Line]journal.Journal)
 
 	var err1 error
 	err := s.TIndex.Visit(tagsCond, func(tags tag.Set, jrnl string) bool {
@@ -249,6 +244,23 @@ func (s *Service) GetJournals(ctx context.Context, tagsCond *lql.Source, maxLimi
 	}
 
 	return res, err
+}
+
+// GetJournal acquires the journal by its journal Id (jn) or retruns an error if it is not possbile,
+// If no errors returned, the journal must be released by Release() function after usage
+func (s *Service) GetJournal(ctx context.Context, jn string) (tag.Set, journal.Journal, error) {
+	ts, err := s.TIndex.GetJournalTags(jn)
+	if err != nil {
+		return ts, nil, errors.Wrapf(err, "GetJournal(): could not retrieve tags by s.TIndex.GetJournalTags()")
+	}
+
+	j, err := s.Journals.GetOrCreate(ctx, jn)
+	if err != nil {
+		s.TIndex.Release(jn)
+		return ts, nil, errors.Wrapf(err, "GetJournal(): could not create journals s.Journals.GetOrCreate()")
+	}
+
+	return ts, j, nil
 }
 
 // Release releases the partition. Journal must not be used after the call. This is part of cursor.JournalsProvider

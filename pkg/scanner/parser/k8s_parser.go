@@ -105,7 +105,7 @@ func (jp *K8sJsonLogParser) GetStats() *Stats {
 		size = fi.Size()
 	}
 
-	pStat := NewJsonStats()
+	pStat := newStats(FmtK8Json, &fileStats{})
 	pStat.FileStats.Size = size
 	pStat.FileStats.Pos = jp.GetStreamPos()
 	return pStat

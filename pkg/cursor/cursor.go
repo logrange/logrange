@@ -40,6 +40,10 @@ type (
 		// The Query contains the initial query for the cursor.
 		Query string
 
+		// Src allows to overwrite From tags, by specifying the source of partition. If it is nil, the
+		// sources from the Query will be taken
+		Src string
+
 		// Pos indicates the position of the record which must be read next. If it is not empty, it
 		// will be applied to the Query
 		Pos string
@@ -77,15 +81,9 @@ type (
 
 // newCursor creates the new cursor based on the state provided.
 func newCursor(ctx context.Context, state State, itf ItFactory) (*crsr, error) {
-	l, err := lql.ParseLql(state.Query)
-	if err != nil || l.Select == nil {
-		return nil, errors.Wrapf(err, "could not parse lql=%s, expecting select statement", state.Query)
-	}
-	sel := l.Select
-
-	srcs, err := itf.GetJournals(ctx, sel.Source, 50)
+	sel, srcs, err := getSourcesByState(ctx, state, itf)
 	if err != nil {
-		return nil, errors.Wrapf(err, "could not get a list of journals for the query %s", state.Query)
+		return nil, err
 	}
 	if len(srcs) == 0 {
 		return nil, errors.Errorf("no sources for the expression the query %s", state.Query)
@@ -161,6 +159,45 @@ func newCursor(ctx context.Context, state State, itf ItFactory) (*crsr, error) {
 	}
 
 	return cur, nil
+}
+
+// getSourcesByState is a helper function which returns sources and parsed
+// SELECT statement for the cursor state provided. The state can contain Query
+// with a SELECT statement or/and source where the data will be read. If Src field is
+// provided, then FROM part of the SELECT query will be ignored. Query could be
+// empty, this case the source (Src field) will be used.
+func getSourcesByState(ctx context.Context, state State, itf ItFactory) (sel *lql.Select, srcs map[tag.Line]journal.Journal, err error) {
+	if state.Query != "" {
+		l, err1 := lql.ParseLql(state.Query)
+		if err1 != nil {
+			err = errors.Wrapf(err1, "could not parse lql=%s, expecting select statement", state.Query)
+			return
+		}
+
+		if err1 != nil || l.Select == nil {
+			err = errors.Wrapf(err1, "could not parse lql=%s, expecting select statement", state.Query)
+			return
+		}
+
+		sel = l.Select
+		if state.Src == "" {
+			srcs, err = itf.GetJournals(ctx, sel.Source, 50)
+		}
+
+	} else {
+		sel = &lql.Select{}
+	}
+
+	if state.Src != "" {
+		ts, jrnl, err1 := itf.GetJournal(ctx, state.Src)
+		if err1 != nil {
+			err = errors.Wrapf(err1, "could not obtain journal by src=%s for the state=%s", state.Src, state)
+			return
+		}
+		srcs = map[tag.Line]journal.Journal{ts.Line(): jrnl}
+	}
+
+	return
 }
 
 func releaseJournals(itf ItFactory, srcs map[tag.Line]journal.Journal) {
@@ -403,5 +440,5 @@ func (cur *crsr) applyStatePos() error {
 }
 
 func (s State) String() string {
-	return fmt.Sprintf("{Id: %d, Query:\"%s\", Pos:%s}", s.Id, s.Query, s.Pos)
+	return fmt.Sprintf("{Id: %d, Query:\"%s\", Src:%s Pos:%s}", s.Id, s.Query, s.Src, s.Pos)
 }

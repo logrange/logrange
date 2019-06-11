@@ -269,7 +269,7 @@ func (s *Service) notificatior() {
 	}
 }
 
-// getPipesForSource returns list of streams affected by the provided sours. The
+// getPipesForSource returns list of streams affected by the provided sources. The
 // function uses internal cache weCache for fast returning list of streams that correspond
 // to the src. If cache is not filled, it will check all partitions against the tags provided and full-fill the cache
 func (s *Service) getPipesForSource(we *journal2.WriteEvent) []*ppipe {

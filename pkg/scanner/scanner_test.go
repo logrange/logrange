@@ -79,7 +79,7 @@ func TestIntegration(t *testing.T) {
 			}
 		case <-time.After(time.Second):
 			cancel()
-			_ = cl.Close()
+			_ = cl.WaitAllJobsDone()
 
 			close(events)
 			validate(t)

@@ -373,7 +373,7 @@ func (ci *ckindex) releaseRead() {
 	ci.lock.Unlock()
 }
 
-// Close closes the component. It will wait until all active users
+// WaitAllJobsDone closes the component. It will wait until all active users
 // releases the ckindex if needed.
 func (ci *ckindex) Close() error {
 	ci.lock.Lock()

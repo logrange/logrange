@@ -45,6 +45,8 @@ type (
 
 	workers map[string]*worker
 
+	// Scanner struct manages data collecting jobs for sending the data into
+	// Logrange server.
 	Scanner struct {
 		cfg *Config
 
@@ -69,8 +71,8 @@ const (
 	storageKeyName = "scanner.json"
 )
 
-//===================== scanner =====================
-
+// NewScanner creates a new file scanner according the config provided. It returns
+// the pointer to Scanner object, or an error, if any.
 func NewScanner(cfg *Config, storage storage.Storage) (*Scanner, error) {
 	if err := cfg.Check(); err != nil {
 		return nil, fmt.Errorf("invalid config; %v", err)
@@ -98,6 +100,7 @@ func NewScanner(cfg *Config, storage storage.Storage) (*Scanner, error) {
 	return s, nil
 }
 
+// Run starts internal go routines which will scan folders and send the obtained data asynchronously
 func (s *Scanner) Run(ctx context.Context, events chan<- *model.Event) error {
 	s.logger.Info("Running, config=", s.cfg)
 	if err := s.init(ctx, events); err != nil {
@@ -109,7 +112,8 @@ func (s *Scanner) Run(ctx context.Context, events chan<- *model.Event) error {
 	return nil
 }
 
-func (s *Scanner) Close() error {
+// WaitAllJobsDone closes the Scanner object
+func (s *Scanner) WaitAllJobsDone() error {
 	var err error
 	if !utils.WaitWaitGroup(&s.waitWg, time.Minute) {
 		err = errors.New("close timeout")
@@ -141,8 +145,6 @@ func (s *Scanner) setDescs(d descs) {
 	s.descs.Store(d)
 }
 
-//===================== scanner.jobs =====================
-
 func (s *Scanner) runSyncWorkers(ctx context.Context, events chan<- *model.Event) {
 	s.logger.Info("Running sync workers every ", s.cfg.SyncWorkersIntervalSec, " seconds...")
 	ticker := time.NewTicker(time.Second *
@@ -150,9 +152,12 @@ func (s *Scanner) runSyncWorkers(ctx context.Context, events chan<- *model.Event
 
 	s.waitWg.Add(1)
 	go func() {
+		// scan folders periodically until ctx is closed
 		for utils.Wait(ctx, ticker) {
 			s.sync(ctx, events)
 		}
+
+		ticker.Stop()
 		s.logger.Warn("Sync workers stopped.")
 		s.waitWg.Done()
 	}()
@@ -176,8 +181,6 @@ func (s *Scanner) runPersistState(ctx context.Context) {
 	}()
 }
 
-//===================== scanner.workers =====================
-
 func (s *Scanner) syncWorkers(ctx context.Context, ds descs, events chan<- *model.Event) {
 	newWks := make(workers)
 	oldWks := s.workers.Load().(workers)
@@ -197,7 +200,9 @@ func (s *Scanner) syncWorkers(ctx context.Context, ds descs, events chan<- *mode
 		}
 		newWks[id] = w
 	}
-	for id, w := range oldWks { //stop deleted
+
+	//stop deleted
+	for id, w := range oldWks {
 		if _, ok := newWks[id]; !ok {
 			if !w.isStopped() {
 				w.stopOnEOF()
@@ -205,6 +210,7 @@ func (s *Scanner) syncWorkers(ctx context.Context, ds descs, events chan<- *mode
 			}
 		}
 	}
+
 	s.workers.Store(newWks)
 	s.logger.Info("Sync workers is done.")
 }
@@ -268,8 +274,6 @@ func (s *Scanner) getSchema(d *desc) *schema {
 	}
 	return nil
 }
-
-//===================== scanner.descs =====================
 
 func (s *Scanner) mergeDescs(old, new descs) descs {
 	s.logger.Info("Merging descriptors: new#=", len(new), ", old#=", len(old), "...")
@@ -348,8 +352,6 @@ func (s *Scanner) getFilesToScan(paths []string) []string {
 	return utils.RemoveDups(ff)
 }
 
-//===================== scanner.state =====================
-
 func (s *Scanner) loadState() error {
 	s.logger.Info("Loading state from storage=", s.storage)
 	data, err := s.storage.ReadData(storageKeyName)
@@ -383,8 +385,6 @@ func (s *Scanner) persistState() error {
 	return err
 }
 
-//===================== descs =====================
-
 func (ds descs) MarshalJSON() ([]byte, error) {
 	dl := make([]*desc, 0, len(ds))
 	for _, d := range ds {
@@ -407,8 +407,6 @@ func (ds descs) UnmarshalJSON(data []byte) error {
 func (ds descs) String() string {
 	return utils.ToJsonStr(ds)
 }
-
-//===================== desc =====================
 
 func (d *desc) MarshalJSON() ([]byte, error) {
 	type alias desc

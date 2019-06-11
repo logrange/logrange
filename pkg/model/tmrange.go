@@ -14,7 +14,9 @@
 
 package model
 
-import "math"
+import (
+	"math"
+)
 
 type (
 	// TimeRange struct defines a time interval.
@@ -27,6 +29,7 @@ type (
 )
 
 const (
-	MinTimestamp = 0
+	// MinTimestamp contains the minimum nanoseconds value
+	MinTimestamp = int64(-6795364578871345152)
 	MaxTimestamp = math.MaxInt64
 )

@@ -150,7 +150,7 @@ like RANGE ["-1h":"-0.5h"] or only the end one like RANGE [:"-1.5h"]
 The WHERE statement allows to define an exression to filter records. The WHERE statement
 can contain mandatory record fields 'ts' and 'msg' or an optional record fields prefixed 
 by 'fields:'. For example:
-" ... WHERE msg CONTAINS 'ERROR' OR fields.source LIKE 'system*' ... ". 
+" ... WHERE msg CONTAINS 'ERROR' OR fields:source LIKE 'system*' ... ". 
 Default value is "", what matches to any record
 
 The POSITION part defines the starting position where records should be read from 

@@ -51,7 +51,7 @@ func (w *worker) run(ctx context.Context) {
 
 	state, err := w.pp.getState(w.src)
 	if err != nil {
-		w.logger.Error("Could not read state for src=", w.src, " tags=", w.srcTags, ". game is over.")
+		w.logger.Error("Could not read state for src=", w.src, ", tags=", w.srcTags, ", game is over.")
 		return
 	}
 
@@ -83,7 +83,7 @@ func (w *worker) run(ctx context.Context) {
 		werrs = 1
 
 		if err = w.pp.saveState(w.src, cur.State(ctx)); err != nil {
-			w.logger.Error("Could not save the existing state, may be deleted?")
+			w.logger.Error("Could not save the existing state, may be deleted? err=", err)
 			break
 		}
 

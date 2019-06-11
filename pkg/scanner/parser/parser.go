@@ -67,6 +67,7 @@ type (
 )
 
 const (
+	FmtPure   DataFormat = "pure"
 	FmtText   DataFormat = "text"
 	FmtK8Json DataFormat = "k8json"
 )
@@ -75,8 +76,7 @@ const (
 	unknownDateFmtName = "_%_unknown_%_"
 )
 
-//===================== Parser =====================
-
+// NewParser creates new parser based on the type the parser specified in cfg.DataFmt.
 func NewParser(cfg *Config) (Parser, error) {
 	if err := cfg.Check(); err != nil {
 		return nil, fmt.Errorf("invalid config; %v", err)
@@ -88,32 +88,18 @@ func NewParser(cfg *Config) (Parser, error) {
 	)
 
 	switch cfg.DataFmt {
+	case FmtPure:
+		p, err = NewPureParser(cfg.File, cfg.MaxRecSizeBytes)
 	case FmtText:
 		p, err = NewLineParser(cfg.File,
 			date.NewDefaultParser(cfg.DateFmts...), cfg.MaxRecSizeBytes)
-		if err == nil {
-			return p, nil
-		}
 	case FmtK8Json:
 		p, err = NewK8sJsonParser(cfg.File, cfg.MaxRecSizeBytes)
-		if err == nil {
-			return p, nil
-		}
 	default:
 		err = fmt.Errorf("unknown parser for data format=%s", cfg.DataFmt)
 	}
 
-	return nil, err
-}
-
-//===================== Stats =====================
-
-func NewTxtStats() *Stats {
-	return newStats(FmtText, &fileStats{})
-}
-
-func NewJsonStats() *Stats {
-	return newStats(FmtK8Json, &fileStats{})
+	return p, err
 }
 
 func newStats(dataFormat DataFormat, fileStats *fileStats) *Stats {
@@ -124,6 +110,7 @@ func newStats(dataFormat DataFormat, fileStats *fileStats) *Stats {
 	return pStats
 }
 
+// Update adds 1 hit to the date format statistic
 func (s *Stats) Update(dFmt *date.Format) {
 	name := unknownDateFmtName
 	if dFmt != nil {
@@ -132,8 +119,7 @@ func (s *Stats) Update(dFmt *date.Format) {
 	s.FmtStats.hits[name]++
 }
 
-//===================== fmtStats =====================
-
+// Count returns the number of total, successful and failed all formats hits
 func (fs *fmtStats) Count() (int64, int64, int64) {
 	total := int64(0)
 	for _, v := range fs.hits {
@@ -143,10 +129,12 @@ func (fs *fmtStats) Count() (int64, int64, int64) {
 	return total, total - failed, failed
 }
 
+// Copy makes a copy of the object
 func (fs *fmtStats) Copy() *fmtStats {
 	return &fmtStats{fs.Hits()}
 }
 
+// Hits returns the statistic by format hits
 func (fs *fmtStats) Hits() map[string]int64 {
 	hitsCopy := make(map[string]int64)
 	for k, v := range fs.hits {
