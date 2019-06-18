@@ -271,6 +271,7 @@ func (ims *inmemService) visitWaitingIfLocked(tef lql.TagsExpFunc, vf VisitorF, 
 	}
 	ims.lock.Unlock()
 
+	maxIdx := 0
 L1:
 	for i, v := range vstd {
 		skip := true
@@ -305,13 +306,15 @@ L1:
 		if visitFlags&VF_DO_NOT_RELEASE != 0 {
 			vstd[i] = nil
 		}
+		maxIdx = i
 		if !cont {
 			break
 		}
 	}
 
 	ims.lock.Lock()
-	for _, v := range vstd {
+	for i := 0; i <= maxIdx; i++ {
+		v := vstd[i]
 		if v != nil {
 			v.readers--
 		}
