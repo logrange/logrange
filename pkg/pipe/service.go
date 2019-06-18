@@ -136,9 +136,9 @@ func (s *Service) Shutdown() {
 	s.logger.Info("Shutdown(): done with all workers")
 }
 
-// EnsurePipe checks whether the pipe exists and it creates the new one if it does not.
+// EnsurePipe checks whether the pipe exists. It will create the new one if it does not exist.
 // The function will return an error if there is a pipe with the name provided, but
-// its conditions are different than in st
+// with another settings, than p
 func (s *Service) EnsurePipe(p Pipe) (PipeDesc, error) {
 	for i := 0; i < 2; i++ {
 		p1, err := s.GetPipe(p.Name)

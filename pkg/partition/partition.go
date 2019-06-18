@@ -222,13 +222,12 @@ func (s *Service) GetJournals(ctx context.Context, tagsCond *lql.Source, maxLimi
 			return false
 		}
 
+		// keep the journal in result map
+		res[tags.Line()] = j
 		if len(res) == maxLimit {
-			s.TIndex.Release(jrnl)
 			err1 = errors.Errorf("Limit exceeds. Expected no more than %d journals, but at least %d alredy found ", maxLimit, maxLimit+1)
 			return false
 		}
-
-		res[tags.Line()] = j
 
 		return true
 	}, tindex.VF_DO_NOT_RELEASE)
