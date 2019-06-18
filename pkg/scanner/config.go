@@ -30,6 +30,7 @@ type (
 		StateStoreIntervalSec  int
 		RecordMaxSizeBytes     int
 		EventMaxRecords        int
+		StopWhenNoData         bool
 		Schemas                []*SchemaConfig
 	}
 )

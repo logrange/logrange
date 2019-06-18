@@ -25,8 +25,10 @@ import (
 	"github.com/logrange/logrange/client/forwarder"
 	"github.com/logrange/logrange/client/shell"
 	"github.com/logrange/logrange/cmd"
+	"github.com/logrange/logrange/pkg/scanner/parser"
 	"github.com/logrange/logrange/pkg/storage"
 	"github.com/logrange/logrange/pkg/utils"
+	"github.com/logrange/logrange/pkg/utils/kvstring"
 	"github.com/logrange/range/pkg/utils/fileutil"
 	ucli "gopkg.in/urfave/cli.v2"
 	"os"
@@ -41,6 +43,11 @@ const (
 	argServerAddr    = "server-addr"
 	argStorageDir    = "storage-dir"
 	argStartAsDaemon = "daemon"
+
+	argCltrInclude          = "files"
+	argCltrParser           = "format"
+	argCltrExistingDataOnly = "no-new-data"
+	argCltrTags             = "tags"
 
 	argQueryStreamMode = "stream-mode"
 )
@@ -77,9 +84,29 @@ func main() {
 		},
 		&ucli.BoolFlag{
 			Name:  argStartAsDaemon,
-			Usage: "starting collector or forwarder as daemon (detached from the console)",
+			Usage: "starting as a daemon (detached from the console).",
 		},
 	}
+
+	collectorFlags := []ucli.Flag{
+		&ucli.StringSliceFlag{
+			Name:  argCltrInclude,
+			Usage: "files pattern that should be scanned e.g. \"/var/log/*.log\",\"/var/log/*/*.log\"",
+		},
+		&ucli.StringFlag{
+			Name:  argCltrParser,
+			Usage: "data format, one of: \"pure\", \"text\" or \"k8json\"",
+		},
+		&ucli.BoolFlag{
+			Name:  argCltrExistingDataOnly,
+			Usage: "exit from the collector when all the data is sent to the server",
+		},
+		&ucli.StringFlag{
+			Name:  argCltrTags,
+			Usage: "exit from the collector when all the data is sent to the server",
+		},
+	}
+	collectorFlags = append(collectorFlags, cmnFlags...)
 
 	app := &ucli.App{
 		Name:    "lr",
@@ -87,34 +114,39 @@ func main() {
 		Usage:   "Logrange client",
 		Commands: []*ucli.Command{
 			{
-				Name:   "collect",
-				Usage:  "Run data collection",
-				Action: runCollector,
-				Flags:  cmnFlags,
+				Name:      "collect",
+				Usage:     "Run data collection",
+				UsageText: "lr collect [command options]",
+				Action:    runCollector,
+				Flags:     collectorFlags,
 			},
 			{
-				Name:   "forward",
-				Usage:  "Run data forwarding",
-				Action: runForwarder,
-				Flags:  cmnFlags,
+				Name:      "forward",
+				Usage:     "Run data forwarding",
+				UsageText: "lr forward [command options]",
+				Action:    runForwarder,
+				Flags:     cmnFlags,
 			},
 			{
-				Name:   "stop-collect",
-				Usage:  "Stop data collection",
-				Action: stopCollector,
-				Flags:  []ucli.Flag{cmnFlags[1], cmnFlags[2]},
+				Name:      "stop-collect",
+				Usage:     "Stop data collection",
+				Action:    stopCollector,
+				UsageText: "lr stop-collect [command options]",
+				Flags:     []ucli.Flag{cmnFlags[1], cmnFlags[2]},
 			},
 			{
-				Name:   "stop-forward",
-				Usage:  "Stop data forwarding",
-				Action: stopForwarder,
-				Flags:  []ucli.Flag{cmnFlags[1], cmnFlags[2]},
+				Name:      "stop-forward",
+				Usage:     "Stop data forwarding",
+				Action:    stopForwarder,
+				UsageText: "lr stop-forward [command options]",
+				Flags:     []ucli.Flag{cmnFlags[1], cmnFlags[2]},
 			},
 			{
-				Name:   "shell",
-				Usage:  "Run lql shell",
-				Action: runShell,
-				Flags:  []ucli.Flag{cmnFlags[0], cmnFlags[2]},
+				Name:      "shell",
+				Usage:     "Run lql shell",
+				UsageText: "lr shell [command options]",
+				Action:    runShell,
+				Flags:     []ucli.Flag{cmnFlags[0], cmnFlags[2]},
 			},
 			{
 				Name:      "query",
@@ -165,8 +197,8 @@ func initCfg(c *ucli.Context) (*client.Config, error) {
 		cfg.Apply(config)
 	}
 
-	applyArgsToCfg(c, cfg)
-	return cfg, nil
+	err = applyArgsToCfg(c, cfg)
+	return cfg, err
 }
 
 // pidFileName returns the name of file, where the client process pid will be stored
@@ -182,14 +214,47 @@ func pidFileName(cname string, cfg *client.Config) string {
 	return path.Join(cfg.Storage.Location, cname+".pid")
 }
 
-func applyArgsToCfg(c *ucli.Context, cfg *client.Config) {
+func applyArgsToCfg(c *ucli.Context, cfg *client.Config) error {
 	if sa := c.String(argServerAddr); sa != "" {
+		fmt.Println("server address is ", sa)
 		cfg.Transport.ListenAddr = sa
 	}
+
 	if sd := c.String(argStorageDir); sd != "" {
+		fmt.Println("storage location overwritten to ", sd)
 		cfg.Storage.Type = storage.TypeFile
 		cfg.Storage.Location = sd
 	}
+
+	// Collector settings
+	if incPath := c.StringSlice(argCltrInclude); len(incPath) > 0 {
+		fmt.Println("include path overwritten ", incPath)
+		cfg.Collector.IncludePaths = incPath
+	}
+
+	if parserFmt := c.String(argCltrParser); parserFmt != "" {
+		df, err := parser.ToDataFormat(parserFmt)
+		if err != nil {
+			return err
+		}
+		fmt.Println("data format overwritten ", parserFmt)
+		cfg.Collector.Schemas[0].DataFormat = df
+	}
+
+	if stopWhenEof := c.Bool(argCltrExistingDataOnly); stopWhenEof {
+		fmt.Println("will stop when all data is sent ")
+		cfg.Collector.StopWhenNoData = true
+	}
+
+	if tags := c.String(argCltrTags); len(tags) > 0 {
+		mp, err := kvstring.ToMap(tags)
+		if err != nil {
+			return err
+		}
+		fmt.Println("will use tags ", mp)
+		cfg.Collector.Schemas[0].Meta.Tags = mp
+	}
+	return nil
 }
 
 func newCtx() context.Context {
@@ -214,6 +279,10 @@ func runCollector(c *ucli.Context) error {
 		}
 		res := cmd.RemoveArgsWithName(os.Args[1:], argStartAsDaemon)
 		return cmd.RunCommand(os.Args[0], res...)
+	}
+
+	if c.Args().Len() > 0 {
+		return fmt.Errorf("no arguments expected, but %s", c.Args())
 	}
 
 	if pfn != "" {
@@ -244,6 +313,10 @@ func stopCollector(c *ucli.Context) error {
 		return err
 	}
 
+	if c.Args().Len() > 0 {
+		return fmt.Errorf("no arguments expected, but %s", c.Args())
+	}
+
 	pfn := pidFileName("collector", cfg)
 	if pfn == "" {
 		return fmt.Errorf("could not determine collector pid, the configuration doesn't have permanent storage, in-mem only")
@@ -257,6 +330,10 @@ func runForwarder(c *ucli.Context) error {
 	cfg, err := initCfg(c)
 	if err != nil {
 		return err
+	}
+
+	if c.Args().Len() > 0 {
+		return fmt.Errorf("no arguments expected, but %s", c.Args())
 	}
 
 	pfn := pidFileName("forwarder", cfg)
@@ -296,6 +373,10 @@ func stopForwarder(c *ucli.Context) error {
 		return err
 	}
 
+	if c.Args().Len() > 0 {
+		return fmt.Errorf("no arguments expected, but %s", c.Args())
+	}
+
 	pfn := pidFileName("forwarder", cfg)
 	if pfn == "" {
 		return fmt.Errorf("could not determine forwarder pid, the configuration doesn't have permanent storage, in-mem only")
@@ -331,6 +412,10 @@ func runShell(c *ucli.Context) error {
 	cfg, err := initCfg(c)
 	if err != nil {
 		return err
+	}
+
+	if c.Args().Len() > 0 {
+		return fmt.Errorf("no arguments expected, but %s", c.Args())
 	}
 
 	cli, err := client.NewClient(*cfg.Transport)

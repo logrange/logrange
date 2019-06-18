@@ -20,6 +20,7 @@ import (
 	"github.com/logrange/logrange/pkg/scanner/model"
 	"github.com/logrange/logrange/pkg/scanner/parser/date"
 	"io"
+	"strings"
 )
 
 type (
@@ -75,6 +76,20 @@ const (
 const (
 	unknownDateFmtName = "_%_unknown_%_"
 )
+
+func ToDataFormat(str string) (DataFormat, error) {
+	str = strings.ToLower(strings.Trim(str, " "))
+	df := DataFormat(str)
+	var err error
+	switch df {
+	case FmtPure:
+	case FmtText:
+	case FmtK8Json:
+	default:
+		err = fmt.Errorf("unknown date format \"%s\", expecting \"%s\", \"%s\" or \"%s\"", str, FmtPure, FmtText, FmtK8Json)
+	}
+	return df, err
+}
 
 // NewParser creates new parser based on the type the parser specified in cfg.DataFmt.
 func NewParser(cfg *Config) (Parser, error) {
