@@ -82,7 +82,8 @@ func (w *worker) run(ctx context.Context) {
 		}
 		werrs = 1
 
-		if err = w.pp.saveState(w.src, cur.State(ctx)); err != nil {
+		cs := cur.State(ctx)
+		if err = w.pp.saveState(w.src, cs); err != nil {
 			w.logger.Error("Could not save the existing state, may be deleted? err=", err)
 			break
 		}
@@ -92,7 +93,7 @@ func (w *worker) run(ctx context.Context) {
 			ctxWait, _ := context.WithTimeout(ctx, 10*time.Second)
 			err = cur.WaitNewData(ctxWait)
 			if err != nil {
-				w.logger.Debug("Time is out or context is closed")
+				w.logger.Debug("Time is out or context is closed, last known state is ", cs)
 				break
 			}
 			w.logger.Trace("awaken")

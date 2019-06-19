@@ -271,7 +271,7 @@ func (ims *inmemService) visitWaitingIfLocked(tef lql.TagsExpFunc, vf VisitorF, 
 	}
 	ims.lock.Unlock()
 
-	maxIdx := 0
+	maxIdx := -1
 L1:
 	for i, v := range vstd {
 		skip := true
