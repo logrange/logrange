@@ -248,7 +248,7 @@ func (s *Service) GetJournals(ctx context.Context, tagsCond *lql.Source, maxLimi
 // GetJournal acquires the journal by its journal Id (jn) or retruns an error if it is not possbile,
 // If no errors returned, the journal must be released by Release() function after usage
 func (s *Service) GetJournal(ctx context.Context, jn string) (tag.Set, journal.Journal, error) {
-	ts, err := s.TIndex.GetJournalTags(jn)
+	ts, err := s.TIndex.GetJournalTags(jn, true)
 	if err != nil {
 		return ts, nil, errors.Wrapf(err, "GetJournal(): could not retrieve tags by s.TIndex.GetJournalTags()")
 	}
@@ -528,7 +528,7 @@ func (s *Service) truncateGlobally(ctx context.Context, sortedInfos []*TruncateI
 	for i := 0; i < len(sortedInfos) && ts > tp.MaxDBSize; i++ {
 		ti := sortedInfos[i]
 		if ti.AfterSize > 0 {
-			_, err := s.TIndex.GetJournalTags(ti.Src)
+			_, err := s.TIndex.GetJournalTags(ti.Src, true)
 			if err != nil {
 				s.logger.Warn("Could not acquire journal ", ti.Src, " for deletion err=", err)
 				continue

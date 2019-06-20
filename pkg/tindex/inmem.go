@@ -108,8 +108,8 @@ func (ims *inmemService) GetJournal(tags string) (string, tag.Set, error) {
 }
 
 // GetJournalTags acquires the src and returns its Tags, if it is found. If no
-// error, the src must be released after usage.
-func (ims *inmemService) GetJournalTags(src string) (ts tag.Set, err error) {
+// error, and lock == true, the src must be released after usage. No release is needed if lock == false
+func (ims *inmemService) GetJournalTags(src string, lock bool) (ts tag.Set, err error) {
 	for {
 		ims.lock.Lock()
 		if ims.done {
@@ -125,7 +125,7 @@ func (ims *inmemService) GetJournalTags(src string) (ts tag.Set, err error) {
 
 		ts = td.tags
 		locked := !td.exclusive
-		if locked {
+		if locked && lock {
 			td.readers++
 		}
 		ims.lock.Unlock()
@@ -449,7 +449,7 @@ func (ims *inmemService) checkConsistency(ctx context.Context) error {
 	})
 
 	if len(km) > 0 {
-		ims.logger.Warn("tindex contains %d records, which don't have corresponding journals")
+		ims.logger.Warn("tindex contains ", len(km), " records, which don't have corresponding journals")
 	}
 
 	if fail {

@@ -41,9 +41,9 @@ type (
 		logger  log4g.Logger
 		clsCtx  context.Context
 		cancelF context.CancelFunc
+		deleted bool
 
 		// the map contains state of all partitions that affected the pipe somehow.
-		// TODO how we are going to clean it up when a partition is removed?
 		partitions map[string]*ppDesc
 	}
 
@@ -123,8 +123,35 @@ func (pp *ppipe) getState(src string) (cursor.State, error) {
 	return res, nil
 }
 
+// cleanPartitions walks through partitions and removes all that doesn't exist anymore
+func (pp *ppipe) cleanPartitions() {
+	pp.lock.Lock()
+	defer pp.lock.Unlock()
+
+	if pp.deleted {
+		return
+	}
+
+	removed := 0
+	for src := range pp.partitions {
+		_, err := pp.svc.Journals.TIndex.GetJournalTags(src, false)
+		if err == errors2.NotFound {
+			delete(pp.partitions, src)
+			removed++
+		}
+	}
+
+	if removed > 0 {
+		pp.logger.Debug("cleanPartitions(): ", removed, " partitions were removed from the pipe settings ")
+		pp.svc.psr.savePipeInfo(pp.cfg.Name, pp.partitions)
+	}
+}
+
 // delete is the signal to delete the pipe and all metadata associated with it.
 func (pp *ppipe) delete() {
+	pp.lock.Lock()
+	pp.deleted = true
+	pp.lock.Unlock()
 	pp.cancelF()
 	pp.svc.psr.onDeleteStream(pp.cfg.Name)
 }

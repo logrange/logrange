@@ -126,7 +126,7 @@ func (tir *tmirebuilder) doneWorker() {
 }
 
 func (tir *tmirebuilder) serve(src string, cid chunk.Id, force bool) {
-	_, err := tir.parts.TIndex.GetJournalTags(src)
+	_, err := tir.parts.TIndex.GetJournalTags(src, true)
 	if err != nil {
 		tir.logger.Warn("Could not acquire partition ", src, ", the err=", err)
 		return

@@ -27,6 +27,7 @@ import (
 	errors2 "github.com/pkg/errors"
 	"sort"
 	"sync"
+	"time"
 )
 
 type (
@@ -117,6 +118,7 @@ func (s *Service) Init(ctx context.Context) error {
 	s.logger.Info(len(ppipes), " pipe(s) were created.")
 
 	go s.notificatior()
+	go s.pipesCleaner(10 * time.Minute)
 
 	err = s.ensurePipesAtStart()
 	if err != nil {
@@ -279,6 +281,31 @@ func (s *Service) notificatior() {
 		pps := s.getPipesForSource(&we)
 		for _, pp := range pps {
 			pp.onWriteEvent(&we)
+		}
+	}
+}
+
+// pipesCleaner must be run in a dedicated go-routine to schedule cleaning jobs for every pipe known.
+func (s *Service) pipesCleaner(to time.Duration) {
+	s.logger.Info("Entering pipesCleaner()")
+	defer s.logger.Info("Leaving pipesCleaner() ")
+
+	for {
+		s.lock.Lock()
+		pp := make([]*ppipe, 0, len(s.ppipes))
+		for _, p := range s.ppipes {
+			pp = append(pp, p)
+		}
+		s.lock.Unlock()
+
+		for _, p := range pp {
+			p.cleanPartitions()
+		}
+
+		select {
+		case <-s.closedCh:
+			return
+		case <-time.After(to):
 		}
 	}
 }

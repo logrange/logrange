@@ -33,8 +33,10 @@ type (
 		GetJournal(tags string) (string, tag.Set, error)
 
 		// GetJournalTags returns the journal Tags combination by its name. If the result
-		// is returned with no error, the JournalName MUST be released using the Release method later
-		GetJournalTags(src string) (tag.Set, error)
+		// is returned with no error, and the lock == true, the journal src MUST be released
+		// using the Release method later. If lock == false either an error happens or not
+		// the source must not be released.
+		GetJournalTags(src string, lock bool) (tag.Set, error)
 
 		// Visit walks over the tags-sources that corresponds to the srcCond. VF_SKIP_IF_LOCKED allows to skip the source if it
 		// is locked. If VF_SKIP_IF_LOCKED is not set, the Visit will wait until the source become available or removed.
