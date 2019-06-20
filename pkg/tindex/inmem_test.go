@@ -354,7 +354,7 @@ func TestGetJournalByName(t *testing.T) {
 	}
 
 	src, _, _ := ims.GetOrCreateJournal(tags.String())
-	t2, err := ims.GetJournalTags(src)
+	t2, err := ims.GetJournalTags(src, true)
 	if err != nil || t2.String() != tags.String() {
 		t.Fatal("should be  acquired ok, but err=", err, ", t2=", t2)
 	}
@@ -370,7 +370,7 @@ func TestGetJournalByName(t *testing.T) {
 
 	var end int64
 	go func() {
-		_, err := ims.GetJournalTags(src)
+		_, err := ims.GetJournalTags(src, true)
 		if err != nil {
 			t.Fatal("must be acquired no problem!")
 		}
