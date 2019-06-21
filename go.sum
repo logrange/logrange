@@ -54,6 +54,8 @@ github.com/logrange/range v0.0.0-20190603234539-0b673d0300dc h1:2SgFo/vf4U5/KhVB
 github.com/logrange/range v0.0.0-20190603234539-0b673d0300dc/go.mod h1:cgzOk0zWxLN70Lj7U52x1++l12SnmYqe6WlCuIa0Dco=
 github.com/logrange/range v0.0.0-20190619081627-0874ab86dd42 h1:Y6HNMFKGKQSJnk8gb/3WNIGDCYj51WLcO7XmRs1aPW4=
 github.com/logrange/range v0.0.0-20190619081627-0874ab86dd42/go.mod h1:cgzOk0zWxLN70Lj7U52x1++l12SnmYqe6WlCuIa0Dco=
+github.com/logrange/range v0.0.0-20190621064142-ba348b8545e2 h1:J9bz3g3KpJayHiFLs0AD61/PT6BERGi6ZustGqauq9s=
+github.com/logrange/range v0.0.0-20190621064142-ba348b8545e2/go.mod h1:cgzOk0zWxLN70Lj7U52x1++l12SnmYqe6WlCuIa0Dco=
 github.com/mattn/go-runewidth v0.0.3 h1:a+kO+98RDGEfo6asOGMmpodZq4FNtnGP54yps8BzLR4=
 github.com/mattn/go-runewidth v0.0.3/go.mod h1:LwmH8dsx7+W8Uxz3IHJYH5QSwggIsqBzpuz5H//U1FU=
 github.com/matttproud/golang_protobuf_extensions v1.0.1/go.mod h1:D8He9yQNgCq6Z5Ld7szi9bcBfOoFv/3dc6xSMkL2PC0=
