@@ -109,12 +109,12 @@ For example, the template "Record content: {msg}\n" will put the prefix
 "Record content: " before each record's message. The following variables
 could be used in the template string:
 	ts			- record's timestamp
-	ts.<format> - record's timestamp formatted according the <format> (see GoLang time formatting)
+	ts.format(<format>) - record's timestamp formatted according the <format> (see GoLang time formatting)
 	msg 		- record's message
 	msg.json 	- record's message escaped and placed in double quotes
 	vars		- record's tags and optional fields put together
 	vars:<name> - record's field or tag value given by the name provided.
-For example: "{ts:2006-01-02} {vars:source} {{{msg}{}"
+For example: "{ts.format(2006-01-02)} {vars:source} {{{msg}{}"
 Default value is "{msg}\n"
 
 The FROM statement allows to define partitions where records will come from. The

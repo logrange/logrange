@@ -117,5 +117,4 @@ func (tti *tstTsIndexer) ReadData(src string, cid chunk.Id) ([]tmindex.IdxRecord
 }
 func (tti *tstTsIndexer) Count(src string, cid chunk.Id) (int, error)                              { return 0, nil }
 func (tti *tstTsIndexer) RebuildIndex(ctx context.Context, src string, ck chunk.Chunk, force bool) {}
-
-func (tti *tstTsIndexer) VisitSources(visitor func(src string) bool) {}
+func (tti *tstTsIndexer) VisitSources(visitor func(src string) bool)                               {}
