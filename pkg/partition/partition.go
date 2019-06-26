@@ -145,6 +145,7 @@ func NewService() *Service {
 // Init is part of linker.Initializer
 func (s *Service) Init(ctx context.Context) error {
 	s.tmir = newTmirebuilder(s, 10)
+	go s.cleanupTsIndex(15*time.Second, time.Minute)
 	return nil
 }
 
@@ -372,6 +373,7 @@ func (s *Service) GetParitionInfo(tags string) (PartitionInfo, error) {
 	res.Chunks = make([]*ChunkInfo, len(sc))
 	sz := uint64(0)
 	tr := uint64(0)
+
 	for i, c := range sc {
 		ci := new(ChunkInfo)
 		ci.Id = c.Id
@@ -671,6 +673,47 @@ func (s *Service) onWriteCIndex(src string, iw *iwrapper, n int, pos journal.Pos
 	if err == tmindex.ErrTmIndexCorrupted {
 		// if no time-index kick the rebuilder to make it
 		s.tmir.RebuildIndex(src, ri.Id, false)
+	}
+}
+
+func (s *Service) cleanupTsIndex(startTo, to time.Duration) {
+	s.logger.Info("Entering cleanupTsIndex(). startTo=", startTo, ", to=", to)
+	defer s.logger.Info("Leaving cleanupTsIndex() ")
+
+	select {
+	case <-s.MainCtx.Done():
+		return
+	case <-time.After(startTo):
+	}
+
+	for {
+		s.TsIndexer.VisitSources(func(src string) bool {
+			_, err := s.TIndex.GetJournalTags(src, true)
+			cks := chunk.Chunks{}
+			if err == nil {
+				defer s.TIndex.Release(src)
+				jrnl, err := s.Journals.GetOrCreate(s.MainCtx, src)
+				if err == nil {
+					cks, err = jrnl.Chunks().Chunks(s.MainCtx)
+					if err != nil {
+						s.logger.Warn("cleanupTsIndex(): could not get chunks for src=", src, " err=", err)
+					}
+				} else {
+					s.logger.Warn("cleanupTsIndex(): could not get or create journal for src=", src, " removing all indexes err=", err)
+				}
+			} else {
+				s.logger.Debug("cleanupTsIndex(): got an error for src=", src, " removing all indexes err=", err)
+			}
+
+			s.TsIndexer.SyncChunks(s.MainCtx, src, cks)
+			return s.MainCtx.Err() == nil
+		})
+
+		select {
+		case <-s.MainCtx.Done():
+			return
+		case <-time.After(to):
+		}
 	}
 }
 

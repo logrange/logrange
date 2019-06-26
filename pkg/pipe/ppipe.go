@@ -123,11 +123,16 @@ func (pp *ppipe) getState(src string) (cursor.State, error) {
 	return res, nil
 }
 
-// cleanPartitions walks through partitions and removes all that doesn't exist anymore
+// cleanPartitions calls cleanPartitionsUnsafe() holding lock
 func (pp *ppipe) cleanPartitions() {
 	pp.lock.Lock()
 	defer pp.lock.Unlock()
 
+	pp.cleanPartitionsUnsafe()
+}
+
+// cleanPartitionsUnsafe walks through partitions and removes all that doesn't exist anymore
+func (pp *ppipe) cleanPartitionsUnsafe() {
 	if pp.deleted {
 		return
 	}
@@ -179,6 +184,8 @@ func (pp *ppipe) workerDone(w *worker) {
 	defer pp.svc.wwg.Done()
 
 	pp.lock.Lock()
+	// when a worker is over, let's check partitions to prevent looping on deleted ones...
+	pp.cleanPartitionsUnsafe()
 	pd, ok := pp.partitions[w.src]
 	if !ok {
 		pp.logger.Warn("workerDone(): Could not find the descriptor for src=", w.src, ". Deleted? Leaving as is...")

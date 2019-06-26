@@ -24,7 +24,7 @@ import (
 type (
 	// TmIndexRebuilder allows to send requests for rebuilding corrupted time index data
 	TmIndexRebuilder interface {
-		// RebuildIndex sends request for rebuilding time index. It works asynchronusly
+		// RebuildIndex sends request for rebuilding time index. It works asynchronously
 		// and should not block the go-routine
 		// if force is true the index will be rebuilt even if it is alive
 		RebuildIndex(src string, cid chunk.Id, force bool)

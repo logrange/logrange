@@ -36,6 +36,7 @@ type (
 		// is returned with no error, and the lock == true, the journal src MUST be released
 		// using the Release method later. If lock == false either an error happens or not
 		// the source must not be released.
+		// The function returns NotFound if the source is not found
 		GetJournalTags(src string, lock bool) (tag.Set, error)
 
 		// Visit walks over the tags-sources that corresponds to the srcCond. VF_SKIP_IF_LOCKED allows to skip the source if it

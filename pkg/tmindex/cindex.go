@@ -122,17 +122,20 @@ func (ci *cindex) close() error {
 // chunk and the rInfo
 func (ci *cindex) onWrite(src string, firstRec, lastRec uint32, rInfo RecordsInfo) (err error) {
 	ci.lock.Lock()
+	newChk := false
 	sc, ok := ci.journals[src]
 	if !ok {
 		sc = make(sortedChunks, 1)
 		ci.journals[src] = sc
 		sc[0] = &chkInfo{Id: rInfo.Id, MaxTs: rInfo.MaxTs, MinTs: rInfo.MinTs}
+		newChk = true
 	}
 
 	if sc[len(sc)-1].Id != rInfo.Id {
 		// seems like we have a new chunk
 		sc = append(sc, &chkInfo{Id: rInfo.Id, MaxTs: rInfo.MaxTs, MinTs: rInfo.MinTs})
 		ci.journals[src] = sc
+		newChk = true
 	} else if ok {
 		sc[len(sc)-1].update(rInfo)
 	}
@@ -150,6 +153,14 @@ func (ci *cindex) onWrite(src string, firstRec, lastRec uint32, rInfo RecordsInf
 		return ErrTmIndexCorrupted
 	}
 
+	// if the last chunk has been just created, but the notification is not first for the chunk,
+	// declare it as corrupted (make the call to rebuild it)
+	if newChk && firstRec > 0 {
+		last.makeCorrupted()
+		last.rwLock.Unlock()
+		return ErrTmIndexCorrupted
+	}
+
 	if last.lastRec > 0 && lastRec-last.lastRec < sparseSpace {
 		// no need to write, give it a space so far
 		last.rwLock.Unlock()
@@ -160,8 +171,7 @@ func (ci *cindex) onWrite(src string, firstRec, lastRec uint32, rInfo RecordsInf
 	if last.IdxRoot.IndexId == 0 {
 		if lastRec-last.lastRec > sparseSpace*20 {
 			// well, it is big gap in the index, let's make it rebuilt later...
-			last.idxCorrupted = true
-			last.IdxRoot = Item{}
+			last.makeCorrupted()
 			last.rwLock.Unlock()
 			return ErrTmIndexCorrupted
 		}
@@ -169,8 +179,7 @@ func (ci *cindex) onWrite(src string, firstRec, lastRec uint32, rInfo RecordsInf
 		root, err := ci.cc.arrangeRoot(it)
 		if err != nil {
 			ci.logger.Warn("could not create root element for ", rInfo, ", err=", err)
-			last.IdxRoot = Item{}
-			last.idxCorrupted = true
+			last.makeCorrupted()
 			last.rwLock.Unlock()
 			return ErrTmIndexCorrupted
 		}
@@ -375,8 +384,7 @@ func (ci *cindex) rebuildIndex(ctx context.Context, src string, chk chunk.Chunk,
 			}
 			ci.cc.removeIndex(res.IdxRoot.IndexId)
 		}
-		res.IdxRoot = Item{}
-		res.idxCorrupted = true
+		res.makeCorrupted()
 	}
 
 	rInfo, root, err := ci.rebuildIndexInt(ctx, chk)
@@ -571,12 +579,35 @@ func (ci *cindex) syncChunks(ctx context.Context, src string, cks chunk.Chunks) 
 	ci.lock.Lock()
 	sc := ci.journals[src]
 	newSC, rmvd := newSC.apply(sc, false)
-	ci.journals[src] = newSC
+	if len(newSC) > 0 {
+		ci.journals[src] = newSC
+	} else {
+		delete(ci.journals, src)
+	}
 	res := newSC.makeRecordsInfoCopy()
 	ci.lock.Unlock()
 
 	ci.dropSortedChunks(ctx, rmvd)
 	return res
+}
+
+func (ci *cindex) visitSources(visitor func(src string) bool) {
+	ci.lock.Lock()
+	srcs := make([]string, len(ci.journals))
+	i := 0
+	for s := range ci.journals {
+		srcs[i] = s
+		i++
+	}
+	ci.lock.Unlock()
+
+	ci.logger.Debug("VisitSources(): will visit ", len(srcs), " sources")
+	for i, src := range srcs {
+		if !visitor(src) {
+			ci.logger.Debug("VisitSources(): interrupted by vistior at idx=", i)
+			return
+		}
+	}
 }
 
 func (ci *cindex) dropSortedChunks(ctx context.Context, rmvd sortedChunks) {
@@ -709,41 +740,39 @@ func chunksToSortedChunks(cks chunk.Chunks) sortedChunks {
 }
 
 // apply overwrites values in sc by values sc1. It returns 2 sorted slices
-// the firs one is the new merged chunks and the second one is sorted chunks
-// that were removed from sc.
+// the first one is the new merged chunks and the second one is sorted chunks
+// that were removed from sc1.
 func (sc sortedChunks) apply(sc1 sortedChunks, copyData bool) (sortedChunks, sortedChunks) {
 	i := 0
 	j := 0
 	removed := make(sortedChunks, 0, 1)
 	for i < len(sc) && j < len(sc1) {
 		if sc[i].Id > sc1[j].Id {
-			j++
 			removed = append(removed, sc1[j])
+			j++
 			continue
 		}
 		if sc[i].Id < sc1[j].Id {
 			i++
 			continue
 		}
+
 		if copyData {
 			sc[i].MaxTs = sc1[j].MaxTs
 			sc[i].MinTs = sc1[j].MinTs
 		} else {
 			sc[i] = sc1[j]
 		}
+
 		i++
 		j++
 	}
 
 	// add all tailed chunks that are not in sc to sc
 	for ; j < len(sc1); j++ {
-		ci := sc1[j]
-		if copyData {
-			ci = new(chkInfo)
-			*ci = *sc1[j]
-		}
-		sc = append(sc, ci)
+		removed = append(removed, sc1[j])
 	}
+
 	// returns sc cause it could re-allocate original slice
 	return sc, removed
 }
@@ -785,6 +814,11 @@ func (ci *chkInfo) update(rInfo RecordsInfo) bool {
 		ci.MaxTs = rInfo.MaxTs
 	}
 	return true
+}
+
+func (ci *chkInfo) makeCorrupted() {
+	ci.idxCorrupted = true
+	ci.IdxRoot = Item{}
 }
 
 func (ci *chkInfo) String() string {

@@ -30,19 +30,27 @@ import (
 type (
 	// TsIndexer interface defines the public interface for the chunk's time indexes
 	TsIndexer interface {
-		// OnWrite notifies the indexer about new data added
+		// OnWrite notifies the indexer about new data added. It will create the new time
+		// index for the chunk, if it doesn't exist yet. The function returns error if the
+		// operation is unsuccessful. It must return ErrTmIndexCorrupted if the index should
+		// be rebuilt. This case caller can RebuildIndex() to fix the index.
 		OnWrite(src string, firstRec, lastRec uint32, rInfo RecordsInfo) error
 
-		// LastChunkRecordsInfo returns information about last chunk, or an error if not found
+		// LastChunkRecordsInfo returns information about last chunk, or an error
+		// if it is not found (errors2.NotFound)
 		LastChunkRecordsInfo(src string) (res RecordsInfo, err error)
 
-		// GetRecordsInfo returns records info by chunk Id
+		// GetRecordsInfo returns records info by chunk Id, or an error if the chunk is
+		// not found (errors2.NotFound)
 		GetRecordsInfo(src string, cid chunk.Id) (res RecordsInfo, err error)
 
-		// Count returns number of records in the time index or it returns error if the index is corrupted
+		// Count returns number of records in the time index or it returns error if
+		// the index is corrupted (ErrTmIndexCorrupted), or it doesn't exist (errors2.NotFound)
 		Count(src string, cid chunk.Id) (int, error)
 
-		// ReadData allows to read all points and return them.
+		// ReadData allows to read all points and return them. The function returns
+		// err == errors2.NotFound if either src or the cid is not found. It returns
+		// ErrTmIndexCorrupted if the index exists, but it is corrupted
 		ReadData(src string, cid chunk.Id) ([]IdxRecord, error)
 
 		// GetPosForGreaterOrEqualTime returns the position in the chunk which records'
@@ -51,7 +59,7 @@ type (
 		// NotFound - there is no such partition or the chunk Id
 		// ErrTmIndexCorrupted - there is a timestamp in the index, but it is corrupted, must be rebuilt, but
 		// 				starting from 0, most probably will get some records
-		// ErrOutOfRange - all known timestamps are less than ts
+		// ErrOutOfRange - all known timestamps are less than ts e.g. maxTime < ts
 		GetPosForGreaterOrEqualTime(src string, cid chunk.Id, ts int64) (uint32, error)
 
 		// GetPosForLessTime returns the position in the chunk which records' timestamps are
@@ -59,15 +67,22 @@ type (
 		// NotFound - there is no such partition or the chunk Id
 		// ErrTmIndexCorrupted - there is a timestamp in the index, but it is corrupted, must be rebuilt, but
 		// 				starting from tail, most probably will get some records
-		// ErrOutOfRange - all known timestamps are less than ts
+		// ErrOutOfRange - all known timestamps are greater than ts e.g. minTime > ts
 		GetPosForLessTime(src string, cid chunk.Id, ts int64) (uint32, error)
 
-		// SyncChunks provides list of known chunks and update their information locally
+		// SyncChunks expects the list of known chunks in cks. It updates internal chunks information and
+		// returns the updated info as a slice of RecordsInfo. The function will remove all
+		// chunks and its indexes that are not in the cks. It will remove the source information
+		// completely if len(cks) == 0.
 		SyncChunks(ctx context.Context, src string, cks chunk.Chunks) []RecordsInfo
 
 		// Rebuild Index allows to re-build time index for the chunk provided. It
-		// runs the procedure for building the time index if it is marked as corrupted
+		// runs the procedure for building the time index if it is marked as corrupted.
 		RebuildIndex(ctx context.Context, src string, ck chunk.Chunk, force bool)
+
+		// VisitSources allows to iterate over the collection of known sources and pass them to the vistior.
+		// if the visitor returns false, the function will stop the iteration and get complete the iteration
+		VisitSources(visitor func(src string) bool)
 	}
 
 	// TsIndexerConfig struct contains settings for the component
@@ -162,6 +177,10 @@ func (ti *tmidx) ReadData(src string, cid chunk.Id) ([]IdxRecord, error) {
 
 func (ti *tmidx) Count(src string, cid chunk.Id) (int, error) {
 	return ti.ci.count(src, cid)
+}
+
+func (ti *tmidx) VisitSources(visitor func(src string) bool) {
+	ti.ci.visitSources(visitor)
 }
 
 func (ri *RecordsInfo) ApplyTs(ts int64) {

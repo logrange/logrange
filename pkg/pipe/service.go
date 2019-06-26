@@ -118,7 +118,7 @@ func (s *Service) Init(ctx context.Context) error {
 	s.logger.Info(len(ppipes), " pipe(s) were created.")
 
 	go s.notificatior()
-	go s.pipesCleaner(10 * time.Minute)
+	go s.pipesCleaner(time.Minute, 10*time.Minute)
 
 	err = s.ensurePipesAtStart()
 	if err != nil {
@@ -286,9 +286,15 @@ func (s *Service) notificatior() {
 }
 
 // pipesCleaner must be run in a dedicated go-routine to schedule cleaning jobs for every pipe known.
-func (s *Service) pipesCleaner(to time.Duration) {
-	s.logger.Info("Entering pipesCleaner()")
+func (s *Service) pipesCleaner(startTo, to time.Duration) {
+	s.logger.Info("Entering pipesCleaner(). startTo=", startTo, ", to=", to)
 	defer s.logger.Info("Leaving pipesCleaner() ")
+
+	select {
+	case <-s.closedCh:
+		return
+	case <-time.After(startTo):
+	}
 
 	for {
 		s.lock.Lock()

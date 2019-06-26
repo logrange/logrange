@@ -25,7 +25,11 @@ import (
 
 type (
 	// chkSelector allows to select appropriate journal's chunk taking into account
-	// the time range for the records selection
+	// the time range for the records selection. This structure is used by Journal
+	// iterator to calculate next read postion (chunk and offset) effectively.
+	// The chkSelector is constructed with the range of times, the selector works with.
+	// Every journal chunk in context of the selector, has the state, which describes
+	// available positions for the chunk (see chkStatus)
 	chkSelector struct {
 		tmRange     model.TimeRange
 		jrnl        journal.Journal
