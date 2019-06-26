@@ -177,5 +177,6 @@ func (sq *ServerQuerier) query(reqId int32, reqBody []byte, sc *rrpc.ServerConn)
 	if err != nil {
 		sc.SendResponse(reqId, err, cEmptyResponse)
 	}
+
 	qr.Close()
 }

@@ -136,6 +136,10 @@ func (ad *Admin) cmdShowPipes(p *lql.Pipes) (api.ExecResult, error) {
 		lim = math.MaxInt32
 	}
 	offs := int(utils.GetInt64Val(p.Offset, 0))
+	if offs < 0 {
+		return api.ExecResult{}, fmt.Errorf("negative offset value (%d), expected 0 or greater.", offs)
+	}
+
 	stms := ad.Streams.GetPipes()
 	var sb strings.Builder
 	if lim+offs > len(stms) {
