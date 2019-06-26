@@ -39,7 +39,11 @@ const (
 )
 
 func Query(ctx context.Context, query []string, stream bool, cli api.Client) error {
-	err := selectFn(ctx, &config{
+	inp := ""
+	if len(query) > 0 {
+		inp = query[0]
+	}
+	err := execCmd(ctx, inp, &config{
 		query:  query,
 		stream: stream,
 		cli:    cli,
