@@ -79,6 +79,8 @@ type (
 	}
 )
 
+var errNoSources = errors.Errorf("no sources for the expression the query")
+
 // newCursor creates the new cursor based on the state provided.
 func newCursor(ctx context.Context, state State, itf ItFactory) (*crsr, error) {
 	sel, srcs, err := getSourcesByState(ctx, state, itf)
@@ -86,7 +88,7 @@ func newCursor(ctx context.Context, state State, itf ItFactory) (*crsr, error) {
 		return nil, err
 	}
 	if len(srcs) == 0 {
-		return nil, errors.Errorf("no sources for the expression the query %s", state.Query)
+		return nil, errNoSources
 	}
 
 	// Range

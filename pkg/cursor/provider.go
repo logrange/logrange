@@ -120,6 +120,9 @@ func (p *provider) GetOrCreate(ctx context.Context, state State, cache bool) (Cu
 	}
 
 	cur, err := newCursor(ctx, state, p.Itf)
+	if err == errNoSources {
+		return emptyCur, nil
+	}
 	if err != nil {
 		return nil, err
 	}
@@ -151,6 +154,10 @@ func (p *provider) GetOrCreate(ctx context.Context, state State, cache bool) (Cu
 }
 
 func (p *provider) Release(ctx context.Context, curs Cursor) State {
+	if curs == emptyCur {
+		return State{}
+	}
+
 	cur := curs.(*crsr)
 	res := cur.commit(ctx)
 	p.lock.Lock()
