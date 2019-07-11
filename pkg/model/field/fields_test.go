@@ -72,6 +72,15 @@ func BenchmarkConcat(b *testing.B) {
 	}
 }
 
+func BenchmarkNewFields(b *testing.B) {
+	b.ReportAllocs()
+	val := "test"
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		NewFieldsFromSlice("stream", val)
+	}
+}
+
 func TestFieldValue(t *testing.T) {
 	testFieldValue(t, map[string]string{"aaa": "124"})
 	testFieldValue(t, map[string]string{"aaa": "124", "b": "adsf"})
@@ -108,6 +117,46 @@ func TestConcat(t *testing.T) {
 	testConcat(t, "a=b", "", "\x01a\x01b")
 	testConcat(t, "a=b", "c=d", "\x01a\x01b\x01c\x01d")
 	testConcat(t, "a=b,c=ddd", "c=d1", "\x01a\x01b\x01c\x03ddd\x01c\x02d1")
+}
+
+func TestNewFieldsFromSlice(t *testing.T) {
+	f, err := NewFieldsFromSlice()
+	if err != nil || f != "" {
+		t.Fatal("Something goes wrong f=", " err=", err)
+	}
+
+	f, err = NewFieldsFromSlice("a", "b", "c")
+	if err == nil {
+		t.Fatal("Something goes wrong f=", " err=", err)
+	}
+
+	f, err = NewFieldsFromSlice("a", "b", "c", "d")
+	if err != nil || f != "\x01a\x01b\x01c\x01d" {
+		t.Fatal("Something goes wrong f=", " err=", err)
+	}
+
+	var longVal [257]byte
+	_, err = NewFieldsFromSlice("a", string(longVal[:]))
+	if err == nil {
+		t.Fatal("Something goes wrong f=", " err=", err)
+	}
+
+	_, err = NewFieldsFromSlice(string(longVal[:]), "b")
+	if err == nil {
+		t.Fatal("Something goes wrong f=", " err=", err)
+	}
+}
+
+func TestCheck(t *testing.T) {
+	_, err := Check("abc")
+	if err == nil {
+		t.Fatal("Check must fail, but err=nil")
+	}
+
+	_, err = Check("\x03abc")
+	if err != nil {
+		t.Fatal("Check must not fail, but err=", err)
+	}
 }
 
 func testMerge(t *testing.T, kvs string, m, res map[string]string) {

@@ -30,7 +30,33 @@ func NewFields(mp map[string]string) (Fields, error) {
 	var buf strings.Builder
 	for k, v := range mp {
 		if len(k) > 255 || len(v) > 255 {
-			return "", fmt.Errorf("field name or value cannot exceed 255 bytes")
+			return "", fmt.Errorf("NewFields(): field name or value cannot exceed 255 bytes")
+		}
+		buf.WriteByte(byte(len(k)))
+		buf.WriteString(k)
+		buf.WriteByte(byte(len(v)))
+		buf.WriteString(v)
+	}
+	return Fields(buf.String()), nil
+}
+
+// NewFieldsFromSlice construct new fields from the slice of key-values. It expects even number
+// of parameters where each even element is a key and the next element its value.
+func NewFieldsFromSlice(s ...string) (Fields, error) {
+	if len(s) == 0 {
+		return "", nil
+	}
+
+	if len(s)&1 == 1 {
+		return "", fmt.Errorf("NewFieldsFromSlice(): even number of params are expected")
+	}
+
+	var buf strings.Builder
+	for i := 0; i < len(s); i += 2 {
+		k := s[i]
+		v := s[i+1]
+		if len(k) > 255 || len(v) > 255 {
+			return "", fmt.Errorf("NewFieldsFromSlice(): field name or value cannot exceed 255 bytes")
 		}
 		buf.WriteByte(byte(len(k)))
 		buf.WriteString(k)
@@ -68,7 +94,7 @@ func NewFieldsFromKVString(kvs string) (Fields, error) {
 	}
 
 	if len(res)&1 == 1 {
-		return "", fmt.Errorf("the tag must be a pair of <key>=<value>")
+		return "", fmt.Errorf("the fields must be a pairs of <key>=<value>")
 	}
 
 	var sb strings.Builder

@@ -32,15 +32,14 @@ type Record struct {
 	// Record date
 	Date time.Time
 
-	// TagsCond, attached to the entry
-	Tags map[string]string
+	// Fields contains text in "<key1>=<value1>,<key2>=<value2>,..." format
+	Fields string
 }
 
 func NewRecord(data []byte, date time.Time) *Record {
 	r := &Record{
 		Data: data,
 		Date: date,
-		Tags: make(map[string]string),
 	}
 	return r
 }
@@ -59,13 +58,4 @@ func (r *Record) GetDate() time.Time {
 
 func (r *Record) setDate(t time.Time) {
 	r.Date = t
-}
-
-func (r *Record) GetTag(k string) string {
-	v, _ := r.Tags[k]
-	return v
-}
-
-func (r *Record) SetTag(k string, v string) {
-	r.Tags[k] = v
 }

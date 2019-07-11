@@ -87,6 +87,7 @@ func toApiEvents(ev *model.Event) []*api.LogEvent {
 		res = append(res, &api.LogEvent{
 			Timestamp: r.Date.UnixNano(),
 			Message:   bytes.ByteArrayToString(r.Data),
+			Fields:    r.Fields,
 		})
 	}
 	return res

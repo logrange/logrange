@@ -76,7 +76,7 @@ func (jp *K8sJsonLogParser) NextRecord(ctx context.Context) (*model.Record, erro
 	}
 
 	rec := model.NewRecord(*(*[]byte)(unsafe.Pointer(&r.Log)), r.Time)
-	rec.SetTag("stream", r.Stream)
+	rec.Fields = "stream=" + r.Stream
 	jp.pos += int64(len(line))
 	return rec, nil
 }

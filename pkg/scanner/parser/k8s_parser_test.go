@@ -34,7 +34,7 @@ func TestOne(t *testing.T) {
 	assert.NoError(t, err)
 	assert.NotNil(t, r)
 	assert.Equal(t, exp, r.GetDate())
-	assert.Equal(t, "stderr", r.GetTag("stream"))
+	assert.Equal(t, "stream=stderr", r.Fields)
 }
 
 func TestReposition(t *testing.T) {

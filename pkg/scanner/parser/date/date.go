@@ -174,6 +174,7 @@ var (
 
 //===================== parser =====================
 
+// Parse pass data though a default parser and returns the date it is found there
 func Parse(data []byte) (time.Time, error) {
 	tm, f := defParser.Parse(data)
 	if f == nil {
@@ -182,6 +183,7 @@ func Parse(data []byte) (time.Time, error) {
 	return tm, nil
 }
 
+// NewDefaultParser creates new default parser using either known formats or the formats provided
 func NewDefaultParser(usrFmts ...string) *parser {
 	if len(usrFmts) == 0 {
 		return NewParser(KnownFormats...)
@@ -193,7 +195,7 @@ func NewDefaultParser(usrFmts ...string) *parser {
 	return NewParser(dtFmts...)
 }
 
-// builds new parser with the give formats
+// NewParser builds new parser with the give formats
 func NewParser(fmts ...string) *parser {
 	p := new(parser)
 	p.formats = make([]*Format, len(fmts))

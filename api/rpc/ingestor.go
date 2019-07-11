@@ -53,13 +53,15 @@ type (
 	// wpIterator is the struct which receives the slice of bytes and provides a records.Iteratro, sutable for
 	// writing the data directly to a partition
 	wpIterator struct {
-		tags string
-		lge  model.LogEvent
-		buf  []byte
-		read bool
-		pos  int
-		recs int
-		cur  int
+		tags       string
+		lge        model.LogEvent
+		flds       field.Fields
+		fldsWriter bytes.Writer
+		buf        []byte
+		read       bool
+		pos        int
+		recs       int
+		cur        int
 	}
 )
 
@@ -180,12 +182,12 @@ func (wpi *wpIterator) init(buf []byte) (err error) {
 	}
 
 	// turns kvstring into the fields
-	wpi.lge.Fields, err = field.NewFieldsFromKVString(flds)
+	wpi.flds, err = field.NewFieldsFromKVString(flds)
 	if err != nil {
 		err = errors.Wrapf(err, "could not parse fields")
 		return err
 	}
-
+	wpi.fldsWriter.Init(256, nil)
 	wpi.recs = int(ln)
 	wpi.pos = idx + n
 	wpi.cur = 0
@@ -221,6 +223,8 @@ func (wpi *wpIterator) Get(ctx context.Context) (model.LogEvent, tag.Line, error
 
 	wpi.lge.Timestamp = le.Timestamp
 	wpi.lge.Msg = bytes.StringToByteArray(le.Message)
+	fldsLE := field.Parse(le.Fields)
+	wpi.lge.Fields = wpi.flds.Concat(fldsLE, &wpi.fldsWriter)
 
 	return wpi.lge, tag.EmptyLine, nil
 }

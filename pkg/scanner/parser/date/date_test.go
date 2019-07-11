@@ -65,3 +65,23 @@ func TestCustomParse(t *testing.T) {
 	}
 	fmt.Println(tm.String())
 }
+
+func TestParse(t *testing.T) {
+	_, err := Parse([]byte("asbd"))
+	if err == nil {
+		t.Fatal("must not be able to parse, but it is")
+	}
+
+	_, err = Parse([]byte(time.Now().String()))
+	if err != nil {
+		t.Fatal("must be able to parse, but it could not err=", err)
+	}
+}
+
+func TestNewDefaultParser(t *testing.T) {
+	p := NewDefaultParser()
+	_, fmt := p.Parse([]byte(time.Now().String()))
+	if fmt == nil {
+		t.Fatal("must be able to parse, but it could not")
+	}
+}
