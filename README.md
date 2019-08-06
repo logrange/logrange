@@ -5,7 +5,7 @@
 
 __The product__
 * _Size tolerant_. Logrange is able to store as much data as written there. The only limitation is the storage space available for the database.
-* _Higly performant_. Writing and reading millions of records per second (hundered megabytes or gigabytes of data).
+* _Highly performant_. Writing and reading millions of records per second (hundered megabytes or gigabytes of data).
 * _Write optimized_. Logrange persists the raw data in realtime. All other data processing like indexing can be done later.
 * _Low latency_. Data becomes available for read within milliseconds after it is written
 * _Scalable_. Supporting tens of thousands different streams of records (terrabytes of the data)
