@@ -25,6 +25,7 @@ type (
 		MaxRecSizeBytes int
 		DataFmt         DataFormat
 		DateFmts        []string
+		FieldMap        map[string]string
 	}
 )
 
@@ -38,6 +39,8 @@ func (c *Config) Check() error {
 	case FmtPure:
 		return c.errorIfDateFormats()
 	case FmtK8Json:
+		return c.errorIfDateFormats()
+	case FmtLogfmt:
 		return c.errorIfDateFormats()
 	default:
 		return fmt.Errorf("unknown DataFmt=%v", c.DataFmt)

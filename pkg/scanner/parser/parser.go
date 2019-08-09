@@ -71,6 +71,7 @@ const (
 	FmtPure   DataFormat = "pure"
 	FmtText   DataFormat = "text"
 	FmtK8Json DataFormat = "k8json"
+	FmtLogfmt DataFormat = "logfmt"
 )
 
 const (
@@ -85,8 +86,9 @@ func ToDataFormat(str string) (DataFormat, error) {
 	case FmtPure:
 	case FmtText:
 	case FmtK8Json:
+	case FmtLogfmt:
 	default:
-		err = fmt.Errorf("unknown date format \"%s\", expecting \"%s\", \"%s\" or \"%s\"", str, FmtPure, FmtText, FmtK8Json)
+		err = fmt.Errorf("unknown date format \"%s\", expecting \"%s\", \"%s\" or \"%s\" or \"%s\"", str, FmtPure, FmtText, FmtK8Json,FmtLogfmt)
 	}
 	return df, err
 }
@@ -110,6 +112,8 @@ func NewParser(cfg *Config) (Parser, error) {
 			date.NewDefaultParser(cfg.DateFmts...), cfg.MaxRecSizeBytes)
 	case FmtK8Json:
 		p, err = NewK8sJsonParser(cfg.File, cfg.MaxRecSizeBytes)
+	case FmtLogfmt:
+		p, err = NewLogfmtParser(cfg.File, cfg.MaxRecSizeBytes,cfg.FieldMap)
 	default:
 		err = fmt.Errorf("unknown parser for data format=%s", cfg.DataFmt)
 	}

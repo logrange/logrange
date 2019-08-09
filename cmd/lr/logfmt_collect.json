@@ -1,0 +1,43 @@
+{
+  "Collector": {
+    "IncludePaths": [
+      "/Users/mcao/go/src/github.com/logrange/logrange/pkg/scanner/testdata/logs/k8s/var/log/containers/kube-dns-5c47645d88-p7fpl_kube-system_dnsmasq-74d2de2d0542c5b507e57d5077832b2400273554c3c16d674f1302bc010d5a0e.log"
+    ],
+    "ExcludeMatchers": [],
+    "SyncWorkersIntervalSec": 10,
+    "StateStoreIntervalSec": 20,
+    "EventMaxRecords": 1000,
+    "RecordMaxSizeBytes": 16384,
+    "Schemas": [
+      {
+        "PathMatcher": "/*(?:.+/)*(?P<file>.+\\..+)",
+        "DataFormat": "k8json",
+        "Meta": {
+          "Tags": {
+            "file": "{file}"
+          },
+          "Fields": {
+            "time":"",
+            "type": "",
+            "level": "",
+            "traceid": ""
+          }
+        }
+      }
+    ]
+  },
+
+  "Transport": {
+    "ListenAddr": "127.0.0.1:9966",
+    "TlsEnabled": false,
+    "Tls2Way": false,
+    "TlsCertFile": "/opt/logrange/lr/tls/client.crt",
+    "TlsKeyFile": "/opt/logrange/lr/tls/client.key",
+    "TlsCAFile": "/opt/logrange/lr/tls/ca.pem"
+  },
+
+  "Storage": {
+    "Type": "file",
+    "Location": "/opt/logrange/lr/storage/"
+  }
+}
