@@ -113,7 +113,7 @@ func NewParser(cfg *Config) (Parser, error) {
 	case FmtK8Json:
 		p, err = NewK8sJsonParser(cfg.File, cfg.MaxRecSizeBytes)
 	case FmtLogfmt:
-		p, err = NewLogfmtParser(cfg.File, cfg.MaxRecSizeBytes,cfg.FieldMap)
+		p, err = NewLogfmtParser(cfg.File, cfg.MaxRecSizeBytes, cfg.FieldMap)
 	default:
 		err = fmt.Errorf("unknown parser for data format=%s", cfg.DataFmt)
 	}

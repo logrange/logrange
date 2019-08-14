@@ -1,0 +1,8 @@
+{"log":"","stream":"stderr","time":"2018-02-06T10:22:49.201168034Z"}
+{"log":"W0206 10:22:49.713447       1 nanny.go:120] Got EOF from stdout\n","stream":"stderr","time":"2018-02-06T10:22:49.201168034Z"}
+{"log":"time=2018-01-01T10::49.71369883Z","stream":"stderr","time":"2018-02-06T10:22:49.201168034Z"}
+{"log":"type=hello level=debug","stream":"stderr","time":"2018-02-06T10:22:49.201168034Z"}
+{"log":"type=\"hello\" level=\"debug\" time=\"2018-01-01T10:22:49.71369883Z\"","stream":"stderr","time":"2018-02-06T10:22:49.201168034Z"}
+{"log":"type=hello level=debug time=2018-01-01T10:22:49.71369883Z date=08-12-2019","stream":"stderr","time":"2018-02-06T10:22:49.201168034Z"}
+{"log":"time=2018-01-01T10:22:49.71369883Z","stream":"stderr","time":"2018-02-06T10:22:49.201168034Z"}
+{"log":"W0206 10:22:49.713447       1 nanny.go:120] Got EOF from stdout\n","stream":"stderr","time":"2018-02-06T10:22:49.71369883Z"}

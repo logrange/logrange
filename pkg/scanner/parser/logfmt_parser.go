@@ -17,7 +17,6 @@ package parser
 import (
 	"context"
 	"encoding/json"
-	"fmt"
 	"github.com/kr/logfmt"
 	"github.com/logrange/logrange/pkg/scanner/model"
 	"io"
@@ -38,7 +37,7 @@ type (
 		f   *os.File
 		lr  *lineReader
 		pos int64
-		FieldMap map[string]string
+		fields []string
 	}
 
 	// K8sJsonLogRec defines format of k8s json log line
@@ -52,7 +51,7 @@ type (
 
 )
 
-func NewLogfmtParser(fileName string, maxRecSize int, FieldMap map[string]string) (*LogfmtParser, error) {
+func NewLogfmtParser(fileName string, maxRecSize int, fieldMap map[string]string) (*LogfmtParser, error) {
 	f, err := os.Open(fileName)
 	if err != nil {
 		return nil, err
@@ -62,12 +61,17 @@ func NewLogfmtParser(fileName string, maxRecSize int, FieldMap map[string]string
 		return nil, err
 	}
 
-	jp := new(LogfmtParser)
-	jp.fn = fileName
-	jp.f = f
-	jp.lr = newLineReader(f, maxRecSize)
-	jp.FieldMap = FieldMap
-	return jp, nil
+	lp := new(LogfmtParser)
+	lp.fn = fileName
+	lp.f = f
+	lp.lr = newLineReader(f, maxRecSize)
+	lp.fields = make([]string,0,len(fieldMap))
+	for key,_ := range fieldMap{
+		lp.fields = append(lp.fields,key)
+		delete(fieldMap,key)
+	}
+
+	return lp, nil
 }
 
 func (m Msg) HandleLogfmt(key, val []byte) error {
@@ -75,8 +79,8 @@ func (m Msg) HandleLogfmt(key, val []byte) error {
 	return nil
 }
 
-func (jp *LogfmtParser) NextRecord(ctx context.Context) (*model.Record, error) {
-	line, err := jp.lr.readLine(ctx)
+func (lp *LogfmtParser) NextRecord(ctx context.Context) (*model.Record, error) {
+	line, err := lp.lr.readLine(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -89,57 +93,54 @@ func (jp *LogfmtParser) NextRecord(ctx context.Context) (*model.Record, error) {
 	}
 
 	rec := model.NewRecord(*(*[]byte)(unsafe.Pointer(&r.Log)), r.Time)
-
-	//parse using jp.recordMatcher to parse r.log and use jp.FieldMap to create a new map field
-	msg := make(Msg)
-
-	if err := logfmt.Unmarshal(rec.Data,&msg); err != nil{
-		fmt.Println("logfmt has unmarshalling error!") //TODO: may not be the best way to handle this
-	}
-
-	//use logfmt package for parsing r.log.
-
 	rec.Fields = "stream=" + r.Stream
 
-	for key,_ := range jp.FieldMap{
-		if msg[key] == ""{
-			msg[key] = "\"\""
+	msg := make(Msg)
+	if err := logfmt.Unmarshal(rec.Data,&msg); err == nil{
+		for _,key := range lp.fields{
+			if val, ok := msg[key]; ok{
+				if key == "time"{ //convert msg[key] to time.Time and assign time to r.Time f we could parse it
+					if t,err := time.Parse(time.RFC3339Nano,msg[key]); err == nil{
+						rec.Date = t
+					}
+				}
+				rec.Fields += ","+ key +"=" + val
+			}
 		}
-		rec.Fields += ", "+ key +"=" + msg[key] // use key from json to index into map
 	}
 
-	jp.pos += int64(len(line))
+	lp.pos += int64(len(line))
 	return rec, nil
 }
 
 
-func (jp *LogfmtParser) SetStreamPos(pos int64) error {
-	if _, err := jp.f.Seek(pos, io.SeekStart); err != nil {
+func (lp *LogfmtParser) SetStreamPos(pos int64) error {
+	if _, err := lp.f.Seek(pos, io.SeekStart); err != nil {
 		return err
 	}
-	jp.pos = pos
-	jp.lr.reset(jp.f)
+	lp.pos = pos
+	lp.lr.reset(lp.f)
 	return nil
 }
 
-func (jp *LogfmtParser) GetStreamPos() int64 {
-	return jp.pos
+func (lp *LogfmtParser) GetStreamPos() int64 {
+	return lp.pos
 }
 
-func (jp *LogfmtParser) Close() error {
-	return jp.f.Close()
+func (lp *LogfmtParser) Close() error {
+	return lp.f.Close()
 }
 
-func (jp *LogfmtParser) GetStats() *Stats {
+func (lp *LogfmtParser) GetStats() *Stats {
 	size := int64(-1) // in case of error...
-	fi, err := jp.f.Stat()
+	fi, err := lp.f.Stat()
 	if err == nil {
 		size = fi.Size()
 	}
 
 	pStat := newStats(FmtLogfmt, &fileStats{})
 	pStat.FileStats.Size = size
-	pStat.FileStats.Pos = jp.GetStreamPos()
+	pStat.FileStats.Pos = lp.GetStreamPos()
 	return pStat
 }
 
