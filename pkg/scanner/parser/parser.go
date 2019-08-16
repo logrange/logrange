@@ -65,6 +65,8 @@ type (
 		FileStats  *fileStats
 		FmtStats   *fmtStats // for text parsers only...
 	}
+
+	parserConstructorFunc func(cfg *Config) (Parser, error)
 )
 
 const (
@@ -78,6 +80,21 @@ const (
 	unknownDateFmtName = "_%_unknown_%_"
 )
 
+var KnownDataFormats = map[DataFormat]parserConstructorFunc{
+	FmtPure: func(cfg *Config) (Parser, error) {
+		return NewPureParser(cfg.File, cfg.MaxRecSizeBytes)
+	},
+	FmtText: func(cfg *Config) (Parser, error) {
+		return NewLineParser(cfg.File, date.NewDefaultParser(cfg.DateFmts...), cfg.MaxRecSizeBytes)
+	},
+	FmtK8Json: func(cfg *Config) (Parser, error) {
+		return NewK8sJsonParser(cfg.File, cfg.MaxRecSizeBytes)
+	},
+	FmtLogfmt: func(cfg *Config) (Parser, error) {
+		return NewLogfmtParser(cfg.File, cfg.MaxRecSizeBytes, cfg.FieldMap)
+	},
+}
+
 func ToDataFormat(str string) (DataFormat, error) {
 	str = strings.ToLower(strings.Trim(str, " "))
 	df := DataFormat(str)
@@ -88,7 +105,7 @@ func ToDataFormat(str string) (DataFormat, error) {
 	case FmtK8Json:
 	case FmtLogfmt:
 	default:
-		err = fmt.Errorf("unknown date format \"%s\", expecting \"%s\", \"%s\" or \"%s\" or \"%s\"", str, FmtPure, FmtText, FmtK8Json,FmtLogfmt)
+		err = fmt.Errorf("unknown date format \"%s\", expecting \"%s\", \"%s\", \"%s\" or \"%s\"", str, FmtPure, FmtText, FmtK8Json, FmtLogfmt)
 	}
 	return df, err
 }
@@ -104,17 +121,9 @@ func NewParser(cfg *Config) (Parser, error) {
 		err error
 	)
 
-	switch cfg.DataFmt {
-	case FmtPure:
-		p, err = NewPureParser(cfg.File, cfg.MaxRecSizeBytes)
-	case FmtText:
-		p, err = NewLineParser(cfg.File,
-			date.NewDefaultParser(cfg.DateFmts...), cfg.MaxRecSizeBytes)
-	case FmtK8Json:
-		p, err = NewK8sJsonParser(cfg.File, cfg.MaxRecSizeBytes)
-	case FmtLogfmt:
-		p, err = NewLogfmtParser(cfg.File, cfg.MaxRecSizeBytes, cfg.FieldMap)
-	default:
+	if constructor, ok := KnownDataFormats[cfg.DataFmt]; ok {
+		p, err = constructor(cfg)
+	} else {
 		err = fmt.Errorf("unknown parser for data format=%s", cfg.DataFmt)
 	}
 

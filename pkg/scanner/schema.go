@@ -104,7 +104,6 @@ func (s *schema) getVars(l string) map[string]string {
 	return vars
 }
 
-
 func (s *schema) subsVars(l string, vars map[string]string) string {
 	for k, v := range vars {
 		l = strings.Replace(l, "{"+k+"}", v, -1)
@@ -122,7 +121,8 @@ func (sc *SchemaConfig) Check() error {
 	if err != nil {
 		return fmt.Errorf("PathMatcher=%v is invalid; %v", sc.PathMatcher, err)
 	}
-	if sc.DataFormat != parser.FmtK8Json && sc.DataFormat != parser.FmtText && sc.DataFormat != parser.FmtPure && sc.DataFormat != parser.FmtLogfmt{
+
+	if _, ok := parser.KnownDataFormats[sc.DataFormat]; !ok {
 		return fmt.Errorf("DataFormat is unknown=%v", sc.DataFormat)
 	}
 	return nil
