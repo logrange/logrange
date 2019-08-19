@@ -46,7 +46,7 @@ type (
 		Time   time.Time `json:"time"`
 	}
 
-	ParsedMsg map[string]string
+	parsedMsg map[string]string
 )
 
 func NewLogfmtParser(fileName string, maxRecSize int, fieldMap map[string]string) (*logfmtParser, error) {
@@ -72,7 +72,7 @@ func NewLogfmtParser(fileName string, maxRecSize int, fieldMap map[string]string
 	return lp, nil
 }
 
-func (m ParsedMsg) HandleLogfmt(key, val []byte) error {
+func (m parsedMsg) HandleLogfmt(key, val []byte) error {
 	m[string(key)] = string(val)
 	return nil
 }
@@ -93,7 +93,7 @@ func (lp *logfmtParser) NextRecord(ctx context.Context) (*model.Record, error) {
 	rec := model.NewRecord(*(*[]byte)(unsafe.Pointer(&r.Log)), r.Time)
 	rec.Fields = "stream=" + r.Stream
 
-	parsedMsg := make(ParsedMsg)
+	parsedMsg := make(parsedMsg)
 	if err := logfmt.Unmarshal(rec.Data, &parsedMsg); err == nil {
 		for _, key := range lp.fields {
 			if val, ok := parsedMsg[key]; ok {
