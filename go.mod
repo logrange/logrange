@@ -7,6 +7,7 @@ require (
 	github.com/dustin/go-humanize v1.0.0
 	github.com/gofrs/flock v0.7.1
 	github.com/jrivets/log4g v0.0.0-20171008071556-0d3a418ba12a
+	github.com/kr/logfmt v0.0.0-20140226030751-b84e30acd515
 	github.com/logrange/linker v0.0.0-20190313060137-63e2b15b4d15
 	github.com/logrange/range v0.0.0-20190621064142-ba348b8545e2
 	github.com/mitchellh/mapstructure v1.1.2
@@ -15,4 +16,5 @@ require (
 	github.com/pkg/errors v0.8.1
 	github.com/stretchr/testify v1.3.0
 	gopkg.in/urfave/cli.v2 v2.0.0-20180128182452-d3ae77c26ac8
+	k8s.io/apimachinery v0.0.0-20190809020650-423f5d784010 // indirect
 )

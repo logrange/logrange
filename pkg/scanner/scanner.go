@@ -226,6 +226,7 @@ func (s *Scanner) newWorkerConfig(d *desc) (*workerConfig, error) {
 		MaxRecSizeBytes: s.cfg.RecordMaxSizeBytes,
 		DataFmt:         shm.cfg.DataFormat,
 		DateFmts:        shm.cfg.DateFormats,
+		FieldMap:        shm.cfg.Meta.Fields,
 	})
 	if err != nil {
 		return nil, err
