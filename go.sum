@@ -61,6 +61,7 @@ github.com/jrivets/gorivets v0.0.0-20170920013151-fa5c087ad733 h1:kkD35t26p80AyC
 github.com/jrivets/gorivets v0.0.0-20170920013151-fa5c087ad733/go.mod h1:hUIj1CfVnPHX/LjgKnPc76n7YcD7M5lRevqf/xmVG6U=
 github.com/jrivets/log4g v0.0.0-20171008071556-0d3a418ba12a h1:xypRRnFBz0poMliC67EUc40OLX17OH9DF8oG9j8Ybe8=
 github.com/jrivets/log4g v0.0.0-20171008071556-0d3a418ba12a/go.mod h1:+sVYU1XiC4uD2QWu64F6dLvoGoRveSMC9auxIxl8byk=
+github.com/jrivets/log4g v0.0.0-20191016233753-c02c5046dc98/go.mod h1:+sVYU1XiC4uD2QWu64F6dLvoGoRveSMC9auxIxl8byk=
 github.com/json-iterator/go v0.0.0-20180612202835-f2b4162afba3/go.mod h1:+SdeFBvtyEkXs7REEP0seUULqWtbJapLOCVDaaPEHmU=
 github.com/json-iterator/go v1.1.7/go.mod h1:KdQUCv79m/52Kvf8AW2vK1V8akMuk1QjK/uOdHXbAo4=
 github.com/kisielk/errcheck v1.1.0/go.mod h1:EZBBE59ingxPouuu3KfxchcWSUPOHkagtvWXihfKN4Q=
@@ -78,6 +79,8 @@ github.com/logrange/linker v0.0.0-20190313060137-63e2b15b4d15 h1:52O4e9iGz5cKuKZ
 github.com/logrange/linker v0.0.0-20190313060137-63e2b15b4d15/go.mod h1:Ompenlh/qryHcpxhB7MhjJtf4HKAihSTCc5rutR8olg=
 github.com/logrange/range v0.0.0-20190621064142-ba348b8545e2 h1:J9bz3g3KpJayHiFLs0AD61/PT6BERGi6ZustGqauq9s=
 github.com/logrange/range v0.0.0-20190621064142-ba348b8545e2/go.mod h1:cgzOk0zWxLN70Lj7U52x1++l12SnmYqe6WlCuIa0Dco=
+github.com/logrange/range v0.0.0-20191016234805-44ada6216b88 h1:XP4fCu0IL7OORH/PJYl28j7C+7VzdTL2Xy07j9C01Ls=
+github.com/logrange/range v0.0.0-20191016234805-44ada6216b88/go.mod h1:wEo+lffRdHXMKTSoD/m2fUvImmZ21AVi0sjXSoLXf60=
 github.com/mailru/easyjson v0.0.0-20160728113105-d5b7844b561a/go.mod h1:C1wdFJiN94OJF2b5HbByQZoLdCWB1Yqtg26g4irojpc=
 github.com/mattn/go-runewidth v0.0.3 h1:a+kO+98RDGEfo6asOGMmpodZq4FNtnGP54yps8BzLR4=
 github.com/mattn/go-runewidth v0.0.3/go.mod h1:LwmH8dsx7+W8Uxz3IHJYH5QSwggIsqBzpuz5H//U1FU=
