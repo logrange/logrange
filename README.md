@@ -83,3 +83,6 @@ Join our [gitter chat](https://gitter.im/logrange/community)
 ## License
 Apache License 2.0, see [LICENSE](LICENSE).
 
+## Acknowledgments
+* GoLand IDE by [JetBrains](https://www.jetbrains.com/go/) is used for the code development
+
