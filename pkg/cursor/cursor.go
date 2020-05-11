@@ -17,6 +17,9 @@ package cursor
 import (
 	"context"
 	"fmt"
+	"math"
+	"strings"
+
 	"github.com/jrivets/log4g"
 	"github.com/logrange/logrange/pkg/lql"
 	"github.com/logrange/logrange/pkg/model"
@@ -25,9 +28,6 @@ import (
 	"github.com/logrange/range/pkg/records"
 	"github.com/logrange/range/pkg/records/journal"
 	"github.com/pkg/errors"
-	"io"
-	"math"
-	"strings"
 )
 
 type (
@@ -241,46 +241,22 @@ func (cur *crsr) CurrentPos() records.IteratorPos {
 	return cur.it.CurrentPos()
 }
 
-// Offset moves the cursor position either backward (negative offset) or
-// forward (positive offset) value
+// Offset sets the cursor to backward to tru when offset is negative. when offset is positive, Offsets moves the curson position forward by offset value.
 func (cur *crsr) Offset(ctx context.Context, offs int) {
-	if offs == 0 {
-		return
-	}
-
-	var pos records.IteratorPos
-	pos = records.IteratorPosUnknown
-
-	bkwd := false
-	if offs < 0 {
-		bkwd = true
-		offs = -offs
-		_, _, err := cur.Get(ctx)
-		pos = cur.CurrentPos()
+	switch {
+	case offs < 0:
 		cur.SetBackward(true)
-		if err == io.EOF {
-			cur.Get(ctx)
-			pos = cur.CurrentPos()
+	case offs > 0:
+		for offs > 0 {
+			cur.Next(ctx)
 			offs--
-		} else {
-			cur.iterateToPos(ctx, pos)
+			_, _, err := cur.Get(ctx)
+			if err != nil {
+				break
+			}
 		}
-	}
 
-	for offs > 0 {
-		cur.Next(ctx)
-		offs--
-		_, _, err := cur.Get(ctx)
-		if err != nil {
-			pos = records.IteratorPosUnknown
-			break
-		}
-		pos = cur.CurrentPos()
-	}
-
-	if bkwd {
 		cur.SetBackward(false)
-		cur.iterateToPos(ctx, pos)
 	}
 }
 
