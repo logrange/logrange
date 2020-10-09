@@ -189,7 +189,7 @@ func (l *Lru) Len() int {
 	return len(l.kvMap)
 }
 
-// SweepByTime walks trhough the container values and removes that are expired
+// SweepByTime walks through the container values and removes that are expired
 func (l *Lru) SweepByTime() time.Time {
 	if l.maxDur == 0 {
 		return nilTime

@@ -544,9 +544,12 @@ func (s *Service) truncateGlobally(ctx context.Context, sortedInfos []*TruncateI
 			}
 
 			cks, _ := j.Chunks().Chunks(ctx)
+			// truncating the journal to remove all the chunks first
+			s.truncate(ctx, j, &TruncateParams{DryRun: tp.DryRun, MinSrcSize: 0, MaxSrcSize: 1})
 			deleted := tp.DryRun || s.deleteJournal(ctx, j)
 			s.TIndex.Release(ti.Src)
 			if deleted {
+				s.logger.Info("truncateGlobally(): the journal ", ti.Src, " has been just deleted")
 				jrnls++
 				ts -= ti.AfterSize
 				tr += ti.AfterSize
