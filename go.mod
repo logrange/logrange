@@ -15,6 +15,6 @@ require (
 	github.com/peterh/liner v1.1.0
 	github.com/pkg/errors v0.8.1
 	github.com/stretchr/testify v1.3.0
+	golang.org/x/sys v0.0.0-20190616124812-15dcb6c0061f // indirect
 	gopkg.in/urfave/cli.v2 v2.0.0-20180128182452-d3ae77c26ac8
-	k8s.io/apimachinery v0.0.0-20190809020650-423f5d784010 // indirect
 )
