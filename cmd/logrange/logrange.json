@@ -10,7 +10,7 @@
     "Tls2Way": false,
     "TlsCertFile": "/opt/logrange/tls/server.crt",
     "TlsKeyFile": "/opt/logrange/tls/server.key",
-    "TlsCAFile": "/opt/logrange/tls/ca.pem"
+    "TlsCAFile": "/opt/logrange/tls/ca.crt"
   },
 
   "JrnlCtrlConfig": {

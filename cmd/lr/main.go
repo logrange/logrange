@@ -43,9 +43,11 @@ const (
 	argServerAddr    = "server-addr"
 	argStorageDir    = "storage-dir"
 	argStartAsDaemon = "daemon"
+
+	argTlsEnabled	 = "tls-enabled"
+	argTlsSkipVerify = "tls-skip-verify"
 	argTlsCrt        = "tls-cert"
 	argTlsKey        = "tls-key"
-	argTlsSkipVerify = "tls-skip-verify"
 
 	argCltrInclude          = "files"
 	argCltrParser           = "format"
@@ -89,6 +91,14 @@ func main() {
 			Name:  argStartAsDaemon,
 			Usage: "starting as a daemon (detached from the console).",
 		},
+		&ucli.BoolFlag{
+			Name:  argTlsEnabled,
+			Usage: "enable Tls",
+		},
+		&ucli.BoolFlag{
+			Name:  argTlsSkipVerify,
+			Usage: "skip verify server (during mTls handshake)",
+		},
 		&ucli.StringFlag{
 			Name:  argTlsCrt,
 			Usage: "certificate file (for mTls handshake)",
@@ -96,10 +106,6 @@ func main() {
 		&ucli.StringFlag{
 			Name:  argTlsKey,
 			Usage: "private key file (for mTls handshake)",
-		},
-		&ucli.BoolFlag{
-			Name:  argTlsSkipVerify,
-			Usage: "skip verify server (during mTls handshake)",
 		},
 	}
 
@@ -161,14 +167,16 @@ func main() {
 				Usage:     "Run lql shell",
 				UsageText: "lr shell [command options]",
 				Action:    runShell,
-				Flags:     []ucli.Flag{cmnFlags[0], cmnFlags[2], cmnFlags[5], cmnFlags[6], cmnFlags[7]},
+				Flags:     []ucli.Flag{cmnFlags[0], cmnFlags[2], cmnFlags[5],
+					cmnFlags[6], cmnFlags[7], cmnFlags[8]},
 			},
 			{
 				Name:      "query",
 				Usage:     "Execute lql query",
 				Action:    execQuery,
 				ArgsUsage: "lr query [command options] [lql query]",
-				Flags: []ucli.Flag{cmnFlags[0], cmnFlags[2], cmnFlags[5], cmnFlags[6], cmnFlags[7],
+				Flags: []ucli.Flag{cmnFlags[0], cmnFlags[2], cmnFlags[5],
+					cmnFlags[6], cmnFlags[7], cmnFlags[8],
 					&ucli.BoolFlag{
 						Name:  argQueryStreamMode,
 						Usage: "enable query stream mode (blocking)",
@@ -231,35 +239,40 @@ func pidFileName(cname string, cfg *client.Config) string {
 
 func applyArgsToCfg(c *ucli.Context, cfg *client.Config) error {
 	if sa := c.String(argServerAddr); sa != "" {
-		fmt.Println("server address is", sa)
+		fmt.Println("- server ", sa)
 		cfg.Transport.ListenAddr = sa
 	}
 
 	if sd := c.String(argStorageDir); sd != "" {
-		fmt.Println("storage location overwritten to", sd)
+		fmt.Println("- storage ", sd)
 		cfg.Storage.Type = storage.TypeFile
 		cfg.Storage.Location = sd
 	}
 
 	// TLS settings
-	if tc := c.String(argTlsCrt); tc != "" {
-		fmt.Println("using TLS cert", tc)
-		cfg.Transport.TlsCertFile = tc
-	}
-
-	if tk := c.String(argTlsCrt); tk != "" {
-		fmt.Println("using TLS key", tk)
-		cfg.Transport.TlsKeyFile = tk
+	if tlsEnabled := c.Bool(argTlsEnabled); tlsEnabled {
+		fmt.Println("- tls enabled")
+		cfg.Transport.TlsEnabled = utils.BoolPtr(true)
 	}
 
 	if tlsSkipVerify := c.Bool(argTlsSkipVerify); tlsSkipVerify {
-		fmt.Println("skip server verify during TLS handshake")
+		fmt.Println("- tls skip server verify")
 		cfg.Transport.TlsSkipVerify = utils.BoolPtr(true)
+	}
+
+	if tc := c.String(argTlsCrt); tc != "" {
+		fmt.Println("- tls cert", tc)
+		cfg.Transport.TlsCertFile = tc
+	}
+
+	if tk := c.String(argTlsKey); tk != "" {
+		fmt.Println("- tls key", tk)
+		cfg.Transport.TlsKeyFile = tk
 	}
 
 	// Collector settings
 	if incPath := c.StringSlice(argCltrInclude); len(incPath) > 0 {
-		fmt.Println("include path overwritten", incPath)
+		fmt.Println("- include path ", incPath)
 		cfg.Collector.IncludePaths = incPath
 	}
 
@@ -268,12 +281,12 @@ func applyArgsToCfg(c *ucli.Context, cfg *client.Config) error {
 		if err != nil {
 			return err
 		}
-		fmt.Println("data format overwritten", parserFmt)
+		fmt.Println("- data format ", parserFmt)
 		cfg.Collector.Schemas[0].DataFormat = df
 	}
 
 	if stopWhenEof := c.Bool(argCltrExistingDataOnly); stopWhenEof {
-		fmt.Println("will stop when all data is sent")
+		fmt.Println("- stop when all data is sent")
 		cfg.Collector.StopWhenNoData = true
 	}
 
@@ -282,7 +295,7 @@ func applyArgsToCfg(c *ucli.Context, cfg *client.Config) error {
 		if err != nil {
 			return err
 		}
-		fmt.Println("will use tags", mp)
+		fmt.Println("- use tags", mp)
 		cfg.Collector.Schemas[0].Meta.Tags = mp
 	}
 	return nil
