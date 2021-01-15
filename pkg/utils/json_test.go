@@ -29,8 +29,8 @@ func TestEscapeJsonStr(t *testing.T) {
 	}{
 		{name: "test1", args: struct{ s string }{s: ""}},
 		{name: "test2", args: struct{ s string }{s: "\""}},
-		{name: "test3", args: struct{ s string }{s: "ha\\\r\"haЛwПР\"" + string(0x19)}},
-		{name: "test4", args: struct{ s string }{s: string(0x20) + "\"\nЫqЛ\"\\ЫЗvz"}},
+		{name: "test3", args: struct{ s string }{s: "ha\\\r\"haЛwПР\"" + string(byte(0x19))}},
+		{name: "test4", args: struct{ s string }{s: string(byte(0x20)) + "\"\nЫqЛ\"\\ЫЗvz"}},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

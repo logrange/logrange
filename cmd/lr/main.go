@@ -43,6 +43,9 @@ const (
 	argServerAddr    = "server-addr"
 	argStorageDir    = "storage-dir"
 	argStartAsDaemon = "daemon"
+	argTlsCrt        = "tls-cert"
+	argTlsKey        = "tls-key"
+	argTlsSkipVerify = "tls-skip-verify"
 
 	argCltrInclude          = "files"
 	argCltrParser           = "format"
@@ -85,6 +88,18 @@ func main() {
 		&ucli.BoolFlag{
 			Name:  argStartAsDaemon,
 			Usage: "starting as a daemon (detached from the console).",
+		},
+		&ucli.StringFlag{
+			Name:  argTlsCrt,
+			Usage: "certificate file (for mTls handshake)",
+		},
+		&ucli.StringFlag{
+			Name:  argTlsKey,
+			Usage: "private key file (for mTls handshake)",
+		},
+		&ucli.BoolFlag{
+			Name:  argTlsSkipVerify,
+			Usage: "skip verify server (during mTls handshake)",
 		},
 	}
 
@@ -152,7 +167,7 @@ func main() {
 				Name:      "query",
 				Usage:     "Execute lql query",
 				Action:    execQuery,
-				ArgsUsage: "[lql query]",
+				ArgsUsage: "lr query [command options] [lql query]",
 				Flags: []ucli.Flag{cmnFlags[0], cmnFlags[2],
 					&ucli.BoolFlag{
 						Name:  argQueryStreamMode,
@@ -216,19 +231,35 @@ func pidFileName(cname string, cfg *client.Config) string {
 
 func applyArgsToCfg(c *ucli.Context, cfg *client.Config) error {
 	if sa := c.String(argServerAddr); sa != "" {
-		fmt.Println("server address is ", sa)
+		fmt.Println("server address is", sa)
 		cfg.Transport.ListenAddr = sa
 	}
 
 	if sd := c.String(argStorageDir); sd != "" {
-		fmt.Println("storage location overwritten to ", sd)
+		fmt.Println("storage location overwritten to", sd)
 		cfg.Storage.Type = storage.TypeFile
 		cfg.Storage.Location = sd
 	}
 
+	// TLS settings
+	if tc := c.String(argTlsCrt); tc != "" {
+		fmt.Println("using TLS cert", tc)
+		cfg.Transport.TlsCertFile = tc
+	}
+
+	if tk := c.String(argTlsCrt); tk != "" {
+		fmt.Println("using TLS key", tk)
+		cfg.Transport.TlsKeyFile = tk
+	}
+
+	if tlsSkipVerify := c.Bool(argTlsSkipVerify); tlsSkipVerify {
+		fmt.Println("skip server verify during TLS handshake")
+		cfg.Transport.TlsSkipVerify = utils.BoolPtr(true)
+	}
+
 	// Collector settings
 	if incPath := c.StringSlice(argCltrInclude); len(incPath) > 0 {
-		fmt.Println("include path overwritten ", incPath)
+		fmt.Println("include path overwritten", incPath)
 		cfg.Collector.IncludePaths = incPath
 	}
 
@@ -237,12 +268,12 @@ func applyArgsToCfg(c *ucli.Context, cfg *client.Config) error {
 		if err != nil {
 			return err
 		}
-		fmt.Println("data format overwritten ", parserFmt)
+		fmt.Println("data format overwritten", parserFmt)
 		cfg.Collector.Schemas[0].DataFormat = df
 	}
 
 	if stopWhenEof := c.Bool(argCltrExistingDataOnly); stopWhenEof {
-		fmt.Println("will stop when all data is sent ")
+		fmt.Println("will stop when all data is sent")
 		cfg.Collector.StopWhenNoData = true
 	}
 
@@ -251,7 +282,7 @@ func applyArgsToCfg(c *ucli.Context, cfg *client.Config) error {
 		if err != nil {
 			return err
 		}
-		fmt.Println("will use tags ", mp)
+		fmt.Println("will use tags", mp)
 		cfg.Collector.Schemas[0].Meta.Tags = mp
 	}
 	return nil
