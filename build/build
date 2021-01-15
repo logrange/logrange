@@ -201,6 +201,6 @@ if [[ ! -z ${UPLOAD} ]]; then
     cd ${SRC_PATH}
     check $?
 
-    aws s3 cp ${SRC_PATH}/binaries s3://get.logrange.io/binaries --recursive
+    aws s3 cp ${SRC_PATH}/binaries s3://get.logrange.io/binaries --recursive --profile logrange
     check $?
 fi
