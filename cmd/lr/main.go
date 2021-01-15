@@ -161,14 +161,14 @@ func main() {
 				Usage:     "Run lql shell",
 				UsageText: "lr shell [command options]",
 				Action:    runShell,
-				Flags:     []ucli.Flag{cmnFlags[0], cmnFlags[2]},
+				Flags:     []ucli.Flag{cmnFlags[0], cmnFlags[2], cmnFlags[5], cmnFlags[6], cmnFlags[7]},
 			},
 			{
 				Name:      "query",
 				Usage:     "Execute lql query",
 				Action:    execQuery,
 				ArgsUsage: "lr query [command options] [lql query]",
-				Flags: []ucli.Flag{cmnFlags[0], cmnFlags[2],
+				Flags: []ucli.Flag{cmnFlags[0], cmnFlags[2], cmnFlags[5], cmnFlags[6], cmnFlags[7],
 					&ucli.BoolFlag{
 						Name:  argQueryStreamMode,
 						Usage: "enable query stream mode (blocking)",
