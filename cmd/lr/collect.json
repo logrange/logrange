@@ -28,10 +28,10 @@
   "Transport": {
     "ListenAddr": "127.0.0.1:9966",
     "TlsEnabled": false,
-    "Tls2Way": false,
+    "TlsSkipVerify": false,
     "TlsCertFile": "/opt/logrange/lr/tls/client.crt",
     "TlsKeyFile": "/opt/logrange/lr/tls/client.key",
-    "TlsCAFile": "/opt/logrange/lr/tls/ca.pem"
+    "TlsCAFile": "/opt/logrange/lr/tls/ca.crt"
   },
 
   "Storage": {
