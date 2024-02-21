@@ -27,14 +27,14 @@ cd lrquick
 
 ### Step 2. Install logrange server and run it
 ```bash
-curl -s http://get.logrange.io/install | bash -s logrange -d ./bin
+curl -s http://logrange.io/download/install | bash -s logrange -d ./bin
 ./bin/logrange start --base-dir=./data --daemon
 ```
 Normally, you have to see something like `Started. pid=12345`
 
 ### Step 3. Install logrange client and start collecting logs from the machine
 ```bash
-curl -s http://get.logrange.io/install | bash -s lr -d ./bin
+curl -s http://logrange.io/download/install | bash -s lr -d ./bin
 ./bin/lr collect --storage-dir=./collector --daemon
 ```
 The command above runs collector in background. It will send logs found in `/var/log` folder to the logrange server started in step 2.

@@ -62,7 +62,11 @@ else
 fi
 
 ARCH=$(uname -m)
-if [[ "$ARCH" != "x86_64" ]]; then
+if [[ "${ARCH}" == "x86_64" ]]; then
+    ARCH="amd64"
+elif [[ "${ARCH}" == "arm64" ]]; then
+    ARCH="arm64"
+else
     error "Architecture '${ARCH}' is not supported!"
 fi
 
@@ -81,7 +85,7 @@ fi
 
 DEST=$(pwd)
 
-URL=http://get.logrange.io/binaries/${VERSION}/${OS}/${ARCH}/${CMD}
+URL=http://logrange.io/download/binaries/${VERSION}/${OS}/${ARCH}/${CMD}
 echo "Downloading from ${URL} to ${DEST} ..."
 
 curl -sOfL ${URL}

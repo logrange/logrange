@@ -22,9 +22,6 @@ while [[ "$1" != "" ]]; do
             shift
             BRANCH=$1
             ;;
-        -u|--upload)
-            UPLOAD=1
-            ;;
         -r|--release)
             shift
             VERSION=$1
@@ -54,7 +51,6 @@ OPTIONS:
     -r, --release <version> defines the release version. Version must be in the form vX.Y.Z[suffix]
                             where X, Y and Z an numbers. Visit https://semver.org/
     -l, --latest            put into latest version the same context as for the release version
-    -u, --upload            allows to upload the artifacts to S3
     -h, --help              prints the help
 
 EOT
@@ -158,23 +154,25 @@ echo "Building logrange binaries to ${SRC_PATH}/binaries/${VERSION}..."
 mkdir -p ${SRC_PATH}/binaries/${VERSION}
 check $?
 
-ARCH="amd64"
 for OS in "linux" "darwin"
 do
-    cd ${SRC_PATH}/binaries/${VERSION}
-    mkdir -p ${OS}/x86_64
-    check $?
-
-    cd ${OS}/x86_64
-    check $?
-
-    for cmd in "logrange" "lr"
+    for ARCH in "amd64" "arm64"
     do
-        echo "Building cmd=${cmd}, os=${OS}, arch=${ARCH}..."
-        env GOPATH=${TMP_PATH} GOOS=${OS} GOARCH=${ARCH} GO111MODULE=on \
-            go build -o ./${cmd} github.com/logrange/logrange/cmd/${cmd}
+        cd ${SRC_PATH}/binaries/${VERSION}
+        mkdir -p ${OS}/${ARCH}
         check $?
-     done
+
+        cd ${OS}/${ARCH}
+        check $?
+
+        for cmd in "logrange" "lr"
+        do
+            echo "Building cmd=${cmd}, os=${OS}, arch=${ARCH}..."
+            env GOPATH=${TMP_PATH} GOOS=${OS} GOARCH=${ARCH} GO111MODULE=on \
+		go build -o ./${cmd} github.com/logrange/logrange/cmd/${cmd}
+            check $?
+        done
+    done
 done
 
 if [[ ! -z $BRANCH ]]; then
@@ -195,12 +193,3 @@ if [[ ! -z ${LATEST} ]]; then
     cp -r ${SRC_PATH}/binaries/${VERSION}/ ${SRC_PATH}/binaries/latest
 fi
 
-if [[ ! -z ${UPLOAD} ]]; then
-    echo "Uploading logrange binaries to s3://get.logrange.io/binaries..."
-
-    cd ${SRC_PATH}
-    check $?
-
-    aws s3 cp ${SRC_PATH}/binaries s3://get.logrange.io/binaries --recursive --profile logrange
-    check $?
-fi
