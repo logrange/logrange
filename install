@@ -85,7 +85,7 @@ fi
 
 DEST=$(pwd)
 
-URL=http://logrange.io/download/binaries/${VERSION}/${OS}/${ARCH}/${CMD}
+URL=https://logrange.io/download/binaries/${VERSION}/${OS}/${ARCH}/${CMD}
 echo "Downloading from ${URL} to ${DEST} ..."
 
 curl -sOfL ${URL}
